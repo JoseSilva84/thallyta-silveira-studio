@@ -20,7 +20,7 @@ export default function Hero() {
       <div className="section-shell grid min-h-[calc(100vh-7rem)] items-center gap-10 pb-14 lg:grid-cols-[0.92fr_0.78fr]">
         <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }}>
           <p className="mb-4 text-xs font-bold uppercase tracking-[0.34em] text-gold-light">Studio de Beleza</p>
-          <div className="hero-logo-wrap w-full max-w-[820px]" aria-label="Thallyta Silveira Cabeleireira e Nail Designer">
+          <div className="hero-logo-wrap w-full max-w-[920px]" aria-label="Thallyta Silveira Cabeleireira e Nail Designer">
             <img src="/logo.png" alt="Thallyta Silveira Cabeleireira e Nail Designer" className="hero-logo w-full" />
           </div>
           <p className="mt-6 max-w-xl text-base leading-8 text-cream/72 md:text-lg">
