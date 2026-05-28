@@ -1,0 +1,18 @@
+export const galleryImages = [
+  { src: '/img/mobile.jpg', category: 'Estúdio', alt: 'Mockup visual do Studio Thallyta Silveira' },
+  { src: '/img/studio-01.jpeg', category: 'Estúdio', alt: 'Foto do Studio Thallyta Silveira' },
+  { src: '/img/studio-02.jpeg', category: 'Unhas', alt: 'Trabalho de nail design' },
+  { src: '/img/studio-03.jpeg', category: 'Cabelo', alt: 'Resultado de cabelo no studio' },
+  { src: '/img/studio-04.jpeg', category: 'Unhas', alt: 'Alongamento de unhas' },
+  { src: '/img/studio-05.jpeg', category: 'Cabelo', alt: 'Serviço de cabelo' },
+  { src: '/img/studio-06.jpeg', category: 'Estúdio', alt: 'Detalhes do ambiente do salão' },
+  { src: '/img/studio-07.jpeg', category: 'Unhas', alt: 'Esmaltação em gel' },
+  { src: '/img/studio-08.jpeg', category: 'Cabelo', alt: 'Finalização de cabelo' },
+  { src: '/img/studio-09.jpeg', category: 'Estúdio', alt: 'Espaço de atendimento' },
+  { src: '/img/studio-10.jpeg', category: 'Unhas', alt: 'Unhas decoradas' },
+  { src: '/img/studio-11.jpeg', category: 'Cabelo', alt: 'Tratamento capilar' },
+  { src: '/img/studio-12.jpeg', category: 'Estúdio', alt: 'Studio de beleza premium' },
+  { src: '/img/studio-13.jpeg', category: 'Unhas', alt: 'Resultado de unhas' },
+  { src: '/img/studio-14.jpeg', category: 'Cabelo', alt: 'Cabelo finalizado' },
+  { src: '/img/studio-15.jpeg', category: 'Estúdio', alt: 'Foto do ambiente' },
+]
