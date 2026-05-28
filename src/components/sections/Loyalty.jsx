@@ -15,7 +15,7 @@ export default function Loyalty() {
   }, [bookings])
 
   return (
-    <section id="fidelidade" className="py-20">
+    <section id="fidelidade" className="premium-section py-16 md:py-20">
       <div className="section-shell">
         <SectionTitle eyebrow="Fidelidade" title="Seu cuidado também rende presentes" />
         <Reveal>

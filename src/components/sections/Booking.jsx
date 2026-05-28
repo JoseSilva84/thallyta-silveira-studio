@@ -17,7 +17,10 @@ export default function Booking() {
   const [time, setTime] = useState('09:00')
   const [name, setName] = useState('')
 
-  const progress = useMemo(() => [selectedServices.length > 0, Boolean(date), Boolean(time), Boolean(name || user)].filter(Boolean).length, [selectedServices, date, time, name, user])
+  const progress = useMemo(
+    () => [selectedServices.length > 0, Boolean(date), Boolean(time), Boolean(name || user)].filter(Boolean).length,
+    [selectedServices, date, time, name, user],
+  )
 
   const submit = () => {
     if (!selectedServices.length) return toast.warn('Escolha pelo menos um serviço.')
@@ -26,48 +29,52 @@ export default function Booking() {
       return toast.info('Entre para confirmar seu agendamento.')
     }
     confirmBooking({ customer: name || user.name, services: selectedServices, date, time })
-    toast.success(`🎉 Agendamento confirmado! Até logo, ${name || user.name}!`)
+    toast.success(`Agendamento confirmado! Até logo, ${name || user.name}!`)
   }
 
   return (
-    <section id="agendamento" className="py-20">
+    <section id="agendamento" className="premium-section py-16 md:py-20">
       <div className="section-shell">
         <SectionTitle eyebrow="Agendamento" title="Reserve seu horário" text="Monte seu atendimento em poucos passos." />
         <Reveal>
-          <div className="gold-border rounded-lg bg-dark-card/80 p-4 md:p-8">
-            <div className="mb-8 grid grid-cols-4 gap-2">
+          <div className="gold-border overflow-hidden rounded-lg bg-dark-card/80 p-4 md:p-6 xl:p-8">
+            <div className="mb-7 grid grid-cols-4 gap-2">
               {[1, 2, 3, 4].map((step) => (
                 <div key={step} className={`h-2 rounded-full ${progress >= step ? 'silver-glow bg-gold' : 'bg-white/14'}`} />
               ))}
             </div>
-            <div className="grid gap-8 lg:grid-cols-[1fr_0.85fr]">
-              <div className="space-y-8">
-                <div>
-                  <h3 className="mb-4 font-display text-3xl">1. Serviços</h3>
-                  <div className="grid gap-3 sm:grid-cols-2">
+
+            <div className="grid min-w-0 gap-7 xl:grid-cols-[minmax(0,1fr)_minmax(320px,390px)]">
+              <div className="min-w-0 space-y-8">
+                <section aria-labelledby="booking-services">
+                  <h3 id="booking-services" className="mb-4 font-display text-3xl">1. Serviços</h3>
+                  <div className="grid min-w-0 gap-3 md:grid-cols-2">
                     {allServices.map((service) => (
-                      <label key={service.id} className="tap-gold flex cursor-pointer items-start gap-3 rounded-md border border-dark-border bg-white/10 p-3 text-sm backdrop-blur">
-                        <input type="checkbox" checked={selectedServices.some((item) => item.id === service.id)} onChange={() => toggleService(service)} className="mt-1 accent-gold" />
-                        <span>
-                          <span className="block font-bold">{service.name}</span>
-                          <span className="text-gold-light">{service.price}</span>
+                      <label key={service.id} className="tap-gold flex min-w-0 cursor-pointer items-start gap-3 rounded-md border border-dark-border bg-white/10 p-3 text-sm backdrop-blur">
+                        <input type="checkbox" checked={selectedServices.some((item) => item.id === service.id)} onChange={() => toggleService(service)} className="mt-1 shrink-0 accent-gold" />
+                        <span className="min-w-0">
+                          <span className="block break-words font-bold">{service.name}</span>
+                          <span className="block break-words text-gold-light">{service.price}</span>
                         </span>
                       </label>
                     ))}
                   </div>
-                </div>
-                <div>
-                  <h3 className="mb-4 font-display text-3xl">2. Data</h3>
+                </section>
+
+                <section aria-labelledby="booking-date">
+                  <h3 id="booking-date" className="mb-4 font-display text-3xl">2. Data</h3>
                   <BookingCalendar selectedDate={date} onSelect={setDate} />
-                </div>
-                <div>
-                  <h3 className="mb-4 font-display text-3xl">3. Horário</h3>
+                </section>
+
+                <section aria-labelledby="booking-time">
+                  <h3 id="booking-time" className="mb-4 font-display text-3xl">3. Horário</h3>
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                     {timeSlots.map((slot) => <TimeSlot key={slot} time={slot} selected={time === slot} onClick={() => setTime(slot)} />)}
                   </div>
-                </div>
+                </section>
               </div>
-              <aside className="rounded-lg border border-gold/20 bg-white/10 p-4 backdrop-blur md:p-5">
+
+              <aside className="min-w-0 rounded-lg border border-gold/20 bg-white/10 p-4 backdrop-blur md:p-5 xl:sticky xl:top-28 xl:self-start">
                 <h3 className="font-display text-3xl">4. Confirmação</h3>
                 <label className="mt-5 block text-sm text-cream/75">
                   Nome

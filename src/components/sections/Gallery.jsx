@@ -13,7 +13,7 @@ export default function Gallery() {
   const images = useMemo(() => (filter === 'Todas' ? galleryImages : galleryImages.filter((image) => image.category === filter)), [filter])
 
   return (
-    <section id="galeria" className="py-16 md:py-20">
+    <section id="galeria" className="premium-section py-16 md:py-20">
       <div className="section-shell">
         <SectionTitle eyebrow="Galeria" title="Resultados e detalhes do studio" />
         <Reveal>
