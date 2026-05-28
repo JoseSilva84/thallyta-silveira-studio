@@ -2,7 +2,11 @@ import { FiPlus } from 'react-icons/fi'
 
 export default function ServiceCard({ service, onAdd }) {
   return (
-    <article className="gold-border tap-gold flex min-h-36 flex-col justify-between rounded-lg bg-dark-card/80 p-5 shadow-2xl shadow-black/20">
+    <article className="service-price-card gold-border tap-gold flex min-h-36 flex-col justify-between overflow-hidden rounded-lg bg-dark-card/80 shadow-2xl shadow-black/20">
+      {service.image && (
+        <img src={service.image} alt={service.name} className="h-40 w-full object-cover" loading="lazy" />
+      )}
+      <div className="flex flex-1 flex-col justify-between p-5">
       <div>
         <p className="text-xs uppercase tracking-[0.22em] text-gold-light/80">{service.group}</p>
         <h3 className="mt-2 font-display text-2xl font-semibold text-cream">{service.name}</h3>
@@ -16,6 +20,7 @@ export default function ServiceCard({ service, onAdd }) {
         <FiPlus aria-hidden="true" />
         Adicionar ao Agendamento
       </button>
+      </div>
     </article>
   )
 }

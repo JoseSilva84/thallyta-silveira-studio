@@ -23,13 +23,13 @@ export default function About() {
             </p>
             <div className="mt-8 grid gap-4 sm:grid-cols-3">
               {pillars.map(([label, Icon]) => (
-                <div key={label} className="gold-border tap-gold rounded-lg bg-dark-card p-5 text-center">
+                <div key={label} className="about-pillar gold-border tap-gold rounded-lg bg-dark-card p-5 text-center">
                   <Icon className="mx-auto mb-3 text-2xl text-gold-light" />
                   <p className="font-display text-2xl font-semibold">{label}</p>
                 </div>
               ))}
             </div>
-            <p className="mt-6 rounded-lg border border-gold/15 bg-black/25 p-5 text-sm leading-7 text-cream/68">
+            <p className="about-specialty mt-6 rounded-lg border border-gold/15 bg-black/25 p-5 text-sm leading-7 text-cream/68">
               Atendimento especializado em nail design, alongamento, manutenção, escova, alisamento, botox capilar e finalizações.
             </p>
           </Reveal>
