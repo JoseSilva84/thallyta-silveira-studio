@@ -17,7 +17,7 @@ export default function Loyalty() {
   return (
     <section id="fidelidade" className="premium-section py-16 md:py-20">
       <div className="section-shell">
-        <SectionTitle eyebrow="Fidelidade" title="Seu cuidado também rende presentes" />
+        <SectionTitle eyebrow="Fidelidade" title="Recompensas Especiais" />
         <Reveal>
           {user ? (
             <div className="grid gap-8 lg:grid-cols-[0.8fr_1fr]">

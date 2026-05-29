@@ -19,9 +19,9 @@ export default function Location() {
               <p className="mt-4 leading-7 text-cream/72">Rua José Firmino da Costa, Centro, 481 — Ao lado de Carmela Dutra</p>
               <div className="mt-6 flex gap-3 rounded-md border border-dark-border bg-white/10 p-4 backdrop-blur">
                 <FiClock className="mt-1 text-gold-light" />
-                <p className="text-sm leading-7 text-cream/72">Segunda a sábado: 09:00 às 18:00<br />Domingo: fechado</p>
+                <p className="text-sm leading-7 text-cream/72">Domingo a sexta: 09:00 às 18:00<br />Sábado: fechado</p>
               </div>
-              <p className="mt-5 text-sm text-cream/72">@studiodebelezathallytasilveira<br />(88) 98186-0582</p>
+              <p className="mt-5 text-sm text-cream/72"><a href="http://instagram.com/studiodebelezathallytasilveira" target="_blank" rel="noreferrer" className="text-gold-light hover:underline">/@studiodebelezathallytasilveira</a><br />(88) 98186-0582</p>
               <a href={directionsUrl} target="_blank" rel="noreferrer" className="gold-button mt-6 inline-flex items-center gap-2 rounded-md px-5 py-3 font-bold">
                 <FiNavigation /> Como Chegar
               </a>

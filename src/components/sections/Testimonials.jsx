@@ -17,7 +17,7 @@ export default function Testimonials() {
   return (
     <section className="py-20">
       <div className="section-shell">
-        <SectionTitle eyebrow="Depoimentos" title="Clientes que já vivem essa experiência" />
+        <SectionTitle eyebrow="Depoimentos" title="Experiências Reais" />
         <Reveal>
           <div className="gold-border mx-auto max-w-3xl rounded-lg bg-dark-card/80 p-8 text-center">
             <div className="mb-5 flex justify-center gap-1 text-gold-light">
