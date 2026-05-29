@@ -1,10 +1,9 @@
-export default function LoyaltyCard({ stamps = 4 }) {
+export default function LoyaltyCard({ stamps = 4, preview = false }) {
   return (
-    <div className="gold-border rounded-lg bg-dark-card/80 p-6">
+    <div className="loyalty-preview-card gold-border h-full rounded-lg bg-dark-card/80 p-6">
       <div className="mb-6 flex items-center justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-[0.28em] text-gold-light">Cartão fidelidade</p>
-          <h3 className="mt-2 font-display text-3xl font-semibold">Studio TS</h3>
         </div>
         <span className="rounded-full bg-gold px-4 py-2 text-sm font-bold text-dark">{stamps}/10</span>
       </div>
@@ -23,6 +22,7 @@ export default function LoyaltyCard({ stamps = 4 }) {
         ))}
       </div>
       <p className="mt-5 text-sm text-cream/70">{10 - stamps} selos para sua próxima manutenção grátis!</p>
+      {preview && <p className="mt-2 text-xs text-cream/45">Exemplo visual para você entender sua evolução no programa.</p>}
     </div>
   )
 }

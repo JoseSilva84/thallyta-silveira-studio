@@ -51,7 +51,7 @@ body::after {
   pointer-events: none;
   background:
     radial-gradient(circle at 30% 0%, rgba(255, 231, 168, 0.2), transparent 44%),
-    linear-gradient(90deg, rgba(9, 8, 7, 0.86), rgba(49, 41, 50, 0.66));
+    linear-gradient(90deg, rgba(9, 8, 7, 0.7), rgba(49, 41, 50, 0.46));
 }
 
 button,
@@ -249,6 +249,109 @@ section[id] {
 .service-price-card:hover img {
   transform: scale(1.045);
   filter: saturate(1.12) brightness(1.04);
+}
+
+.gallery-slider {
+  position: relative;
+  overflow: hidden;
+}
+
+.gallery-slider::before {
+  content: "";
+  position: absolute;
+  inset: -40% -20%;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, rgba(217, 177, 92, 0.13), transparent 62%);
+  animation: gallery-slider-glow 5.5s ease-in-out infinite;
+}
+
+.gallery-slider-photo {
+  box-shadow:
+    0 18px 42px rgba(0, 0, 0, 0.32),
+    0 0 0 1px rgba(247, 230, 168, 0.16);
+}
+
+.gallery-slider-photo img {
+  transform-origin: center;
+  animation: gallery-image-breathe 6s ease-in-out infinite;
+}
+
+.gallery-slider-arrow {
+  position: relative;
+  z-index: 2;
+}
+
+.loyalty-preview-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.loyalty-preview-card::before {
+  content: "";
+  position: absolute;
+  inset: -30% -20%;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, rgba(217, 177, 92, 0.18), transparent 62%);
+  animation: loyalty-card-glow 4.8s ease-in-out infinite;
+}
+
+.loyalty-preview-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.loyalty-preview-card .silver-glow {
+  position: relative;
+  overflow: hidden;
+  animation: loyalty-stamp-pulse 2.8s ease-in-out infinite;
+  transition:
+    transform 0.32s ease,
+    border-color 0.32s ease,
+    color 0.32s ease,
+    background 0.32s ease,
+    box-shadow 0.32s ease;
+}
+
+.loyalty-preview-card .silver-glow::after {
+  content: "";
+  position: absolute;
+  inset: -35%;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 34%, rgba(255, 244, 193, 0.52) 48%, transparent 62%);
+  opacity: 0;
+  transform: translateX(-80%) rotate(12deg);
+  transition: opacity 0.24s ease;
+}
+
+.loyalty-preview-card .silver-glow:hover {
+  z-index: 2;
+  border-color: rgba(255, 240, 170, 0.92);
+  background:
+    radial-gradient(circle, rgba(255, 228, 139, 0.18), rgba(0, 0, 0, 0.35) 72%);
+  color: #FFF1B8;
+  transform: translateY(-6px) scale(1.08);
+  box-shadow:
+    0 0 0 1px rgba(255, 240, 170, 0.78),
+    0 0 34px rgba(246, 219, 144, 0.72),
+    0 16px 34px rgba(0, 0, 0, 0.36),
+    inset 0 1px 0 rgba(255, 255, 255, 0.34);
+}
+
+.loyalty-preview-card .silver-glow:hover::after {
+  opacity: 1;
+  animation: stamp-hover-sweep 0.9s ease forwards;
+}
+
+.loyalty-step {
+  animation: loyalty-step-float 4.6s ease-in-out infinite;
+}
+
+.loyalty-step:nth-child(2) {
+  animation-delay: 0.25s;
+}
+
+.loyalty-step:nth-child(3) {
+  animation-delay: 0.5s;
 }
 
 .frosted-panel {
@@ -661,6 +764,70 @@ label.cursor-pointer:active {
   }
 }
 
+@keyframes gallery-slider-glow {
+  0%, 100% {
+    opacity: 0.45;
+    transform: scale(0.98);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.04);
+  }
+}
+
+@keyframes gallery-image-breathe {
+  0%, 100% {
+    filter: saturate(1.02) brightness(1);
+  }
+  50% {
+    filter: saturate(1.08) brightness(1.04);
+  }
+}
+
+@keyframes loyalty-card-glow {
+  0%, 100% {
+    opacity: 0.42;
+    transform: scale(0.98);
+  }
+  50% {
+    opacity: 0.86;
+    transform: scale(1.04);
+  }
+}
+
+@keyframes loyalty-stamp-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 0 1px rgba(246, 231, 177, 0.48),
+      0 0 24px rgba(246, 219, 144, 0.38),
+      inset 0 1px 0 rgba(255, 255, 255, 0.24);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(246, 231, 177, 0.72),
+      0 0 34px rgba(246, 219, 144, 0.58),
+      inset 0 1px 0 rgba(255, 255, 255, 0.34);
+  }
+}
+
+@keyframes loyalty-step-float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes stamp-hover-sweep {
+  from {
+    transform: translateX(-80%) rotate(12deg);
+  }
+  to {
+    transform: translateX(80%) rotate(12deg);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -709,5 +876,13 @@ label.cursor-pointer:active {
   .gallery-close {
     right: 0.5rem;
     top: 0.5rem;
+  }
+
+  .gallery-slider {
+    padding: 0.75rem;
+  }
+
+  .gallery-slider-photo img {
+    height: 360px;
   }
 }
