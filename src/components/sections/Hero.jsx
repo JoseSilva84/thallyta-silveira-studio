@@ -20,7 +20,7 @@ export default function Hero() {
       <div className="section-shell grid min-h-[calc(100vh-7rem)] items-center gap-10 pb-14 lg:grid-cols-[0.92fr_0.78fr]">
         <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }}>
           <p className="mb-1 text-xs font-bold uppercase tracking-[0.34em] text-gold-light">Studio de Beleza</p>
-          <div className="hero-logo-wrap w-full max-w-[920px]" aria-label="Thallyta Silveira Cabeleireira e Nail Designer">
+          <div className="hero-logo-wrap w-full max-w-[400px]" aria-label="Thallyta Silveira Cabeleireira e Nail Designer">
             <img src="/logo.png" alt="Thallyta Silveira Cabeleireira e Nail Designer" className="hero-logo w-full" />
           </div>
           <p className="mt-2 max-w-xl text-base leading-8 text-cream/72 md:text-lg">
@@ -28,7 +28,7 @@ export default function Hero() {
           </p>
           <div className="mt-4 flex flex-col gap-3 sm:flex-row">
             <a href="#agendamento" className="gold-button inline-flex items-center justify-center gap-2 rounded-md px-6 py-3 font-bold">
-              Comecar Agendamento <FiArrowRight />
+              Começar Agendamento <FiArrowRight />
             </a>
             <a href="#sobre" className="tap-gold inline-flex items-center justify-center rounded-md border border-gold/40 bg-white/10 px-6 py-3 font-bold text-gold-light backdrop-blur hover:bg-white/15">
               Conheca o Estudio
@@ -38,7 +38,7 @@ export default function Hero() {
         <motion.div className="hero-photo-stage relative" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.8, delay: 0.15 }}>
           <div className="hero-photo-aura" />
           <div className="hero-photo-frame gold-border silver-glow overflow-hidden rounded-[2rem] bg-dark-card p-2">
-            <div className="relative h-[440px] w-full rounded-[1.55rem] sm:h-[520px] lg:h-[560px]">
+            <div className="relative h-[440px] w-full rounded-[1.55rem] sm:h-[480px] lg:h-[520px]">
               <AnimatePresence mode="wait">
                 <motion.img
                   key={heroImages[activeImage]}

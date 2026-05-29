@@ -12,7 +12,7 @@ export default function About() {
   return (
     <section id="sobre" className="py-20">
       <div className="section-shell">
-        <SectionTitle eyebrow="Conheça o Estúdio" title="Cuidado premium com toque pessoal" text="Um espaço pensado para receber você com conforto, escuta e excelência em cada detalhe." />
+        <SectionTitle eyebrow="Conheça o Estúdio" title="Cuidado premium" text="Um espaço pensado para receber você com conforto, escuta e excelência em cada detalhe." />
         <div className="grid items-center gap-10 lg:grid-cols-[0.9fr_1fr]">
           <Reveal>
             <img src="/img/studio-06.jpeg" alt="Ambiente do Studio Thallyta Silveira" className="gold-border h-[460px] w-full rounded-lg object-cover" loading="lazy" />
