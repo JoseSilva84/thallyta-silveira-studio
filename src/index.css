@@ -182,7 +182,7 @@ section[id] {
 .hero-logo-wrap {
   position: relative;
   display: inline-block;
-  margin-top: clamp(1.25rem, 5vh, 4.5rem);
+  margin-top: clamp(0.25rem, 1.4vh, 1rem);
   transform: translateX(-3%);
   overflow: visible;
 }
@@ -687,7 +687,7 @@ label.cursor-pointer:active {
   }
 
   .hero-logo-wrap {
-    margin-top: 1.5rem;
+    margin-top: 0.5rem;
     transform: none;
   }
 

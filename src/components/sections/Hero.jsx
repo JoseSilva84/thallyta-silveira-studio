@@ -19,14 +19,14 @@ export default function Hero() {
     <section id="inicio" className="relative min-h-screen pt-28">
       <div className="section-shell grid min-h-[calc(100vh-7rem)] items-center gap-10 pb-14 lg:grid-cols-[0.92fr_0.78fr]">
         <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }}>
-          <p className="mb-4 text-xs font-bold uppercase tracking-[0.34em] text-gold-light">Studio de Beleza</p>
+          <p className="mb-1 text-xs font-bold uppercase tracking-[0.34em] text-gold-light">Studio de Beleza</p>
           <div className="hero-logo-wrap w-full max-w-[920px]" aria-label="Thallyta Silveira Cabeleireira e Nail Designer">
             <img src="/logo.png" alt="Thallyta Silveira Cabeleireira e Nail Designer" className="hero-logo w-full" />
           </div>
-          <p className="mt-6 max-w-xl text-base leading-8 text-cream/72 md:text-lg">
+          <p className="mt-2 max-w-xl text-base leading-8 text-cream/72 md:text-lg">
             Cabelos e unhas com acabamento premium, atendimento cuidadoso e uma experiencia feita para voce se sentir confiante.
           </p>
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
             <a href="#agendamento" className="gold-button inline-flex items-center justify-center gap-2 rounded-md px-6 py-3 font-bold">
               Comecar Agendamento <FiArrowRight />
             </a>
