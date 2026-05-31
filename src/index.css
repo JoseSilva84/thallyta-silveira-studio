@@ -182,8 +182,14 @@ section[id] {
   position: relative;
   display: inline-block;
   margin-top: clamp(0.25rem, 1.4vh, 1rem);
-  transform: translateX(-3%);
+  transform: translateX(14%);
   overflow: visible;
+}
+
+@media (min-width: 768px) {
+  .hero-logo-wrap {
+    transform: translateX(0%);
+  }
 }
 
 .hero-logo-wrap::before {
@@ -199,14 +205,21 @@ section[id] {
 
 .hero-logo {
   display: block;
-  width: min(138%, 1040px);
-  max-width: none;
-  margin-left: -15%;
+  width: 100%;
+  max-width: 100%;
   filter:
     drop-shadow(0 0 10px rgba(216, 181, 91, 0.26))
     drop-shadow(0 12px 24px rgba(0, 0, 0, 0.24));
   transform-origin: center;
   animation: logo-glow 4.6s ease-in-out infinite;
+}
+
+@media (min-width: 768px) {
+  .hero-logo {
+    width: min(138%, 1040px);
+    max-width: none;
+    margin-left: -10%;
+  }
 }
 
 .about-pillar {

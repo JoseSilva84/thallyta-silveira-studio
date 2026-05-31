@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { motion } from 'framer-motion'
 import { FiCalendar, FiGrid, FiHome, FiMenu, FiUser, FiX } from 'react-icons/fi'
 import LoginModal from '../auth/LoginModal.jsx'
 import UserProfile from '../auth/UserProfile.jsx'
@@ -57,7 +58,7 @@ export default function Navbar() {
 
   return (
     <>
-      <header className="fixed inset-x-0 top-0 z-50 px-0 pt-0 transition-all duration-300 md:px-4 md:pt-3">
+      <header className="hidden md:block fixed inset-x-0 top-0 z-50 px-0 pt-0 transition-all duration-300 md:px-4 md:pt-3">
         <nav className="section-shell flex h-20 items-center justify-between">
           <div className={`silver-nav flex w-full items-center justify-between rounded-none px-4 py-3 transition md:rounded-full md:px-5 ${scrolled ? 'shadow-2xl' : ''}`}>
             <a
@@ -131,19 +132,33 @@ export default function Navbar() {
         </div>
       )}
 
-      <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-gold/25 bg-cream/78 px-3 py-2 text-dark shadow-2xl backdrop-blur-2xl md:hidden" aria-label="Navegação principal mobile">
-        <div className="mx-auto grid max-w-md grid-cols-4">
-          {mobileLinks.map(([label, href, Icon]) => (
-            <a
-              key={href}
-              href={href}
-              className={`mobile-nav-link tap-gold flex min-h-12 flex-col items-center justify-center gap-1 rounded-md text-[0.66rem] font-bold uppercase tracking-tight hover:bg-gold/30 ${isActive(href) ? 'active' : ''}`}
-              aria-current={isActive(href) ? 'page' : undefined}
-            >
-              <Icon className="text-lg" />
-              {label}
-            </a>
-          ))}
+      <nav className="silver-nav fixed inset-x-4 bottom-2 z-50 mx-auto max-w-sm rounded-2xl p-1.5 md:hidden" aria-label="Navegação principal mobile">
+        <div className="grid grid-cols-4 gap-1">
+          {mobileLinks.map(([label, href, Icon]) => {
+            const active = isActive(href)
+            return (
+              <a
+                key={href}
+                href={href}
+                className={`relative flex min-h-[3.75rem] flex-col items-center justify-center gap-1 rounded-xl transition-colors duration-300 ${
+                  active ? 'text-gold-light' : 'text-cream/50 hover:bg-white/5 hover:text-cream/90'
+                }`}
+                aria-current={active ? 'page' : undefined}
+              >
+                {active && (
+                  <motion.div
+                    layoutId="mobile-nav-indicator"
+                    className="absolute inset-0 z-0 rounded-xl border border-gold/20 bg-gold/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]"
+                    transition={{ type: 'spring', bounce: 0.25, duration: 0.5 }}
+                  />
+                )}
+                <Icon className={`relative z-10 transition-all duration-300 ${active ? 'text-[1.35rem] drop-shadow-[0_0_8px_rgba(247,230,168,0.5)]' : 'text-[1.25rem]'}`} />
+                <span className="relative z-10 text-[0.65rem] font-bold tracking-wider uppercase">
+                  {label}
+                </span>
+              </a>
+            )
+          })}
         </div>
       </nav>
       <LoginModal />
