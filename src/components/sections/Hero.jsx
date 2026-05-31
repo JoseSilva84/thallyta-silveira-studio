@@ -16,16 +16,16 @@ export default function Hero() {
   }, [])
 
   return (
-    <section id="inicio" className="relative min-h-[100dvh] pt-10 lg:pt-28">
-      <div className="section-shell flex flex-col lg:grid lg:min-h-[calc(100vh-7rem)] lg:items-center gap-8 lg:gap-10 pb-28 lg:pb-14 lg:grid-cols-[0.92fr_0.78fr]">
+    <section id="inicio" className="relative min-h-[100dvh] md:min-h-0 lg:min-h-[100dvh] pt-10 md:pt-36 lg:pt-28">
+      <div className="section-shell flex flex-col md:grid md:min-h-0 lg:min-h-[calc(100vh-7rem)] md:items-center gap-8 md:gap-10 pb-28 md:pb-14 md:grid-cols-[0.92fr_0.78fr]">
         <motion.div className="flex flex-col" initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }}>
           <p className="mb-1 text-xs font-bold uppercase tracking-[0.34em] text-gold-light">Studio de Beleza</p>
-          <div className="hero-logo-wrap w-[85%] max-w-[280px] sm:max-w-[320px] lg:w-full lg:max-w-[400px]" aria-label="Thallyta Silveira Cabeleireira e Nail Designer">
+          <div className="hero-logo-wrap w-[85%] max-w-[280px] sm:max-w-[320px] md:w-[90%] md:max-w-[300px] lg:w-full lg:max-w-[400px]" aria-label="Thallyta Silveira Cabeleireira e Nail Designer">
             <img src="/logo.png" alt="Thallyta Silveira Cabeleireira e Nail Designer" className="hero-logo w-full" />
           </div>
 
           {/* MOBILE PHOTO STAGE */}
-          <div className="hero-photo-stage relative my-6 mx-auto block w-[90%] max-w-[340px] lg:hidden">
+          <div className="hero-photo-stage relative my-6 mx-auto block w-[90%] max-w-[340px] md:hidden">
             <div className="hero-photo-aura" />
             <div className="hero-photo-frame gold-border silver-glow overflow-hidden rounded-[2rem] bg-dark-card p-2">
               <div className="relative h-[360px] w-full rounded-[1.55rem] sm:h-[400px]">
@@ -61,7 +61,7 @@ export default function Hero() {
         </motion.div>
         
         {/* DESKTOP PHOTO STAGE */}
-        <motion.div className="hero-photo-stage relative hidden lg:block" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.8, delay: 0.15 }}>
+        <motion.div className="hero-photo-stage relative hidden md:block" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.8, delay: 0.15 }}>
           <div className="hero-photo-aura" />
           <div className="hero-photo-frame gold-border silver-glow overflow-hidden rounded-[2rem] bg-dark-card p-2">
             <div className="relative h-[440px] w-full rounded-[1.55rem] sm:h-[480px] lg:h-[520px]">
