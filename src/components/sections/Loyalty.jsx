@@ -22,16 +22,17 @@ export default function Loyalty() {
           {user ? (
             <div className="grid gap-8 lg:grid-cols-[0.8fr_1fr]">
               <LoyaltyCard stamps={stamps} />
-              <div className="gold-border rounded-lg bg-dark-card/80 p-6">
-                <h3 className="font-display text-3xl">Histórico de visitas</h3>
-                <div className="mt-5 space-y-3">
+              <div className="relative overflow-hidden rounded-[2.5rem] border border-gold/20 bg-black/40 p-8 shadow-2xl backdrop-blur-xl sm:p-10">
+                <div className="absolute -inset-10 z-0 bg-gradient-to-tr from-gold/5 via-transparent to-transparent opacity-50 blur-3xl"></div>
+                <h3 className="relative z-10 font-display text-3xl">Histórico de visitas</h3>
+                <div className="relative z-10 mt-8 space-y-4">
                   {(bookings.length ? bookings : [
                     { id: 'a', date: '2026-05-20', time: '14:15', services: [{ name: 'Manutenção' }] },
                     { id: 'b', date: '2026-05-10', time: '09:45', services: [{ name: 'Lavar e escovar' }] },
                   ]).slice(0, 5).map((booking) => (
-                    <div key={booking.id} className="flex items-center justify-between rounded-md border border-dark-border bg-white/10 p-4 text-sm backdrop-blur">
-                      <span>{booking.services.map((service) => service.name).join(', ')}</span>
-                      <span className="text-gold-light">{booking.date} · {booking.time}</span>
+                    <div key={booking.id} className="group flex flex-col justify-between rounded-2xl border border-white/5 bg-white/5 p-5 transition-all hover:-translate-y-0.5 hover:border-gold/20 hover:bg-white/10 sm:flex-row sm:items-center">
+                      <span className="font-semibold text-cream">{booking.services.map((service) => service.name).join(', ')}</span>
+                      <span className="mt-2 text-xs font-bold uppercase tracking-wider text-gold-light/80 sm:mt-0">{booking.date} · {booking.time}</span>
                     </div>
                   ))}
                 </div>
@@ -40,21 +41,29 @@ export default function Loyalty() {
           ) : (
             <div className="grid items-stretch gap-8 lg:grid-cols-[0.85fr_1fr]">
               <LoyaltyCard stamps={5} preview />
-              <div className="gold-border flex h-full flex-col justify-center rounded-lg bg-dark-card/80 p-6 md:p-8">
-                <p className="text-xs font-bold uppercase tracking-[0.28em] text-gold-light">Como funciona</p>
-                <h3 className="mt-3 font-display text-4xl font-semibold">Seu cuidado rende presentes</h3>
-                <p className="mt-5 leading-8 text-cream/72">
-                  A cada visita, você ganha um selo no cartão fidelidade. Ao completar 10 selos, desbloqueia um benefício especial no studio.
-                </p>
-                <div className="mt-6 grid gap-3 text-sm text-cream/72 sm:grid-cols-3">
-                  {['Agende', 'Ganhe selos', 'Resgate'].map((item, index) => (
-                    <div key={item} className="loyalty-step rounded-lg border border-gold/20 bg-white/10 p-4 text-center backdrop-blur">
-                      <span className="mx-auto mb-3 grid size-9 place-items-center rounded-full bg-gold text-sm font-bold text-dark">{index + 1}</span>
-                      <strong className="text-cream">{item}</strong>
-                    </div>
-                  ))}
+              <div className="relative flex h-full flex-col justify-center overflow-hidden rounded-[2.5rem] border border-gold/20 bg-black/40 p-8 shadow-2xl backdrop-blur-xl sm:p-12">
+                <div className="absolute -inset-10 z-0 bg-gradient-to-tr from-gold/5 via-transparent to-transparent opacity-50 blur-3xl"></div>
+                
+                <div className="relative z-10">
+                  <p className="text-xs font-bold uppercase tracking-[0.28em] text-gold-light/80">Como funciona</p>
+                  <h3 className="mt-3 font-display text-4xl font-semibold leading-tight">Seu cuidado<br/><span className="text-gold-light italic">rende presentes</span></h3>
+                  <p className="mt-5 text-lg leading-relaxed text-cream/80">
+                    A cada visita, você ganha um selo no cartão fidelidade. Ao completar 10 selos, desbloqueia um benefício exclusivo no studio.
+                  </p>
+                  
+                  <div className="mt-10 grid gap-4 sm:grid-cols-3">
+                    {['Agende', 'Ganhe selos', 'Resgate'].map((item, index) => (
+                      <div key={item} className="loyalty-step flex flex-col items-center rounded-2xl border border-white/5 bg-white/5 p-5 text-center transition-all hover:-translate-y-1 hover:border-gold/30 hover:bg-white/10">
+                        <span className="mb-4 grid size-12 place-items-center rounded-full border border-gold-light/30 bg-gradient-to-br from-gold to-gold-light text-lg font-bold text-dark shadow-[0_0_15px_rgba(217,177,92,0.3)]">{index + 1}</span>
+                        <strong className="text-sm font-bold uppercase tracking-wider text-cream">{item}</strong>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <button onClick={() => setLoginOpen(true)} className="gold-button mt-10 w-full rounded-xl px-6 py-4 text-sm font-bold uppercase tracking-wider shadow-[0_0_20px_rgba(0,0,0,0.3)] transition-all hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(217,177,92,0.25)]">
+                    Entrar e acompanhar
+                  </button>
                 </div>
-                <button onClick={() => setLoginOpen(true)} className="gold-button mt-7 rounded-md px-6 py-3 font-bold">Entrar e acompanhar</button>
               </div>
             </div>
           )}

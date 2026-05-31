@@ -2,24 +2,30 @@ import { FiPlus } from 'react-icons/fi'
 
 export default function ServiceCard({ service, onAdd }) {
   return (
-    <article className="service-price-card gold-border tap-gold flex min-h-36 flex-col justify-between overflow-hidden rounded-lg bg-dark-card/80 shadow-2xl shadow-black/20">
+    <article className="service-price-card group gold-border tap-gold flex min-h-36 flex-col justify-between overflow-hidden rounded-[1.5rem] bg-gradient-to-b from-dark-card/60 to-dark-card/90 shadow-2xl transition-all hover:-translate-y-1 hover:shadow-gold/10">
       {service.image && (
-        <img src={service.image} alt={service.name} className="h-40 w-full object-cover" loading="lazy" />
+        <div className="relative overflow-hidden">
+          <img src={service.image} alt={service.name} className="h-48 w-full object-cover transition-transform duration-700 group-hover:scale-105" loading="lazy" />
+          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-dark-card/90 to-transparent"></div>
+        </div>
       )}
-      <div className="flex flex-1 flex-col justify-between p-5">
-      <div>
-        <p className="text-xs uppercase tracking-[0.22em] text-gold-light/80">{service.group}</p>
-        <h3 className="mt-2 font-display text-2xl font-semibold text-cream">{service.name}</h3>
-        <p className="mt-3 text-sm font-bold text-gold-light">{service.price}</p>
-      </div>
-      <button
-        type="button"
-        onClick={() => onAdd(service)}
-        className="gold-button mt-5 inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-bold"
-      >
-        <FiPlus aria-hidden="true" />
-        Adicionar ao Agendamento
-      </button>
+      <div className="flex flex-1 flex-col justify-between p-6 pt-2">
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-[0.65rem] font-bold uppercase tracking-[0.25em] text-gold-light/70">{service.group}</p>
+            <div className="ml-4 h-px flex-1 bg-gradient-to-r from-gold/20 to-transparent"></div>
+          </div>
+          <h3 className="font-display text-[1.35rem] font-semibold leading-tight text-cream transition-colors group-hover:text-gold-light">{service.name}</h3>
+          <p className="mt-3 font-display text-xl font-bold tracking-wide text-gold-light">{service.price}</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => onAdd(service)}
+          className="gold-button mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold shadow-[0_0_20px_rgba(0,0,0,0.3)] transition-all group-hover:shadow-[0_0_20px_rgba(217,177,92,0.2)]"
+        >
+          <FiPlus className="text-lg" aria-hidden="true" />
+          Adicionar
+        </button>
       </div>
     </article>
   )

@@ -1,4 +1,4 @@
-import { FiClock, FiMapPin, FiNavigation } from 'react-icons/fi'
+import { FiClock, FiMapPin, FiNavigation, FiInstagram, FiPhone } from 'react-icons/fi'
 import Reveal from '../ui/Reveal.jsx'
 import SectionTitle from '../ui/SectionTitle.jsx'
 
@@ -11,19 +11,45 @@ export default function Location() {
       <div className="section-shell">
         <SectionTitle eyebrow="Localização" title="Venha viver seu momento" />
         <Reveal>
-          <div className="grid items-stretch gap-6 lg:grid-cols-[1fr_0.7fr]">
-            <iframe title="Mapa do Studio Thallyta Silveira" src={mapUrl} className="gold-border h-[420px] w-full rounded-lg" loading="lazy" />
-            <div className="gold-border flex h-full min-h-[420px] flex-col justify-between rounded-lg bg-dark-card/80 p-6">
-              <FiMapPin className="mb-4 text-3xl text-gold-light" />
-              <h3 className="font-display text-3xl">Studio de Beleza Thallyta Silveira</h3>
-              <p className="mt-4 leading-7 text-cream/72">Rua José Firmino da Costa, Centro, 481 — Ao lado de Carmela Dutra</p>
-              <div className="mt-6 flex gap-3 rounded-md border border-dark-border bg-white/10 p-4 backdrop-blur">
-                <FiClock className="mt-1 text-gold-light" />
-                <p className="text-sm leading-7 text-cream/72">Domingo a sexta: 09:00 às 18:00<br />Sábado: fechado</p>
+          <div className="grid items-stretch gap-8 lg:grid-cols-[1fr_0.8fr]">
+            <div className="relative h-[400px] w-full sm:h-[480px] lg:h-auto">
+              <div className="absolute -inset-2 z-0 rounded-[2.5rem] bg-gradient-to-tr from-gold/20 to-transparent opacity-40 blur-xl"></div>
+              <iframe title="Mapa do Studio Thallyta Silveira" src={mapUrl} className="relative z-10 h-full w-full rounded-[2rem] border border-gold/30 shadow-[0_0_30px_rgba(0,0,0,0.5)]" loading="lazy" />
+            </div>
+            
+            <div className="relative flex h-full flex-col justify-between overflow-hidden rounded-[2.5rem] border border-gold/20 bg-gradient-to-b from-dark-card/90 to-dark/95 p-8 shadow-2xl backdrop-blur-md sm:p-10">
+              <div className="absolute -inset-10 z-0 bg-gradient-to-bl from-gold/10 via-transparent to-transparent opacity-60 blur-3xl"></div>
+              
+              <div className="relative z-10">
+                <div className="mb-6 inline-flex size-14 items-center justify-center rounded-full border border-gold-light/30 bg-gradient-to-br from-gold to-gold-light text-2xl text-dark shadow-[0_0_20px_rgba(217,177,92,0.4)]">
+                  <FiMapPin />
+                </div>
+                <h3 className="font-display text-4xl leading-tight">Studio de Beleza<br/><span className="text-gold-light italic">Thallyta Silveira</span></h3>
+                <p className="mt-5 text-lg leading-relaxed text-cream/80">Rua José Firmino da Costa, Centro, 481 — Ao lado de Carmela Dutra</p>
+                
+                <div className="mt-8 flex gap-4 rounded-2xl border border-white/5 bg-white/5 p-5 backdrop-blur transition-all hover:border-gold/20 hover:bg-white/10">
+                  <FiClock className="mt-1 text-xl text-gold-light drop-shadow-[0_0_8px_rgba(217,177,92,0.5)]" />
+                  <p className="text-sm font-medium leading-relaxed text-cream/90">
+                    <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-gold-light/80">Horário de Funcionamento</span>
+                    Domingo a sexta: 09:00 às 18:00<br />
+                    <span className="text-cream/50">Sábado: fechado</span>
+                  </p>
+                </div>
+                
+                <div className="mt-8 space-y-4 text-sm font-medium text-cream/80">
+                  <p className="flex items-center gap-4">
+                    <span className="grid size-10 place-items-center rounded-full bg-white/5 text-lg text-gold-light"><FiInstagram /></span>
+                    <a href="http://instagram.com/studiodebelezathallytasilveira" target="_blank" rel="noreferrer" className="hover:text-gold-light hover:underline">@studiodebelezathallytasilveira</a>
+                  </p>
+                  <p className="flex items-center gap-4">
+                    <span className="grid size-10 place-items-center rounded-full bg-white/5 text-lg text-gold-light"><FiPhone /></span>
+                    (88) 98186-0582
+                  </p>
+                </div>
               </div>
-              <p className="mt-5 text-sm text-cream/72"><a href="http://instagram.com/studiodebelezathallytasilveira" target="_blank" rel="noreferrer" className="text-gold-light hover:underline">@studiodebelezathallytasilveira</a><br />(88) 98186-0582</p>
-              <a href={directionsUrl} target="_blank" rel="noreferrer" className="gold-button mt-6 inline-flex w-fit items-center gap-2 rounded-md px-5 py-3 font-bold">
-                <FiNavigation /> Como Chegar
+              
+              <a href={directionsUrl} target="_blank" rel="noreferrer" className="gold-button relative z-10 mt-10 flex w-full items-center justify-center gap-3 rounded-xl px-6 py-4 text-sm font-bold uppercase tracking-wider shadow-[0_0_20px_rgba(0,0,0,0.3)] transition-all hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(217,177,92,0.25)]">
+                <FiNavigation className="text-lg" /> Como Chegar
               </a>
             </div>
           </div>
