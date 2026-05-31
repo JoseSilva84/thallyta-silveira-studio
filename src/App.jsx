@@ -12,7 +12,14 @@ import Location from './components/sections/Location.jsx'
 
 export default function App() {
   return (
-    <div className="min-h-screen overflow-hidden text-cream">
+    <div className="min-h-screen overflow-hidden text-cream relative">
+      {/* Neon Background Auras */}
+      <div className="fixed inset-0 pointer-events-none z-[-1] overflow-hidden">
+        <div className="neon-aura-1"></div>
+        <div className="neon-aura-2"></div>
+        <div className="neon-aura-3"></div>
+      </div>
+
       <Navbar />
       <main>
         <Hero />
