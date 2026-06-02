@@ -99,7 +99,7 @@ export default function Booking() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <span className="block text-xs font-bold uppercase tracking-wider text-gold-light/80">Data</span>
-                      <span className="mt-1 block font-medium text-cream">{date}</span>
+                      <span className="mt-1 block font-medium text-cream">{date ? date.split('-').reverse().join('/') : ''}</span>
                     </div>
                     <div>
                       <span className="block text-xs font-bold uppercase tracking-wider text-gold-light/80">Horário</span>

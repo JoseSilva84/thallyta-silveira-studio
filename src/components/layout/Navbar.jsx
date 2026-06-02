@@ -58,9 +58,10 @@ export default function Navbar() {
 
   return (
     <>
-      <header className="hidden md:block fixed inset-x-0 top-0 z-50 px-0 pt-0 transition-all duration-300 md:px-4 md:pt-3">
-        <nav className="section-shell flex h-20 items-center justify-between">
-          <div className={`silver-nav flex w-full items-center justify-between rounded-none px-4 py-3 transition md:rounded-full md:px-5 ${scrolled ? 'shadow-2xl' : ''}`}>
+      <header className="fixed inset-x-0 top-0 z-50 px-0 pt-0 transition-all duration-300 md:px-4 md:pt-3 pointer-events-none">
+        <nav className="section-shell flex w-full h-16 md:h-20 items-center justify-end md:justify-between pointer-events-auto">
+          {/* Desktop & Tablet Nav Bar */}
+          <div className={`silver-nav hidden md:flex w-full items-center justify-between rounded-full px-5 py-3 transition ${scrolled ? 'shadow-2xl' : ''}`}>
             <a
               href="#inicio"
               className={`tap-gold flex items-center gap-3 rounded-full px-1 py-1 ${isActive('#inicio') ? 'brand-active' : ''}`}
@@ -88,10 +89,15 @@ export default function Navbar() {
                 </button>
               )}
               <button onClick={() => setOpen(true)} className="tap-gold rounded-md border border-gold/30 bg-white/10 p-2 text-gold-light lg:hidden" aria-label="Abrir menu">
-                <FiMenu />
+                <FiMenu className="size-5" />
               </button>
             </div>
           </div>
+
+          {/* Mobile Hamburger Button (Top Right) */}
+          <button onClick={() => setOpen(true)} className="tap-gold ml-auto rounded-xl border border-gold/30 bg-black/40 backdrop-blur-md p-2.5 text-gold-light shadow-lg md:hidden" aria-label="Abrir menu">
+            <FiMenu className="size-6" />
+          </button>
         </nav>
       </header>
 
@@ -140,6 +146,12 @@ export default function Navbar() {
               <a
                 key={href}
                 href={href}
+                onClick={(e) => {
+                  if (label === 'Perfil' && !user) {
+                    e.preventDefault();
+                    setLoginOpen(true);
+                  }
+                }}
                 className={`relative flex min-h-[3.75rem] flex-col items-center justify-center gap-1 rounded-xl transition-colors duration-300 ${
                   active ? 'text-gold-light' : 'text-cream/50 hover:bg-white/5 hover:text-cream/90'
                 }`}
