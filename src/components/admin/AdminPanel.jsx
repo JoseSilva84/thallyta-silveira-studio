@@ -4,6 +4,8 @@ import { FiTrash2, FiUploadCloud, FiHome, FiLogOut } from 'react-icons/fi';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
+const API = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+
 export default function AdminPanel() {
   const { user, logout, getToken } = useAuth();
   const navigate = useNavigate();
@@ -18,7 +20,7 @@ export default function AdminPanel() {
   const fetchImages = async () => {
     try {
       setFetching(true);
-      const res = await fetch('http://localhost:3001/api/gallery');
+      const res = await fetch(`${API}/gallery`);
       if (!res.ok) throw new Error('Falha ao buscar imagens');
       const data = await res.json();
       setImages(data);
@@ -49,7 +51,7 @@ export default function AdminPanel() {
 
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:3001/api/gallery', {
+      const res = await fetch(`${API}/gallery`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${getToken()}` },
         body: formData,
@@ -72,7 +74,7 @@ export default function AdminPanel() {
     if (!window.confirm('Tem certeza que deseja deletar esta imagem?')) return;
 
     try {
-      const res = await fetch(`http://localhost:3001/api/gallery?id=${encodeURIComponent(id)}`, {
+      const res = await fetch(`${API}/gallery?id=${encodeURIComponent(id)}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${getToken()}` },
       });

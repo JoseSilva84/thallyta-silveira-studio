@@ -4,6 +4,8 @@ import Reveal from '../ui/Reveal.jsx'
 import SectionTitle from '../ui/SectionTitle.jsx'
 import GalleryModal from '../ui/GalleryModal.jsx'
 
+const API = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
+
 const filters = ['Todas', 'Unhas', 'Cabelo', 'Estúdio']
 
 export default function Gallery() {
@@ -16,7 +18,7 @@ export default function Gallery() {
   useEffect(() => {
     const fetchImages = async () => {
       try {
-        const res = await fetch('http://localhost:3001/api/gallery')
+        const res = await fetch(`${API}/gallery`)
         if (res.ok) {
           const data = await res.json()
           setGalleryImages(data)
