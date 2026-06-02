@@ -1,4 +1,6 @@
 import { BsInstagram, BsWhatsapp } from 'react-icons/bs'
+import { Link } from 'react-router-dom'
+import { FiLock } from 'react-icons/fi'
 
 export default function Footer() {
   return (
@@ -24,7 +26,12 @@ export default function Footer() {
           </a>
         </div>
       </div>
-      <p className="section-shell mt-8 text-xs text-cream/45">© 2026 Studio de Beleza Thallyta Silveira. Todos os direitos reservados.</p>
+      <div className="section-shell mt-8 flex items-center justify-between">
+        <p className="text-xs text-cream/45">© 2026 Studio de Beleza Thallyta Silveira. Todos os direitos reservados.</p>
+        <Link to="/admin" className="text-cream/30 transition-colors hover:text-gold" aria-label="Painel Administrativo" title="Painel Administrativo">
+          <FiLock size={14} />
+        </Link>
+      </div>
     </footer>
   )
 }

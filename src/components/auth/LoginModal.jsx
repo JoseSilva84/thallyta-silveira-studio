@@ -11,16 +11,16 @@ export default function LoginModal() {
 
   return (
     <div className="fixed inset-0 z-[80] grid place-items-center bg-black/70 px-4 backdrop-blur-sm">
-      <div className="gold-border relative w-full max-w-md rounded-lg bg-dark-card/85 p-6 shadow-2xl">
+      <div className="gold-border relative w-full max-w-md rounded-lg bg-dark-card/85 p-6 pt-6 shadow-2xl">
         <button
           type="button"
           aria-label="Fechar login"
           onClick={() => setLoginOpen(false)}
-          className="tap-gold absolute right-4 top-4 rounded-full p-2 text-cream/70 hover:bg-white/10 hover:text-cream"
+          className="tap-gold absolute right-4 top-4 mb-8 flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-cream/70 hover:bg-white/20 hover:text-white transition-colors"
         >
-          <FiX />
+          <FiX size={20} />
         </button>
-        <p className="text-xs uppercase tracking-[0.3em] text-gold-light">Entrar</p>
+        <p className="text-xs uppercase tracking-[0.3em] text-gold-light mt-2">Entrar</p>
         <h2 className="mt-2 font-display text-4xl font-semibold">Sua área de beleza</h2>
         <form className="mt-6 space-y-4" onSubmit={handleSubmit(login)}>
           <label className="block text-sm text-cream/80">

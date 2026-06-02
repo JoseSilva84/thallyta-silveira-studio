@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import { FiChevronLeft, FiChevronRight, FiZoomIn } from 'react-icons/fi'
-import { galleryImages } from '../../data/gallery.js'
 import Reveal from '../ui/Reveal.jsx'
 import SectionTitle from '../ui/SectionTitle.jsx'
 import GalleryModal from '../ui/GalleryModal.jsx'
@@ -11,7 +10,31 @@ export default function Gallery() {
   const [filter, setFilter] = useState('Todas')
   const [index, setIndex] = useState(null)
   const [active, setActive] = useState(0)
-  const images = useMemo(() => (filter === 'Todas' ? galleryImages : galleryImages.filter((image) => image.category === filter)), [filter])
+  const [galleryImages, setGalleryImages] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchImages = async () => {
+      try {
+        const res = await fetch('http://localhost:3001/api/gallery')
+        if (res.ok) {
+          const data = await res.json()
+          setGalleryImages(data)
+        }
+      } catch (error) {
+        console.error('Erro ao carregar imagens da galeria:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchImages()
+  }, [])
+
+  const images = useMemo(() => {
+    if (!galleryImages || galleryImages.length === 0) return []
+    return filter === 'Todas' ? galleryImages : galleryImages.filter((image) => image.category === filter)
+  }, [filter, galleryImages])
+
   const activeImage = images[active]
 
   useEffect(() => {
@@ -58,7 +81,15 @@ export default function Gallery() {
                 ))}
               </div>
 
-              {activeImage && (
+              {loading ? (
+                <div className="flex h-[420px] items-center justify-center text-gold md:h-[560px]">
+                  <p className="animate-pulse font-bold">Carregando galeria...</p>
+                </div>
+              ) : images.length === 0 ? (
+                <div className="flex h-[420px] items-center justify-center text-cream/50 md:h-[560px]">
+                  <p>Nenhuma imagem encontrada nesta categoria.</p>
+                </div>
+              ) : activeImage && (
                 <div className="gallery-slider">
                   <div className="flex items-center gap-4 md:gap-6">
                     <button
@@ -96,7 +127,7 @@ export default function Gallery() {
                   <div className="mt-8 flex items-center justify-center gap-2.5">
                     {images.map((image, imageIndex) => (
                       <button
-                        key={image.src}
+                        key={image.id || image.src}
                         type="button"
                         onClick={() => setActive(imageIndex)}
                         className={`h-2.5 rounded-full transition-all duration-300 ${active === imageIndex ? 'w-10 bg-gradient-to-r from-gold to-gold-light shadow-[0_0_15px_rgba(217,177,92,0.5)]' : 'w-2.5 bg-white/20 hover:scale-110 hover:bg-gold/50'}`}
