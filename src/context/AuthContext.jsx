@@ -21,8 +21,24 @@ const parseToken = (token) => {
   }
 }
 
+// Decodifica caracteres UTF-8 que podem vir mal codificados do JWT
+const decodeUtf8 = (str) => {
+  if (!str) return str
+  try {
+    return decodeURIComponent(escape(str))
+  } catch {
+    return str
+  }
+}
+
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => parseToken(readToken()))
+  const [user, setUser] = useState(() => {
+    const payload = parseToken(readToken())
+    if (payload && payload.name) {
+      payload.name = decodeUtf8(payload.name)
+    }
+    return payload
+  })
   const [loginOpen, setLoginOpen] = useState(false)
   const [loading, setLoading] = useState(false)
 
@@ -30,12 +46,15 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const token = params.get('token')
-    if (token && window.location.pathname === '/auth/callback') {
+    if (token) {
       localStorage.setItem('authToken', token)
       const payload = parseToken(token)
+      if (payload && payload.name) {
+        payload.name = decodeUtf8(payload.name)
+      }
       setUser(payload)
       toast.success(`Bem-vinda, ${payload?.name || 'cliente'}!`)
-      // Limpa a URL
+      // Limpa a URL sem recarregar a página
       window.history.replaceState({}, '', '/')
     }
   }, [])
@@ -51,7 +70,9 @@ export function AuthProvider({ children }) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Erro ao criar conta.')
       localStorage.setItem('authToken', data.token)
-      setUser(parseToken(data.token))
+      const payload = parseToken(data.token)
+      if (payload && payload.name) payload.name = decodeUtf8(payload.name)
+      setUser(payload)
       setLoginOpen(false)
       toast.success(`Conta criada! Bem-vinda, ${data.user.name}!`)
       return { ok: true }
@@ -64,6 +85,10 @@ export function AuthProvider({ children }) {
   }, [])
 
   const login = useCallback(async ({ email, password }) => {
+    if (!email || !password) {
+      toast.error('Email e senha são obrigatórios.')
+      return { ok: false }
+    }
     setLoading(true)
     try {
       const res = await fetch(`${API}/auth/login`, {
@@ -74,7 +99,9 @@ export function AuthProvider({ children }) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Credenciais inválidas.')
       localStorage.setItem('authToken', data.token)
-      setUser(parseToken(data.token))
+      const payload = parseToken(data.token)
+      if (payload && payload.name) payload.name = decodeUtf8(payload.name)
+      setUser(payload)
       setLoginOpen(false)
       toast.success(`Bem-vinda, ${data.user.name}!`)
       return { ok: true }
