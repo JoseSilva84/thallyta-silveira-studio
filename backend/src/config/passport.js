@@ -13,6 +13,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
         clientID: process.env.GOOGLE_CLIENT_ID,
         clientSecret: process.env.GOOGLE_CLIENT_SECRET,
         callbackURL: '/api/auth/google/callback',
+        proxy: true, // Necessário quando o backend roda no Render (atrás de proxy)
       },
       async (_accessToken, _refreshToken, profile, done) => {
         try {
