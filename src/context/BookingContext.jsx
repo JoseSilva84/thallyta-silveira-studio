@@ -1,27 +1,13 @@
-import { createContext, useContext, useMemo, useState } from 'react'
-import { toast } from 'react-toastify'
+import { createContext, useCallback, useContext, useMemo, useState } from 'react'
 
 const BookingContext = createContext(null)
 
-const readBookings = () => {
-  try {
-    return JSON.parse(localStorage.getItem('bookings')) || []
-  } catch {
-    return []
-  }
-}
+const API = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
 
 export function BookingProvider({ children }) {
   const [selectedServices, setSelectedServices] = useState([])
-  const [bookings, setBookings] = useState(readBookings)
-
-  const addService = (service) => {
-    setSelectedServices((current) => {
-      if (current.some((item) => item.id === service.id)) return current
-      return [...current, service]
-    })
-    toast.success('✓ Serviço adicionado ao seu agendamento!')
-  }
+  const [bookings, setBookings] = useState([])
+  const [loadingBookings, setLoadingBookings] = useState(false)
 
   const toggleService = (service) => {
     setSelectedServices((current) =>
@@ -31,17 +17,45 @@ export function BookingProvider({ children }) {
     )
   }
 
-  const confirmBooking = (booking) => {
-    const nextBookings = [{ id: crypto.randomUUID(), ...booking }, ...bookings]
-    localStorage.setItem('bookings', JSON.stringify(nextBookings))
-    localStorage.setItem('loyaltyStamps', String(Math.min(10, Number(localStorage.getItem('loyaltyStamps') || 4) + 1)))
-    setBookings(nextBookings)
-    setSelectedServices([])
+  const addService = (service) => {
+    setSelectedServices((current) => {
+      if (current.some((item) => item.id === service.id)) return current
+      return [...current, service]
+    })
   }
 
+  const clearServices = () => setSelectedServices([])
+
+  // Busca os agendamentos do usuário logado (ou todos, se admin) a partir da API
+  const fetchBookings = useCallback(async (token) => {
+    if (!token) return
+    setLoadingBookings(true)
+    try {
+      const res = await fetch(`${API}/bookings`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setBookings(data)
+      }
+    } catch (error) {
+      console.error('Erro ao buscar agendamentos:', error)
+    } finally {
+      setLoadingBookings(false)
+    }
+  }, [])
+
   const value = useMemo(
-    () => ({ selectedServices, bookings, addService, toggleService, confirmBooking }),
-    [selectedServices, bookings],
+    () => ({
+      selectedServices,
+      bookings,
+      loadingBookings,
+      addService,
+      toggleService,
+      clearServices,
+      fetchBookings,
+    }),
+    [selectedServices, bookings, loadingBookings, fetchBookings],
   )
 
   return <BookingContext.Provider value={value}>{children}</BookingContext.Provider>

@@ -5,6 +5,8 @@ import session from 'express-session';
 import passport from './config/passport.js';
 import galleryRoutes from './routes/galleryRoutes.js';
 import authRoutes from './routes/authRoutes.js';
+import webhookRoutes from './routes/webhookRoutes.js';
+import bookingRoutes from './routes/bookingRoutes.js';
 
 dotenv.config();
 
@@ -33,6 +35,8 @@ app.use(passport.session());
 // Rotas
 app.use('/api/auth', authRoutes);
 app.use('/api/gallery', galleryRoutes);
+app.use('/api/webhooks', webhookRoutes);
+app.use('/api/bookings', bookingRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', timestamp: new Date() }));

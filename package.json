@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@calcom/embed-react": "^1.5.3",
     "@tailwindcss/vite": "latest",
     "@vitejs/plugin-react": "latest",
     "date-fns": "latest",
@@ -21,6 +22,5 @@
     "react-toastify": "latest",
     "tailwindcss": "latest",
     "vite": "latest"
-  },
-  "devDependencies": {}
+  }
 }
