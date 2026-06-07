@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { FiCheck, FiCalendar } from 'react-icons/fi'
+import { FiCheck, FiCalendar, FiCheckCircle } from 'react-icons/fi'
 import { toast } from 'react-toastify'
 import Cal, { getCalApi } from '@calcom/embed-react'
 import { allServices } from '../../data/services.js'
@@ -12,9 +12,10 @@ const CAL_USERNAME = import.meta.env.VITE_CAL_USERNAME || 'thallyta-silveira-hxf
 const CAL_EVENT_SLUG = import.meta.env.VITE_CAL_EVENT_SLUG || '30min'
 
 export default function Booking() {
-  const { user, setLoginOpen } = useAuth()
-  const { selectedServices, toggleService } = useBooking()
+  const { user, setLoginOpen, getToken } = useAuth()
+  const { selectedServices, toggleService, fetchBookings } = useBooking()
   const [showCal, setShowCal] = useState(false)
+  const [bookingConfirmed, setBookingConfirmed] = useState(false)
 
   // Inicializa a API do Cal.com embed e escuta o evento de booking concluído
   useEffect(() => {
@@ -48,11 +49,18 @@ export default function Booking() {
       cal('on', {
         action: 'bookingSuccessful',
         callback: () => {
+          // Esconde o Cal.com e mostra nossa tela de confirmação
+          setBookingConfirmed(true)
           toast.success('🎉 Agendamento confirmado com sucesso!')
+          // Atualiza os bookings no contexto (para os selos de fidelidade)
+          const token = getToken()
+          if (token) {
+            setTimeout(() => fetchBookings(token), 2000) // Aguarda o webhook processar
+          }
         },
       })
     })()
-  }, [])
+  }, [getToken, fetchBookings])
 
   // Monta a string de serviços selecionados para enviar como metadata ao Cal.com
   const servicesParam = useMemo(
@@ -69,6 +77,12 @@ export default function Booking() {
       return toast.info('Entre na sua conta para agendar.')
     }
     setShowCal(true)
+    setBookingConfirmed(false)
+  }
+
+  const handleNewBooking = () => {
+    setShowCal(false)
+    setBookingConfirmed(false)
   }
 
   // Calcula o preço total estimado (pega o primeiro valor numérico de cada preço)
@@ -92,12 +106,12 @@ export default function Booking() {
             <div className="gold-border relative z-10 overflow-hidden rounded-[2.5rem] bg-black/40 p-5 backdrop-blur-xl md:p-8 lg:p-12">
 
               {/* Barra de progresso */}
-              <div className="mb-10 grid grid-cols-2 gap-3">
-                {[1, 2].map((step) => (
+              <div className="mb-10 grid grid-cols-3 gap-3">
+                {[1, 2, 3].map((step) => (
                   <div
                     key={step}
                     className={`h-1.5 rounded-full transition-all duration-500 ${
-                      (step === 1 && selectedServices.length > 0) || (step === 2 && showCal)
+                      (step === 1 && selectedServices.length > 0) || (step === 2 && showCal) || (step === 3 && bookingConfirmed)
                         ? 'silver-glow bg-gradient-to-r from-gold to-gold-light shadow-[0_0_10px_rgba(217,177,92,0.4)]'
                         : 'bg-white/10'
                     }`}
@@ -105,7 +119,62 @@ export default function Booking() {
                 ))}
               </div>
 
-              {!showCal ? (
+              {bookingConfirmed ? (
+                /* ─── PASSO 3: Confirmação (nossa tela, sem Cal.com) ─── */
+                <div className="space-y-8 text-center">
+                  {/* Ícone animado */}
+                  <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border-2 border-gold bg-gradient-to-br from-gold/20 to-gold/5 shadow-[0_0_30px_rgba(217,177,92,0.3)]">
+                    <FiCheckCircle className="h-10 w-10 text-gold-light" />
+                  </div>
+
+                  <div>
+                    <h3 className="font-display text-4xl font-semibold text-gold-light">Agendamento Confirmado!</h3>
+                    <p className="mt-3 text-cream/60">
+                      Enviamos um e-mail com todos os detalhes para você e para o studio.
+                    </p>
+                  </div>
+
+                  {/* Detalhes do agendamento */}
+                  <div className="mx-auto max-w-lg space-y-4 rounded-2xl border border-gold/20 bg-gradient-to-b from-dark-card/90 to-dark/95 p-6 text-left shadow-2xl backdrop-blur-md">
+                    <div>
+                      <span className="block text-xs font-bold uppercase tracking-wider text-gold-light/80">Serviços</span>
+                      <span className="mt-1 block text-lg font-semibold text-cream">{servicesParam}</span>
+                    </div>
+                    <div className="h-px bg-gradient-to-r from-transparent via-gold/20 to-transparent"></div>
+                    <div>
+                      <span className="block text-xs font-bold uppercase tracking-wider text-gold-light/80">Cliente</span>
+                      <span className="mt-1 block font-medium text-cream">{user?.name}</span>
+                      <span className="block text-sm text-cream/50">{user?.email}</span>
+                    </div>
+                    {totalEstimado > 0 && (
+                      <>
+                        <div className="h-px bg-gradient-to-r from-transparent via-gold/20 to-transparent"></div>
+                        <div>
+                          <span className="block text-xs font-bold uppercase tracking-wider text-gold-light/80">Valor Estimado</span>
+                          <span className="mt-1 block text-lg font-semibold text-gold">{`R$ ${totalEstimado.toFixed(2).replace('.', ',')}`}</span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Botões de ação */}
+                  <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
+                    <button
+                      onClick={handleNewBooking}
+                      className="gold-button flex items-center gap-2 rounded-xl px-8 py-4 text-sm font-bold uppercase tracking-wider"
+                    >
+                      <FiCalendar /> Novo Agendamento
+                    </button>
+                    <a
+                      href="#fidelidade"
+                      className="flex items-center gap-2 rounded-xl border border-gold/30 px-6 py-4 text-sm font-semibold text-gold-light transition-colors hover:bg-gold/10"
+                    >
+                      Ver meus Selos de Fidelidade
+                    </a>
+                  </div>
+                </div>
+
+              ) : !showCal ? (
                 /* ─── PASSO 1: Seleção de Serviços ─── */
                 <div className="space-y-8">
                   <section aria-labelledby="booking-services">
