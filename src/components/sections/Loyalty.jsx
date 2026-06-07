@@ -8,10 +8,19 @@ import LoyaltyCard from '../ui/LoyaltyCard.jsx'
 export default function Loyalty() {
   const { user, setLoginOpen } = useAuth()
   const { bookings } = useBooking()
-  const [stamps, setStamps] = useState(4)
+  const [stamps, setStamps] = useState(0)
 
   useEffect(() => {
-    setStamps(Number(localStorage.getItem('loyaltyStamps') || 4))
+    if (bookings && bookings.length > 0) {
+      // Calcula 1 selo para cada serviço realizado/agendado (separados por vírgula)
+      const totalServices = bookings.reduce((acc, b) => {
+        const count = b.service ? b.service.split(',').length : 1
+        return acc + count
+      }, 0)
+      setStamps(totalServices)
+    } else {
+      setStamps(0)
+    }
   }, [bookings])
 
   return (
@@ -26,13 +35,12 @@ export default function Loyalty() {
                 <div className="absolute -inset-10 z-0 bg-gradient-to-tr from-gold/5 via-transparent to-transparent opacity-50 blur-3xl"></div>
                 <h3 className="relative z-10 font-display text-3xl">Histórico de visitas</h3>
                 <div className="relative z-10 mt-8 space-y-4">
-                  {(bookings.length ? bookings : [
-                    { id: 'a', date: '2026-05-20', time: '14:15', services: [{ name: 'Manutenção' }] },
-                    { id: 'b', date: '2026-05-10', time: '09:45', services: [{ name: 'Lavar e escovar' }] },
-                  ]).slice(0, 5).map((booking) => (
+                  {(bookings.length ? bookings : []).slice(0, 5).map((booking) => (
                     <div key={booking.id} className="group flex flex-col justify-between rounded-2xl border border-white/5 bg-white/5 p-5 transition-all hover:-translate-y-0.5 hover:border-gold/20 hover:bg-white/10 sm:flex-row sm:items-center">
-                      <span className="font-semibold text-cream">{booking.services.map((service) => service.name).join(', ')}</span>
-                      <span className="mt-2 text-xs font-bold uppercase tracking-wider text-gold-light/80 sm:mt-0">{booking.date} · {booking.time}</span>
+                      <span className="font-semibold text-cream">{booking.service || 'Serviço'}</span>
+                      <span className="mt-2 text-xs font-bold uppercase tracking-wider text-gold-light/80 sm:mt-0">
+                        {new Date(booking.scheduledAt).toLocaleDateString('pt-BR')} · {new Date(booking.scheduledAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
                     </div>
                   ))}
                 </div>

@@ -23,7 +23,7 @@ export default function Booking() {
       cal('ui', {
         theme: 'dark',
         styles: { branding: { brandColor: '#D9B15C' } },
-        hideEventTypeDetails: false,
+        hideEventTypeDetails: true, // Esconde os detalhes do evento na lateral esquerda
         layout: 'month_view',
       })
       cal('on', {
@@ -174,8 +174,14 @@ export default function Booking() {
                     ))}
                   </div>
 
+                  {/* Aviso de rolagem */}
+                  <div className="flex items-center gap-2 rounded-lg bg-gold/10 p-3 text-sm text-gold-light">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gold/20">↓</span>
+                    Dica: Após selecionar o dia, role a lista de horários para baixo para ver mais opções.
+                  </div>
+
                   {/* Widget inline do Cal.com */}
-                  <div className="overflow-hidden rounded-2xl border border-white/10">
+                  <div className="overflow-hidden rounded-2xl border border-white/10 relative">
                     <Cal
                       calLink={`${CAL_USERNAME}/${CAL_EVENT_SLUG}`}
                       style={{ width: '100%', height: '100%', overflow: 'scroll', minHeight: '500px' }}
