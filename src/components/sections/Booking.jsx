@@ -10,6 +10,23 @@ import SectionTitle from '../ui/SectionTitle.jsx'
 
 const CAL_USERNAME = import.meta.env.VITE_CAL_USERNAME || 'thallyta-silveira-hxfjrf'
 const CAL_EVENT_SLUG = import.meta.env.VITE_CAL_EVENT_SLUG || '30min'
+const CAL_THEME = {
+  'cal-bg': '#3d3528',
+  'cal-bg-emphasis': '#514735',
+  'cal-bg-subtle': '#473d2d',
+  'cal-bg-muted': '#5f523a',
+  'cal-bg-inverted': '#D9B15C',
+  'cal-text': '#F8F3E8',
+  'cal-text-emphasis': '#F7E6A8',
+  'cal-text-subtle': 'rgba(248,243,232,0.72)',
+  'cal-text-muted': 'rgba(248,243,232,0.55)',
+  'cal-border': 'rgba(217,177,92,0.28)',
+  'cal-border-emphasis': 'rgba(217,177,92,0.55)',
+  'cal-border-subtle': 'rgba(217,177,92,0.18)',
+  'cal-brand': '#D9B15C',
+  'cal-brand-emphasis': '#F7E6A8',
+  'cal-brand-text': '#15120F',
+}
 
 export default function Booking() {
   const { user, setLoginOpen, getToken } = useAuth()
@@ -27,23 +44,7 @@ export default function Booking() {
         hideEventTypeDetails: true,
         layout: 'month_view',
         cssVarsPerTheme: {
-          dark: {
-            'cal-bg': '#1a1611',
-            'cal-bg-emphasis': '#252019',
-            'cal-bg-subtle': '#1f1b15',
-            'cal-bg-muted': '#2a2419',
-            'cal-bg-inverted': '#D9B15C',
-            'cal-text': '#F8F3E8',
-            'cal-text-emphasis': '#F7E6A8',
-            'cal-text-subtle': 'rgba(248,243,232,0.6)',
-            'cal-text-muted': 'rgba(248,243,232,0.4)',
-            'cal-border': 'rgba(217,177,92,0.2)',
-            'cal-border-emphasis': 'rgba(217,177,92,0.4)',
-            'cal-border-subtle': 'rgba(217,177,92,0.12)',
-            'cal-brand': '#D9B15C',
-            'cal-brand-emphasis': '#C9A84C',
-            'cal-brand-text': '#15120F',
-          },
+          dark: CAL_THEME,
         },
       })
       cal('on', {
@@ -276,6 +277,9 @@ export default function Booking() {
                       config={{
                         layout: 'month_view',
                         theme: 'dark',
+                        cssVarsPerTheme: {
+                          dark: CAL_THEME,
+                        },
                         name: user?.name || '',
                         email: user?.email || '',
                         notes: `Serviços: ${servicesParam}`,

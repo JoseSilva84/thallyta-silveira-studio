@@ -969,6 +969,42 @@ label.cursor-pointer:active {
   display: none !important;
 }
 
+:where([data-cal-namespace]),
+:where([data-cal-namespace]) [data-testid="booking-success"],
+:where([data-cal-namespace]) [data-testid="success-page"],
+:where([data-cal-namespace]) [class*="booking-success"],
+:where([data-cal-namespace]) [class*="success"] {
+  --cal-bg: #3d3528 !important;
+  --cal-bg-emphasis: #514735 !important;
+  --cal-bg-subtle: #473d2d !important;
+  --cal-bg-muted: #5f523a !important;
+  --cal-text: #F8F3E8 !important;
+  --cal-text-emphasis: #F7E6A8 !important;
+  --cal-text-subtle: rgba(248, 243, 232, 0.72) !important;
+  --cal-text-muted: rgba(248, 243, 232, 0.55) !important;
+  --cal-border: rgba(217, 177, 92, 0.28) !important;
+  --cal-border-emphasis: rgba(217, 177, 92, 0.55) !important;
+  --cal-border-subtle: rgba(217, 177, 92, 0.18) !important;
+  --cal-brand: #D9B15C !important;
+  --cal-brand-emphasis: #F7E6A8 !important;
+  --cal-brand-text: #15120F !important;
+  background-color: #3d3528 !important;
+  color: #F8F3E8 !important;
+}
+
+:where([data-cal-namespace]) [class*="bg-default"],
+:where([data-cal-namespace]) [class*="bg-emphasis"],
+:where([data-cal-namespace]) [class*="bg-subtle"],
+:where([data-cal-namespace]) [class*="dark:bg"] {
+  background-color: rgba(74, 69, 61, 0.92) !important;
+}
+
+:where([data-cal-namespace]) [class*="border-default"],
+:where([data-cal-namespace]) [class*="border-subtle"],
+:where([data-cal-namespace]) [class*="divide-default"] > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgba(217, 177, 92, 0.24) !important;
+}
+
 /* Botões de horário disponíveis — estilo dourado */
 :where([data-cal-namespace]) button[data-testid="time"] {
   border: 1px solid rgba(217, 177, 92, 0.3) !important;
@@ -1014,4 +1050,3 @@ label.cursor-pointer:active {
 :where([data-cal-namespace]) ::-webkit-scrollbar-thumb:hover {
   background: rgba(217, 177, 92, 0.6);
 }
-
