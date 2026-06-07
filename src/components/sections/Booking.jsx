@@ -23,8 +23,27 @@ export default function Booking() {
       cal('ui', {
         theme: 'dark',
         styles: { branding: { brandColor: '#D9B15C' } },
-        hideEventTypeDetails: true, // Esconde os detalhes do evento na lateral esquerda
+        hideEventTypeDetails: true,
         layout: 'month_view',
+        cssVarsPerTheme: {
+          dark: {
+            'cal-bg': '#1a1611',
+            'cal-bg-emphasis': '#252019',
+            'cal-bg-subtle': '#1f1b15',
+            'cal-bg-muted': '#2a2419',
+            'cal-bg-inverted': '#D9B15C',
+            'cal-text': '#F8F3E8',
+            'cal-text-emphasis': '#F7E6A8',
+            'cal-text-subtle': 'rgba(248,243,232,0.6)',
+            'cal-text-muted': 'rgba(248,243,232,0.4)',
+            'cal-border': 'rgba(217,177,92,0.2)',
+            'cal-border-emphasis': 'rgba(217,177,92,0.4)',
+            'cal-border-subtle': 'rgba(217,177,92,0.12)',
+            'cal-brand': '#D9B15C',
+            'cal-brand-emphasis': '#C9A84C',
+            'cal-brand-text': '#15120F',
+          },
+        },
       })
       cal('on', {
         action: 'bookingSuccessful',
