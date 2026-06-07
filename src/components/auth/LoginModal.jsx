@@ -1,13 +1,20 @@
 import { useForm } from 'react-hook-form'
 import { FiX } from 'react-icons/fi'
 import { FcGoogle } from 'react-icons/fc'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext.jsx'
 
 export default function LoginModal() {
-  const { loginOpen, setLoginOpen, login } = useAuth()
+  const { loginOpen, setLoginOpen, login, loginWithGoogle, loading } = useAuth()
   const { register, handleSubmit } = useForm({ defaultValues: { email: '', password: '' } })
+  const navigate = useNavigate()
 
   if (!loginOpen) return null
+
+  const handleGoToRegister = () => {
+    setLoginOpen(false)
+    navigate('/register')
+  }
 
   return (
     <div className="fixed inset-0 z-[80] grid place-items-center bg-black/70 px-4 backdrop-blur-sm">
@@ -38,23 +45,27 @@ export default function LoginModal() {
               className="mt-2 w-full rounded-md border border-dark-border bg-black/35 px-4 py-3 text-cream"
               type="password"
               placeholder="••••••••"
-              {...register('password')}
+              {...register('password', { required: true })}
             />
           </label>
-          <button type="submit" className="gold-button w-full rounded-md px-5 py-3 text-sm font-bold">
-            Entrar
+          <button type="submit" disabled={loading} className="gold-button w-full rounded-md px-5 py-3 text-sm font-bold disabled:opacity-50">
+            {loading ? 'Entrando...' : 'Entrar'}
           </button>
         </form>
         <button
           type="button"
-          onClick={() => login({ name: 'Cliente Google', email: 'google@cliente.com' })}
-          className="tap-gold mt-3 flex w-full items-center justify-center gap-3 rounded-md border border-dark-border bg-white px-5 py-3 text-sm font-bold text-zinc-900"
+          onClick={loginWithGoogle}
+          className="tap-gold mt-3 flex w-full items-center justify-center gap-3 rounded-md border border-dark-border bg-white px-5 py-3 text-sm font-bold text-zinc-900 transition-colors hover:bg-gray-100"
         >
           <FcGoogle />
           Entrar com Google
         </button>
-        <button type="button" onClick={() => login({ name: 'Nova Cliente', email: 'cliente@studio.com' })} className="tap-gold mt-4 rounded px-2 py-1 text-sm text-gold-light">
-          Criar conta
+        <button
+          type="button"
+          onClick={handleGoToRegister}
+          className="tap-gold mt-4 rounded px-2 py-1 text-sm text-gold-light hover:text-gold transition-colors"
+        >
+          Não tem conta? <span className="underline">Criar conta</span>
         </button>
       </div>
     </div>
