@@ -24,13 +24,13 @@ export default function Footer() {
           <a href="https://wa.me/5588981860582" target="_blank" rel="noreferrer" className="tap-gold rounded-full border border-gold/30 p-3 text-gold-light">
             <BsWhatsapp />
           </a>
+          <Link to="/admin" className="tap-gold ml-2 rounded-full border border-white/10 p-3 text-cream/40 transition-colors hover:text-gold-light" aria-label="Painel Administrativo" title="Painel Administrativo">
+            <FiLock />
+          </Link>
         </div>
       </div>
-      <div className="section-shell mt-8 flex items-center justify-between">
-        <p className="text-xs text-cream/45">© 2026 Studio de Beleza Thallyta Silveira. Todos os direitos reservados.</p>
-        <Link to="/admin" className="text-cream/30 transition-colors hover:text-gold" aria-label="Painel Administrativo" title="Painel Administrativo">
-          <FiLock size={14} />
-        </Link>
+      <div className="section-shell mt-8 flex items-center justify-center md:justify-start">
+        <p className="text-xs text-cream/45 text-center md:text-left">© 2026 Studio de Beleza Thallyta Silveira. Todos os direitos reservados.</p>
       </div>
     </footer>
   )
