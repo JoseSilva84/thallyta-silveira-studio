@@ -264,6 +264,37 @@ section[id] {
   filter: saturate(1.12) brightness(1.04);
 }
 
+/* Variant size selector inside service card */
+.service-variant-select {
+  width: 100%;
+  appearance: none;
+  cursor: pointer;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(217, 177, 92, 0.25);
+  background: rgba(0, 0, 0, 0.30);
+  padding: 0.6rem 2.2rem 0.6rem 0.9rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #F8F3E8;
+  backdrop-filter: blur(8px);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.service-variant-select:hover {
+  border-color: rgba(217, 177, 92, 0.5);
+}
+
+.service-variant-select:focus {
+  outline: none;
+  border-color: rgba(247, 230, 168, 0.65);
+  box-shadow: 0 0 0 2px rgba(217, 177, 92, 0.15);
+}
+
+.service-variant-select option {
+  background: #2a2015;
+  color: #F8F3E8;
+}
+
 .gallery-slider {
   position: relative;
   overflow: hidden;

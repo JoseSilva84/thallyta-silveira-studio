@@ -17,9 +17,37 @@ export const serviceGroups = [
     id: 'cabelo',
     label: 'Cabelo',
     services: [
-      { id: 'alisamento', name: 'Alisamento', price: 'P R$ 200 · M R$ 250 · G R$ 300 · GG R$ 400', image: 'https://images.unsplash.com/photo-1519699047748-de8e457a634e?auto=format&fit=crop&w=600&q=80' },
-      { id: 'botox', name: 'Botox Capilar', price: 'P R$ 170 · M R$ 200 · G R$ 250', image: 'https://images.unsplash.com/photo-1562322140-8baeececf3df?auto=format&fit=crop&w=600&q=80' },
-      { id: 'reducao', name: 'Redução de Cachos', price: 'P R$ 200 · M R$ 250 · G R$ 280', image: 'https://images.unsplash.com/photo-1527799820374-dcf8d9d4a388?auto=format&fit=crop&w=600&q=80' },
+      {
+        id: 'alisamento',
+        name: 'Alisamento',
+        image: 'https://images.unsplash.com/photo-1519699047748-de8e457a634e?auto=format&fit=crop&w=600&q=80',
+        variants: [
+          { size: 'P', label: 'Pequeno (P)', price: 'R$ 200,00', priceValue: 200 },
+          { size: 'M', label: 'Médio (M)', price: 'R$ 250,00', priceValue: 250 },
+          { size: 'G', label: 'Grande (G)', price: 'R$ 300,00', priceValue: 300 },
+          { size: 'GG', label: 'Extra Grande (GG)', price: 'R$ 400,00', priceValue: 400 },
+        ],
+      },
+      {
+        id: 'botox',
+        name: 'Botox Capilar',
+        image: 'https://images.unsplash.com/photo-1562322140-8baeececf3df?auto=format&fit=crop&w=600&q=80',
+        variants: [
+          { size: 'P', label: 'Pequeno (P)', price: 'R$ 170,00', priceValue: 170 },
+          { size: 'M', label: 'Médio (M)', price: 'R$ 200,00', priceValue: 200 },
+          { size: 'G', label: 'Grande (G)', price: 'R$ 250,00', priceValue: 250 },
+        ],
+      },
+      {
+        id: 'reducao',
+        name: 'Redução de Cachos',
+        image: 'https://images.unsplash.com/photo-1527799820374-dcf8d9d4a388?auto=format&fit=crop&w=600&q=80',
+        variants: [
+          { size: 'P', label: 'Pequeno (P)', price: 'R$ 200,00', priceValue: 200 },
+          { size: 'M', label: 'Médio (M)', price: 'R$ 250,00', priceValue: 250 },
+          { size: 'G', label: 'Grande (G)', price: 'R$ 280,00', priceValue: 280 },
+        ],
+      },
     ],
   },
   {
@@ -35,6 +63,18 @@ export const serviceGroups = [
   },
 ]
 
+// Para a seção de agendamento (checkboxes): expande serviços com variantes em múltiplas entradas
 export const allServices = serviceGroups.flatMap((group) =>
-  group.services.map((service) => ({ ...service, group: group.label })),
+  group.services.flatMap((service) => {
+    if (service.variants) {
+      return service.variants.map((v) => ({
+        id: `${service.id}-${v.size.toLowerCase()}`,
+        name: `${service.name} (${v.size})`,
+        price: v.price,
+        group: group.label,
+        image: service.image,
+      }))
+    }
+    return [{ ...service, group: group.label }]
+  }),
 )
