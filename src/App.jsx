@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import Navbar from './components/layout/Navbar.jsx'
 import Footer from './components/layout/Footer.jsx'
 import FloatingButtons from './components/layout/FloatingButtons.jsx'
+import FloatingCart from './components/ui/FloatingCart.jsx'
 import Hero from './components/sections/Hero.jsx'
 import About from './components/sections/About.jsx'
 import Services from './components/sections/Services.jsx'
@@ -59,6 +60,7 @@ function Home() {
       </main>
       <Footer />
       <FloatingButtons />
+      <FloatingCart />
     </>
   )
 }

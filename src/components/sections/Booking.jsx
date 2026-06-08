@@ -56,7 +56,11 @@ export default function Booking() {
           // Atualiza os bookings no contexto (para os selos de fidelidade)
           const token = getToken()
           if (token) {
-            setTimeout(() => fetchBookings(token), 2000) // Aguarda o webhook processar
+            // Polling simples para aguardar o webhook da cal.com criar o agendamento
+            fetchBookings(token)
+            setTimeout(() => fetchBookings(token), 3000)
+            setTimeout(() => fetchBookings(token), 8000)
+            setTimeout(() => fetchBookings(token), 15000)
           }
         },
       })
