@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { FiArrowLeft, FiCalendar, FiClock, FiGift, FiRefreshCw, FiScissors, FiTrash2 } from 'react-icons/fi'
 import { Link } from 'react-router-dom'
+import { toast } from 'react-toastify'
 import { useBooking } from '../context/BookingContext.jsx'
 import Navbar from '../components/layout/Navbar.jsx'
 import Footer from '../components/layout/Footer.jsx'
@@ -198,13 +199,39 @@ export default function MyBookingsPage() {
   const upcoming = sortedBookings.filter((booking) => booking.status !== 'cancelled' && new Date(booking.scheduledAt) >= new Date())
   const history = sortedBookings.filter((booking) => booking.status === 'cancelled' || new Date(booking.scheduledAt) < new Date())
 
-  const handleCancel = async (booking) => {
-    const ok = window.confirm('Deseja cancelar este agendamento?')
-    if (!ok) return
-
-    setCancelling(booking.id)
-    await cancelBooking(booking.id)
-    setCancelling(null)
+  const handleCancel = (booking) => {
+    toast(
+      ({ closeToast }) => (
+        <div className="flex flex-col gap-3">
+          <p className="text-sm font-medium text-cream">Deseja cancelar este agendamento?</p>
+          <div className="flex items-center justify-end gap-2">
+            <button
+              onClick={closeToast}
+              className="rounded px-3 py-1.5 text-xs font-semibold text-cream/70 hover:bg-white/10 transition-colors"
+            >
+              Não
+            </button>
+            <button
+              onClick={async () => {
+                closeToast()
+                setCancelling(booking.id)
+                await cancelBooking(booking.id)
+                setCancelling(null)
+              }}
+              className="rounded bg-red-500/20 px-3 py-1.5 text-xs font-semibold text-red-200 hover:bg-red-500/30 transition-colors"
+            >
+              Sim, cancelar
+            </button>
+          </div>
+        </div>
+      ),
+      {
+        autoClose: false,
+        closeOnClick: false,
+        closeButton: false,
+        draggable: false,
+      }
+    )
   }
 
   return (
