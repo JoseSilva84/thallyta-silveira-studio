@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { FiCheck, FiCalendar, FiCheckCircle } from 'react-icons/fi'
+import { FiCheck, FiCalendar, FiCheckCircle, FiLoader } from 'react-icons/fi'
 import { toast } from 'react-toastify'
 import Cal, { getCalApi } from '@calcom/embed-react'
 import { allServices } from '../../data/services.js'
@@ -33,7 +33,9 @@ export default function Booking() {
   const { selectedServices, toggleService, fetchBookings, scheduleRequestId } = useBooking()
   const [showCal, setShowCal] = useState(false)
   const [bookingConfirmed, setBookingConfirmed] = useState(false)
+  const [isCalFrameLoaded, setIsCalFrameLoaded] = useState(false)
   const sectionRef = useRef(null)
+  const calFrameWrapRef = useRef(null)
   const lastScheduleRequest = useRef(scheduleRequestId)
 
   const focusBookingSection = useCallback(() => {
@@ -76,6 +78,36 @@ export default function Booking() {
     })()
   }, [getToken, fetchBookings])
 
+  useEffect(() => {
+    if (!showCal) return undefined
+
+    setIsCalFrameLoaded(false)
+
+    const attachLoadListener = () => {
+      const iframe = calFrameWrapRef.current?.querySelector('iframe')
+      if (!iframe) return null
+
+      const handleLoad = () => setIsCalFrameLoaded(true)
+      iframe.addEventListener('load', handleLoad, { once: true })
+      return () => iframe.removeEventListener('load', handleLoad)
+    }
+
+    let cleanupLoad = attachLoadListener()
+    const observer = new MutationObserver(() => {
+      if (cleanupLoad) return
+      cleanupLoad = attachLoadListener()
+    })
+
+    if (calFrameWrapRef.current) {
+      observer.observe(calFrameWrapRef.current, { childList: true, subtree: true })
+    }
+
+    return () => {
+      observer.disconnect()
+      cleanupLoad?.()
+    }
+  }, [showCal])
+
   // Monta a string de serviços selecionados para enviar como metadata ao Cal.com
   const servicesParam = useMemo(
     () => selectedServices.map((s) => s.name).join(', '),
@@ -90,6 +122,7 @@ export default function Booking() {
       setLoginOpen(true)
       return toast.info('Entre na sua conta para agendar.')
     }
+    setIsCalFrameLoaded(false)
     setShowCal(true)
     setBookingConfirmed(false)
     focusBookingSection()
@@ -290,7 +323,16 @@ export default function Booking() {
                   </div>
 
                   {/* Widget inline do Cal.com */}
-                  <div className="overflow-hidden rounded-2xl border border-white/10 relative">
+                  <div ref={calFrameWrapRef} className="relative overflow-hidden rounded-2xl border border-white/10">
+                    {!isCalFrameLoaded && (
+                      <div className="pointer-events-none absolute inset-0 z-10 flex min-h-[500px] flex-col items-center justify-center gap-3 bg-dark/80 text-center backdrop-blur-sm">
+                        <FiLoader className="h-8 w-8 animate-spin text-gold-light" />
+                        <div>
+                          <p className="font-display text-2xl font-semibold text-gold-light">Carregando agenda</p>
+                          <p className="mt-1 text-sm text-cream/60">Buscando dias e horários disponíveis.</p>
+                        </div>
+                      </div>
+                    )}
                     <Cal
                       calLink={`${CAL_USERNAME}/${CAL_EVENT_SLUG}`}
                       style={{ width: '100%', height: '100%', overflow: 'scroll', minHeight: '500px' }}
