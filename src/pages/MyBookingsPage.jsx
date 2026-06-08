@@ -244,7 +244,7 @@ export default function MyBookingsPage() {
               <Link to="/" className="tap-gold mb-5 inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm text-cream/70 hover:text-gold-light">
                 <FiArrowLeft /> Voltar ao site
               </Link>
-              <p className="text-xs font-bold uppercase tracking-[0.35em] text-gold-light/70">Area da cliente</p>
+              <p className="text-xs font-bold uppercase tracking-[0.35em] text-gold-light/70">Área da cliente</p>
               <h1 className="mt-2 font-display text-4xl font-semibold text-gold-light md:text-5xl">Meus Agendamentos</h1>
               <p className="mt-3 max-w-2xl text-cream/60">
                 Acompanhe seus horarios reservados e cancele quando precisar.

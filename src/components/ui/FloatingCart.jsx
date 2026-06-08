@@ -3,7 +3,7 @@ import { FiX, FiCheck } from 'react-icons/fi'
 import { useEffect, useState } from 'react'
 
 export default function FloatingCart() {
-  const { selectedServices, clearServices } = useBooking()
+  const { selectedServices, clearServices, requestSchedule } = useBooking()
   const [isVisible, setIsVisible] = useState(false)
 
   useEffect(() => {
@@ -46,12 +46,13 @@ export default function FloatingCart() {
           >
             Cancelar
           </button>
-          <a 
-            href="#agendamento"
+          <button
+            type="button"
+            onClick={requestSchedule}
             className="flex-1 py-2.5 rounded-xl gold-button flex items-center justify-center gap-1.5 text-xs font-bold uppercase tracking-wider text-dark shadow-[0_0_15px_rgba(217,177,92,0.2)]"
           >
             <FiCheck className="text-sm" /> Finalizar
-          </a>
+          </button>
         </div>
       </div>
     </div>

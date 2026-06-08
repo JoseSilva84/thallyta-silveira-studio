@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { FiCheck, FiCalendar, FiCheckCircle } from 'react-icons/fi'
 import { toast } from 'react-toastify'
 import Cal, { getCalApi } from '@calcom/embed-react'
@@ -30,9 +30,18 @@ const CAL_THEME = {
 
 export default function Booking() {
   const { user, setLoginOpen, getToken } = useAuth()
-  const { selectedServices, toggleService, fetchBookings } = useBooking()
+  const { selectedServices, toggleService, fetchBookings, scheduleRequestId } = useBooking()
   const [showCal, setShowCal] = useState(false)
   const [bookingConfirmed, setBookingConfirmed] = useState(false)
+  const sectionRef = useRef(null)
+  const lastScheduleRequest = useRef(scheduleRequestId)
+
+  const focusBookingSection = useCallback(() => {
+    window.history.replaceState(null, '', '#agendamento')
+    requestAnimationFrame(() => {
+      sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }, [])
 
   // Inicializa a API do Cal.com embed e escuta o evento de booking concluído
   useEffect(() => {
@@ -73,7 +82,7 @@ export default function Booking() {
     [selectedServices],
   )
 
-  const handleProceed = () => {
+  const handleProceed = useCallback(() => {
     if (!selectedServices.length) {
       return toast.warn('Escolha pelo menos um serviço.')
     }
@@ -83,7 +92,14 @@ export default function Booking() {
     }
     setShowCal(true)
     setBookingConfirmed(false)
-  }
+    focusBookingSection()
+  }, [focusBookingSection, selectedServices.length, setLoginOpen, user])
+
+  useEffect(() => {
+    if (scheduleRequestId === lastScheduleRequest.current) return
+    lastScheduleRequest.current = scheduleRequestId
+    handleProceed()
+  }, [handleProceed, scheduleRequestId])
 
   const handleNewBooking = () => {
     setShowCal(false)
@@ -102,7 +118,7 @@ export default function Booking() {
   }, [selectedServices])
 
   return (
-    <section id="agendamento" className="premium-section py-16 md:py-20">
+    <section ref={sectionRef} id="agendamento" className="premium-section py-16 md:py-20">
       <div className="section-shell">
         <SectionTitle eyebrow="Agendamento" title="Reserve seu horário" text="Monte seu atendimento em poucos passos." />
         <Reveal>

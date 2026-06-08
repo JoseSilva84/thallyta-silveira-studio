@@ -11,6 +11,7 @@ export function BookingProvider({ children }) {
   const [selectedServices, setSelectedServices] = useState([])
   const [bookings, setBookings] = useState([])
   const [loadingBookings, setLoadingBookings] = useState(false)
+  const [scheduleRequestId, setScheduleRequestId] = useState(0)
 
   const toggleService = (service) => {
     setSelectedServices((current) =>
@@ -28,6 +29,7 @@ export function BookingProvider({ children }) {
   }
 
   const clearServices = () => setSelectedServices([])
+  const requestSchedule = () => setScheduleRequestId((current) => current + 1)
 
   // Busca os agendamentos do usuário logado (ou todos, se admin) a partir da API
   const fetchBookings = useCallback(async (token) => {
@@ -90,10 +92,12 @@ export function BookingProvider({ children }) {
       addService,
       toggleService,
       clearServices,
+      requestSchedule,
+      scheduleRequestId,
       fetchBookings,
       cancelBooking,
     }),
-    [selectedServices, bookings, loadingBookings, fetchBookings, cancelBooking],
+    [selectedServices, bookings, loadingBookings, scheduleRequestId, fetchBookings, cancelBooking],
   )
 
   return <BookingContext.Provider value={value}>{children}</BookingContext.Provider>
