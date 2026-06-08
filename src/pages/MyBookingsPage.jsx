@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
-import { FiArrowLeft, FiCalendar, FiClock, FiRefreshCw, FiScissors, FiTrash2 } from 'react-icons/fi'
+import { FiArrowLeft, FiCalendar, FiClock, FiGift, FiRefreshCw, FiScissors, FiTrash2 } from 'react-icons/fi'
 import { Link } from 'react-router-dom'
 import { useBooking } from '../context/BookingContext.jsx'
 import Navbar from '../components/layout/Navbar.jsx'
 import Footer from '../components/layout/Footer.jsx'
 import FloatingButtons from '../components/layout/FloatingButtons.jsx'
+import LoyaltyCard from '../components/ui/LoyaltyCard.jsx'
 
 const formatDate = (value) => {
   const date = new Date(value)
@@ -119,6 +120,73 @@ function BookingItem({ booking, cancelling, onCancel }) {
   )
 }
 
+function countServices(bookings) {
+  return bookings.reduce((total, booking) => {
+    if (!booking.service) return total + 1
+    return total + booking.service.split(',').filter(Boolean).length
+  }, 0)
+}
+
+function ClientLoyaltySummary({ bookings }) {
+  const stamps = countServices(bookings)
+  const visibleStamps = Math.min(stamps, 10)
+  const recentBookings = bookings.slice(0, 5)
+
+  return (
+    <section className="pt-2">
+      <div className="mb-4 flex items-center gap-3">
+        <FiGift className="text-gold" />
+        <h2 className="font-display text-2xl font-semibold">Fidelidade</h2>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-[0.82fr_1fr]">
+        <LoyaltyCard stamps={visibleStamps} />
+
+        <div className="gold-border rounded-lg bg-black/35 p-5 backdrop-blur-xl md:p-6">
+          <div className="flex flex-col gap-2 border-b border-white/10 pb-5 md:flex-row md:items-start md:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.28em] text-gold-light/70">Resumo geral</p>
+              <h3 className="mt-2 font-display text-3xl font-semibold text-gold-light">
+                {stamps} {stamps === 1 ? 'selo acumulado' : 'selos acumulados'}
+              </h3>
+            </div>
+            <span className="rounded-full border border-gold/25 bg-gold/10 px-4 py-2 text-sm font-bold text-gold-light">
+              {Math.max(10 - visibleStamps, 0)} para completar
+            </span>
+          </div>
+
+          <div className="mt-5">
+            <h4 className="text-sm font-bold uppercase tracking-wider text-cream/60">Ultimos registros</h4>
+            {recentBookings.length === 0 ? (
+              <p className="mt-4 rounded-lg border border-white/10 bg-white/5 p-4 text-sm text-cream/55">
+                Seus selos aparecem aqui conforme seus agendamentos forem registrados.
+              </p>
+            ) : (
+              <div className="mt-4 space-y-3">
+                {recentBookings.map((booking) => (
+                  <div key={booking.id} className="flex flex-col gap-2 rounded-lg border border-white/10 bg-white/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <span className="break-words font-semibold text-cream">{booking.service || 'Servico'}</span>
+                    <span className="text-xs font-bold uppercase tracking-wider text-gold-light/75">
+                      {new Date(booking.scheduledAt).toLocaleDateString('pt-BR')} - {formatTime(booking.scheduledAt)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <Link
+            to="/#fidelidade"
+            className="tap-gold mt-5 inline-flex items-center gap-2 rounded-lg border border-gold/25 px-4 py-3 text-sm font-semibold text-gold-light hover:bg-gold/10"
+          >
+            Ver seção fidelidade
+          </Link>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 export default function MyBookingsPage() {
   const { bookings, loadingBookings, fetchBookings, cancelBooking } = useBooking()
   const [cancelling, setCancelling] = useState(null)
@@ -198,6 +266,14 @@ export default function MyBookingsPage() {
                   </div>
                 </section>
               )}
+
+              <ClientLoyaltySummary bookings={sortedBookings} />
+            </div>
+          )}
+
+          {!loadingBookings && bookings.length === 0 && (
+            <div className="mt-10">
+              <ClientLoyaltySummary bookings={[]} />
             </div>
           )}
         </div>
