@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { FiChevronDown, FiLogOut, FiStar, FiCalendar } from 'react-icons/fi'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext.jsx'
 
 export default function UserProfile() {
@@ -23,9 +24,13 @@ export default function UserProfile() {
       </button>
       {open && (
         <div className="gold-border absolute right-0 mt-3 w-56 rounded-lg bg-dark-card/90 p-2 shadow-xl">
-          <a href="#agendamento" className="tap-gold flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-white/10">
+          <Link
+            to="/meus-agendamentos"
+            onClick={() => setOpen(false)}
+            className="tap-gold flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-white/10"
+          >
             <FiCalendar /> Meus Agendamentos
-          </a>
+          </Link>
           <a href="#fidelidade" className="tap-gold flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-white/10">
             <FiStar /> Fidelidade
           </a>

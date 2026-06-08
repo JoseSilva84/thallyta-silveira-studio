@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { toast } from 'react-toastify'
 import { useAuth } from './AuthContext.jsx'
 
 const BookingContext = createContext(null)
@@ -48,6 +49,30 @@ export function BookingProvider({ children }) {
     }
   }, [getToken])
 
+  const cancelBooking = useCallback(async (bookingId) => {
+    const token = getToken()
+    if (!token) {
+      toast.info('Entre na sua conta para cancelar o agendamento.')
+      return { ok: false }
+    }
+
+    try {
+      const res = await fetch(`${API}/bookings/${bookingId}/cancel`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Erro ao cancelar agendamento.')
+
+      setBookings((current) => current.map((booking) => (booking.id === data.id ? data : booking)))
+      toast.success('Agendamento cancelado.')
+      return { ok: true, booking: data }
+    } catch (error) {
+      toast.error(error.message)
+      return { ok: false, error: error.message }
+    }
+  }, [getToken])
+
   // Busca automaticamente os bookings quando o usuário loga
   useEffect(() => {
     if (user) {
@@ -66,8 +91,9 @@ export function BookingProvider({ children }) {
       toggleService,
       clearServices,
       fetchBookings,
+      cancelBooking,
     }),
-    [selectedServices, bookings, loadingBookings, fetchBookings],
+    [selectedServices, bookings, loadingBookings, fetchBookings, cancelBooking],
   )
 
   return <BookingContext.Provider value={value}>{children}</BookingContext.Provider>

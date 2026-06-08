@@ -14,6 +14,7 @@ import AdminPanel from './components/admin/AdminPanel.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import RegisterPage from './pages/RegisterPage.jsx'
 import ProtectedRoute from './components/auth/ProtectedRoute.jsx'
+import MyBookingsPage from './pages/MyBookingsPage.jsx'
 import { useAuth } from './context/AuthContext.jsx'
 import { useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
@@ -78,6 +79,14 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/auth/callback" element={<GoogleAuthCallback />} />
+        <Route
+          path="/meus-agendamentos"
+          element={
+            <ProtectedRoute>
+              <MyBookingsPage />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Painel Admin — apenas administradores autenticados */}
         <Route
