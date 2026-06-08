@@ -135,9 +135,19 @@ export default function Navbar() {
                 </button>
               ) : (
                 <div className="mt-4 border-t border-white/10 pt-4">
-                  <p className="mb-2 px-3 text-xs font-bold uppercase tracking-wider text-gold-light/70">
-                    Sua Conta
-                  </p>
+                  <div className="mb-3 px-3">
+                    <p className="text-xs font-bold uppercase tracking-wider text-gold-light/70">
+                      Sua Conta
+                    </p>
+                    <div className="mt-1 flex items-center gap-2">
+                      <span className="silver-glow grid size-6 place-items-center rounded-full bg-gold text-xs font-bold text-dark">
+                        {user.name.slice(0, 1).toUpperCase()}
+                      </span>
+                      <p className="text-sm text-cream/90 truncate">
+                        {user.name}
+                      </p>
+                    </div>
+                  </div>
                   <Link
                     to="/meus-agendamentos"
                     onClick={() => setOpen(false)}
