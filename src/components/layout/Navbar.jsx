@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { FiCalendar, FiGrid, FiHome, FiMenu, FiUser, FiX } from 'react-icons/fi'
+import { FiCalendar, FiGrid, FiHome, FiMenu, FiUser, FiX, FiLogOut } from 'react-icons/fi'
+import { Link } from 'react-router-dom'
 import LoginModal from '../auth/LoginModal.jsx'
 import UserProfile from '../auth/UserProfile.jsx'
 import { useAuth } from '../../context/AuthContext.jsx'
@@ -28,7 +29,7 @@ export default function Navbar() {
   const [scrolled, setScrolled] = useState(false)
   const [activeSection, setActiveSection] = useState('inicio')
   const [open, setOpen] = useState(false)
-  const { user, setLoginOpen } = useAuth()
+  const { user, setLoginOpen, logout } = useAuth()
 
   useEffect(() => {
     const onScroll = () => {
@@ -122,7 +123,7 @@ export default function Navbar() {
                   {label}
                 </a>
               ))}
-              {!user && (
+              {!user ? (
                 <button
                   onClick={() => {
                     setOpen(false)
@@ -132,6 +133,28 @@ export default function Navbar() {
                 >
                   Entrar
                 </button>
+              ) : (
+                <div className="mt-4 border-t border-white/10 pt-4">
+                  <p className="mb-2 px-3 text-xs font-bold uppercase tracking-wider text-gold-light/70">
+                    Sua Conta
+                  </p>
+                  <Link
+                    to="/meus-agendamentos"
+                    onClick={() => setOpen(false)}
+                    className="flex w-full items-center gap-3 rounded-md px-3 py-3 text-cream/80 hover:bg-white/5 hover:text-cream"
+                  >
+                    <FiCalendar className="text-gold" /> Meus Agendamentos
+                  </Link>
+                  <button
+                    onClick={() => {
+                      setOpen(false)
+                      logout()
+                    }}
+                    className="flex w-full items-center gap-3 rounded-md px-3 py-3 text-left text-cream/80 hover:bg-white/5 hover:text-red-400"
+                  >
+                    <FiLogOut className="text-gold" /> Sair
+                  </button>
+                </div>
               )}
             </div>
           </aside>
