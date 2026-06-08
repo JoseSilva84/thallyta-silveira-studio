@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { FiCalendar, FiGrid, FiHome, FiMenu, FiUser, FiX, FiLogOut } from 'react-icons/fi'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import LoginModal from '../auth/LoginModal.jsx'
 import UserProfile from '../auth/UserProfile.jsx'
 import { useAuth } from '../../context/AuthContext.jsx'
@@ -30,6 +30,7 @@ export default function Navbar() {
   const [activeSection, setActiveSection] = useState('inicio')
   const [open, setOpen] = useState(false)
   const { user, setLoginOpen, logout } = useAuth()
+  const navigate = useNavigate()
 
   useEffect(() => {
     const onScroll = () => {
@@ -180,9 +181,13 @@ export default function Navbar() {
                 key={href}
                 href={href}
                 onClick={(e) => {
-                  if (label === 'Perfil' && !user) {
+                  if (label === 'Perfil') {
                     e.preventDefault();
-                    setLoginOpen(true);
+                    if (!user) {
+                      setLoginOpen(true);
+                    } else {
+                      navigate('/meus-agendamentos');
+                    }
                   }
                 }}
                 className={`relative flex min-h-[3.75rem] flex-col items-center justify-center gap-1 rounded-xl transition-colors duration-300 ${
