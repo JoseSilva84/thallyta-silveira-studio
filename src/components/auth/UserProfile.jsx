@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { FiChevronDown, FiLogOut, FiStar, FiCalendar } from 'react-icons/fi'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext.jsx'
@@ -6,11 +6,24 @@ import { useAuth } from '../../context/AuthContext.jsx'
 export default function UserProfile() {
   const [open, setOpen] = useState(false)
   const { user, logout } = useAuth()
+  const menuRef = useRef(null)
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [])
 
   if (!user) return null
 
   return (
-    <div className="relative">
+    <div className="relative" ref={menuRef}>
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
@@ -31,7 +44,7 @@ export default function UserProfile() {
           >
             <FiCalendar /> Meus Agendamentos
           </Link>
-          <a href="#fidelidade" className="tap-gold flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-white/10">
+          <a href="#fidelidade" onClick={() => setOpen(false)} className="tap-gold flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-white/10">
             <FiStar /> Fidelidade
           </a>
           <button onClick={logout} className="tap-gold flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-white/10">
