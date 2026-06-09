@@ -38,6 +38,7 @@ export default function Booking() {
   const sectionRef = useRef(null)
   const calFrameWrapRef = useRef(null)
   const lastScheduleRequest = useRef(scheduleRequestId)
+  const lastBookingSuccessAt = useRef(0)
   const bookingSnapshotRef = useRef({
     services: '',
     total: 0,
@@ -68,6 +69,10 @@ export default function Booking() {
       cal('on', {
         action: 'bookingSuccessful',
         callback: () => {
+          const now = Date.now()
+          if (now - lastBookingSuccessAt.current < 5000) return
+          lastBookingSuccessAt.current = now
+
           // Esconde o Cal.com e mostra nossa tela de confirmação
           setConfirmedSummary(bookingSnapshotRef.current)
           setBookingConfirmed(true)
