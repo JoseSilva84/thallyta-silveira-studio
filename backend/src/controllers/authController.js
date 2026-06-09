@@ -2,6 +2,12 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import prisma from '../config/prisma.js';
 
+const getFrontendUrl = () =>
+  (process.env.FRONTEND_URL || 'http://localhost:5173')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean)[0];
+
 const generateToken = (user) => {
   return jwt.sign(
     {
@@ -81,10 +87,10 @@ export const googleCallback = (req, res) => {
   try {
     const token = generateToken(req.user);
     // Redireciona para o frontend com o token na query string
-    res.redirect(`${process.env.FRONTEND_URL}/auth/callback?token=${token}`);
+    res.redirect(`${getFrontendUrl()}/auth/callback?token=${token}`);
   } catch (error) {
     console.error('Erro no callback Google:', error);
-    res.redirect(`${process.env.FRONTEND_URL}/login?error=google_failed`);
+    res.redirect(`${getFrontendUrl()}/login?error=google_failed`);
   }
 };
 
