@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
-import { FiArrowLeft, FiCalendar, FiClock, FiGift, FiRefreshCw, FiScissors, FiTrash2 } from 'react-icons/fi'
+import { FiAlertTriangle, FiArrowLeft, FiCalendar, FiClock, FiEdit3, FiExternalLink, FiGift, FiRefreshCw, FiScissors, FiTrash2, FiX } from 'react-icons/fi'
 import { Link } from 'react-router-dom'
-import { toast } from 'react-toastify'
 import { useBooking } from '../context/BookingContext.jsx'
 import Navbar from '../components/layout/Navbar.jsx'
 import Footer from '../components/layout/Footer.jsx'
@@ -53,6 +52,33 @@ function BookingStatus({ status }) {
   )
 }
 
+const findActionLink = (value, action) => {
+  if (!value || typeof value !== 'object') return null
+
+  const stack = [value]
+  const actionWords = action === 'reschedule'
+    ? ['reschedule', 'reagendar']
+    : ['cancel', 'cancelar']
+
+  while (stack.length) {
+    const current = stack.pop()
+    if (!current || typeof current !== 'object') continue
+
+    for (const [key, item] of Object.entries(current)) {
+      const keyMatches = actionWords.some((word) => key.toLowerCase().includes(word))
+
+      if (typeof item === 'string') {
+        const valueMatches = actionWords.some((word) => item.toLowerCase().includes(word))
+        if ((keyMatches || valueMatches) && item.startsWith('http')) return item
+      } else if (item && typeof item === 'object') {
+        stack.push(item)
+      }
+    }
+  }
+
+  return null
+}
+
 function EmptyState() {
   return (
     <div className="gold-border rounded-lg bg-black/35 px-5 py-12 text-center">
@@ -70,7 +96,7 @@ function EmptyState() {
   )
 }
 
-function BookingItem({ booking, cancelling, onCancel }) {
+function BookingItem({ booking, cancelling, onCancel, onReschedule }) {
   const startsAt = new Date(booking.scheduledAt)
   const isFuture = startsAt > new Date()
   const canCancel = isFuture && booking.status !== 'cancelled'
@@ -106,18 +132,130 @@ function BookingItem({ booking, cancelling, onCancel }) {
         </div>
 
         {canCancel && (
-          <button
-            type="button"
-            onClick={() => onCancel(booking)}
-            disabled={cancelling === booking.id}
-            className="tap-gold inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-red-300/30 px-4 py-3 text-sm font-semibold text-red-100 hover:bg-red-400/10 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <FiTrash2 />
-            {cancelling === booking.id ? 'Cancelando...' : 'Cancelar'}
-          </button>
+          <div className="flex shrink-0 flex-col gap-2 sm:flex-row md:flex-col lg:flex-row">
+            <button
+              type="button"
+              onClick={() => onReschedule(booking)}
+              className="tap-gold inline-flex items-center justify-center gap-2 rounded-lg border border-gold/25 px-4 py-3 text-sm font-semibold text-gold-light hover:bg-gold/10"
+            >
+              <FiEdit3 />
+              Reagendar
+            </button>
+            <button
+              type="button"
+              onClick={() => onCancel(booking)}
+              disabled={cancelling === booking.id}
+              className="tap-gold inline-flex items-center justify-center gap-2 rounded-lg border border-red-300/30 px-4 py-3 text-sm font-semibold text-red-100 hover:bg-red-400/10 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <FiTrash2 />
+              {cancelling === booking.id ? 'Cancelando...' : 'Cancelar'}
+            </button>
+          </div>
         )}
       </div>
     </article>
+  )
+}
+
+function ActionModal({ booking, type, cancelling, onClose, onConfirmCancel }) {
+  if (!booking) return null
+
+  const isCancel = type === 'cancel'
+  const actionLink = findActionLink(booking.calPayload, isCancel ? 'cancel' : 'reschedule')
+
+  return (
+    <div className="fixed inset-0 z-[80] grid place-items-center bg-black/70 px-4 py-6 backdrop-blur-sm">
+      <div className="gold-border w-full max-w-lg rounded-lg bg-dark-card p-5 shadow-2xl md:p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className={`grid size-11 place-items-center rounded-full border ${isCancel ? 'border-red-300/30 bg-red-400/10 text-red-100' : 'border-gold/25 bg-gold/10 text-gold-light'}`}>
+              {isCancel ? <FiAlertTriangle /> : <FiEdit3 />}
+            </div>
+            <div>
+              <h2 className="font-display text-2xl font-semibold text-gold-light">
+                {isCancel ? 'Cancelar agendamento?' : 'Reagendar horario'}
+              </h2>
+              <p className="mt-1 text-sm text-cream/55">
+                {isCancel ? 'Essa acao altera o status do seu horario.' : 'Escolha outro horario pelo Cal.com.'}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="tap-gold grid size-9 place-items-center rounded-full border border-white/10 text-cream/70 hover:border-gold/30 hover:text-gold-light"
+            aria-label="Fechar"
+          >
+            <FiX />
+          </button>
+        </div>
+
+        <div className="mt-5 rounded-lg border border-white/10 bg-white/5 p-4">
+          <p className="break-words font-display text-xl font-semibold text-cream">{booking.service}</p>
+          <div className="mt-3 grid gap-2 text-sm text-cream/70 sm:grid-cols-2">
+            <span className="flex items-center gap-2">
+              <FiCalendar className="text-gold" /> {formatDate(booking.scheduledAt)}
+            </span>
+            <span className="flex items-center gap-2">
+              <FiClock className="text-gold" /> {formatTime(booking.scheduledAt)}
+            </span>
+          </div>
+        </div>
+
+        {isCancel ? (
+          <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              className="tap-gold rounded-lg border border-white/10 px-5 py-3 text-sm font-semibold text-cream/80 hover:bg-white/10"
+            >
+              Manter horario
+            </button>
+            <button
+              type="button"
+              onClick={() => onConfirmCancel(booking)}
+              disabled={cancelling === booking.id}
+              className="tap-gold inline-flex items-center justify-center gap-2 rounded-lg border border-red-300/30 bg-red-400/10 px-5 py-3 text-sm font-semibold text-red-100 hover:bg-red-400/20 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <FiTrash2 />
+              {cancelling === booking.id ? 'Cancelando...' : 'Confirmar cancelamento'}
+            </button>
+          </div>
+        ) : (
+          <div className="mt-6 space-y-4">
+            <p className="text-sm text-cream/60">
+              O Cal.com cuida da disponibilidade e envia a confirmacao atualizada por e-mail.
+            </p>
+            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={onClose}
+                className="tap-gold rounded-lg border border-white/10 px-5 py-3 text-sm font-semibold text-cream/80 hover:bg-white/10"
+              >
+                Agora nao
+              </button>
+              {actionLink ? (
+                <a
+                  href={actionLink}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="gold-button inline-flex items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-bold uppercase tracking-wider"
+                >
+                  <FiExternalLink /> Abrir reagendamento
+                </a>
+              ) : (
+                <a
+                  href="mailto:studiodebelezathallytasilveira@gmail.com?subject=Reagendar%20agendamento"
+                  className="gold-button inline-flex items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-bold uppercase tracking-wider"
+                >
+                  Solicitar reagendamento
+                </a>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -191,6 +329,7 @@ function ClientLoyaltySummary({ bookings }) {
 export default function MyBookingsPage() {
   const { bookings, loadingBookings, fetchBookings, cancelBooking } = useBooking()
   const [cancelling, setCancelling] = useState(null)
+  const [modalState, setModalState] = useState({ type: null, booking: null })
 
   const sortedBookings = useMemo(() => {
     return [...bookings].sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt))
@@ -199,39 +338,15 @@ export default function MyBookingsPage() {
   const upcoming = sortedBookings.filter((booking) => booking.status !== 'cancelled' && new Date(booking.scheduledAt) >= new Date())
   const history = sortedBookings.filter((booking) => booking.status === 'cancelled' || new Date(booking.scheduledAt) < new Date())
 
-  const handleCancel = (booking) => {
-    toast(
-      ({ closeToast }) => (
-        <div className="flex flex-col gap-3">
-          <p className="text-sm font-medium text-cream">Deseja cancelar este agendamento?</p>
-          <div className="flex items-center justify-end gap-2">
-            <button
-              onClick={closeToast}
-              className="rounded px-3 py-1.5 text-xs font-semibold text-cream/70 hover:bg-white/10 transition-colors"
-            >
-              Não
-            </button>
-            <button
-              onClick={async () => {
-                closeToast()
-                setCancelling(booking.id)
-                await cancelBooking(booking.id)
-                setCancelling(null)
-              }}
-              className="rounded bg-red-500/20 px-3 py-1.5 text-xs font-semibold text-red-200 hover:bg-red-500/30 transition-colors"
-            >
-              Sim, cancelar
-            </button>
-          </div>
-        </div>
-      ),
-      {
-        autoClose: false,
-        closeOnClick: false,
-        closeButton: false,
-        draggable: false,
-      }
-    )
+  const openCancelModal = (booking) => setModalState({ type: 'cancel', booking })
+  const openRescheduleModal = (booking) => setModalState({ type: 'reschedule', booking })
+  const closeModal = () => setModalState({ type: null, booking: null })
+
+  const confirmCancel = async (booking) => {
+    setCancelling(booking.id)
+    const result = await cancelBooking(booking.id)
+    setCancelling(null)
+    if (result.ok) closeModal()
   }
 
   return (
@@ -277,7 +392,13 @@ export default function MyBookingsPage() {
                 ) : (
                   <div className="space-y-4">
                     {upcoming.map((booking) => (
-                      <BookingItem key={booking.id} booking={booking} cancelling={cancelling} onCancel={handleCancel} />
+                      <BookingItem
+                        key={booking.id}
+                        booking={booking}
+                        cancelling={cancelling}
+                        onCancel={openCancelModal}
+                        onReschedule={openRescheduleModal}
+                      />
                     ))}
                   </div>
                 )}
@@ -288,7 +409,13 @@ export default function MyBookingsPage() {
                   <h2 className="mb-4 font-display text-2xl font-semibold text-cream/85">Historico</h2>
                   <div className="space-y-4">
                     {history.map((booking) => (
-                      <BookingItem key={booking.id} booking={booking} cancelling={cancelling} onCancel={handleCancel} />
+                      <BookingItem
+                        key={booking.id}
+                        booking={booking}
+                        cancelling={cancelling}
+                        onCancel={openCancelModal}
+                        onReschedule={openRescheduleModal}
+                      />
                     ))}
                   </div>
                 </section>
@@ -307,6 +434,13 @@ export default function MyBookingsPage() {
       </main>
       <Footer />
       <FloatingButtons />
+      <ActionModal
+        booking={modalState.booking}
+        type={modalState.type}
+        cancelling={cancelling}
+        onClose={closeModal}
+        onConfirmCancel={confirmCancel}
+      />
     </>
   )
 }
