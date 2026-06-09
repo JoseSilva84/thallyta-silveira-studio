@@ -30,13 +30,20 @@ const CAL_THEME = {
 
 export default function Booking() {
   const { user, setLoginOpen, getToken } = useAuth()
-  const { selectedServices, toggleService, fetchBookings, scheduleRequestId } = useBooking()
+  const { selectedServices, toggleService, clearServices, fetchBookings, scheduleRequestId } = useBooking()
   const [showCal, setShowCal] = useState(false)
   const [bookingConfirmed, setBookingConfirmed] = useState(false)
+  const [confirmedSummary, setConfirmedSummary] = useState(null)
   const [isCalFrameLoaded, setIsCalFrameLoaded] = useState(false)
   const sectionRef = useRef(null)
   const calFrameWrapRef = useRef(null)
   const lastScheduleRequest = useRef(scheduleRequestId)
+  const bookingSnapshotRef = useRef({
+    services: '',
+    total: 0,
+    name: '',
+    email: '',
+  })
 
   const focusBookingSection = useCallback(() => {
     window.history.replaceState(null, '', '#agendamento')
@@ -62,7 +69,9 @@ export default function Booking() {
         action: 'bookingSuccessful',
         callback: () => {
           // Esconde o Cal.com e mostra nossa tela de confirmação
+          setConfirmedSummary(bookingSnapshotRef.current)
           setBookingConfirmed(true)
+          clearServices()
           toast.success('🎉 Agendamento confirmado com sucesso!')
           // Atualiza os bookings no contexto (para os selos de fidelidade)
           const token = getToken()
@@ -76,7 +85,7 @@ export default function Booking() {
         },
       })
     })()
-  }, [getToken, fetchBookings])
+  }, [clearServices, getToken, fetchBookings])
 
   useEffect(() => {
     if (!showCal) return undefined
@@ -125,6 +134,7 @@ export default function Booking() {
     setIsCalFrameLoaded(false)
     setShowCal(true)
     setBookingConfirmed(false)
+    setConfirmedSummary(null)
     focusBookingSection()
   }, [focusBookingSection, selectedServices.length, setLoginOpen, user])
 
@@ -137,6 +147,7 @@ export default function Booking() {
   const handleNewBooking = () => {
     setShowCal(false)
     setBookingConfirmed(false)
+    setConfirmedSummary(null)
   }
 
   // Calcula o preço total estimado (pega o primeiro valor numérico de cada preço)
@@ -149,6 +160,15 @@ export default function Booking() {
       return sum
     }, 0)
   }, [selectedServices])
+
+  useEffect(() => {
+    bookingSnapshotRef.current = {
+      services: servicesParam,
+      total: totalEstimado,
+      name: user?.name || '',
+      email: user?.email || '',
+    }
+  }, [servicesParam, totalEstimado, user?.email, user?.name])
 
   return (
     <section ref={sectionRef} id="agendamento" className="premium-section py-16 md:py-20">
@@ -192,20 +212,20 @@ export default function Booking() {
                   <div className="mx-auto max-w-lg space-y-4 rounded-2xl border border-gold/20 bg-gradient-to-b from-dark-card/90 to-dark/95 p-6 text-left shadow-2xl backdrop-blur-md">
                     <div>
                       <span className="block text-xs font-bold uppercase tracking-wider text-gold-light/80">Serviços</span>
-                      <span className="mt-1 block text-lg font-semibold text-cream">{servicesParam}</span>
+                      <span className="mt-1 block text-lg font-semibold text-cream">{confirmedSummary?.services || servicesParam}</span>
                     </div>
                     <div className="h-px bg-gradient-to-r from-transparent via-gold/20 to-transparent"></div>
                     <div>
                       <span className="block text-xs font-bold uppercase tracking-wider text-gold-light/80">Cliente</span>
-                      <span className="mt-1 block font-medium text-cream">{user?.name}</span>
-                      <span className="block text-sm text-cream/50">{user?.email}</span>
+                      <span className="mt-1 block font-medium text-cream">{confirmedSummary?.name || user?.name}</span>
+                      <span className="block text-sm text-cream/50">{confirmedSummary?.email || user?.email}</span>
                     </div>
-                    {totalEstimado > 0 && (
+                    {(confirmedSummary?.total || totalEstimado) > 0 && (
                       <>
                         <div className="h-px bg-gradient-to-r from-transparent via-gold/20 to-transparent"></div>
                         <div>
                           <span className="block text-xs font-bold uppercase tracking-wider text-gold-light/80">Valor Estimado</span>
-                          <span className="mt-1 block text-lg font-semibold text-gold">{`R$ ${totalEstimado.toFixed(2).replace('.', ',')}`}</span>
+                          <span className="mt-1 block text-lg font-semibold text-gold">{`R$ ${(confirmedSummary?.total || totalEstimado).toFixed(2).replace('.', ',')}`}</span>
                         </div>
                       </>
                     )}
