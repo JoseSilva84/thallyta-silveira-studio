@@ -58,14 +58,14 @@ const sendText = async ({ chatId, text }) => {
 };
 
 const buildOwnerBookingMessage = (booking) => {
-  const whatsapp = booking.user?.whatsappPhone || booking.attendeePhone || 'Nao informado';
+  const whatsapp = booking.user?.whatsappPhone || booking.attendeePhone;
 
   return [
     'Novo agendamento confirmado',
     '',
     `Cliente: ${booking.attendeeName || booking.user?.name || 'Nao informado'}`,
-    `WhatsApp: ${whatsapp}`,
     `Email: ${booking.attendeeEmail || booking.user?.email || 'Nao informado'}`,
+    whatsapp ? `WhatsApp: ${whatsapp}` : null,
     `Servico: ${booking.service || 'Nao informado'}`,
     `Valor: ${formatCurrency(booking.estimatedValue)}`,
     `Data/Horario: ${formatDateTime(booking.scheduledAt)}`,

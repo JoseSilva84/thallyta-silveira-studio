@@ -1,10 +1,42 @@
 import { BsInstagram, BsWhatsapp } from 'react-icons/bs'
-import { Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { FiLock } from 'react-icons/fi'
 import { useAuth } from '../../context/AuthContext.jsx'
+import { toast } from 'react-toastify'
 
 export default function Footer() {
-  const { isAdmin } = useAuth()
+  const { user, isAdmin, setLoginOpen } = useAuth()
+  const [adminAccessRequested, setAdminAccessRequested] = useState(false)
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    if (!adminAccessRequested || !user) return
+
+    if (isAdmin) {
+      setAdminAccessRequested(false)
+      navigate('/admin')
+      return
+    }
+
+    setAdminAccessRequested(false)
+    toast.info('Painel administrativo exclusivo para administradores.')
+  }, [adminAccessRequested, isAdmin, navigate, user])
+
+  const handleAdminClick = () => {
+    if (isAdmin) {
+      navigate('/admin')
+      return
+    }
+
+    if (user) {
+      toast.info('Painel administrativo exclusivo para administradores.')
+      return
+    }
+
+    setAdminAccessRequested(true)
+    setLoginOpen(true)
+  }
 
   return (
     <footer className="border-t border-gold/15 bg-black/30 py-10 pb-28 backdrop-blur md:pb-10">
@@ -27,11 +59,15 @@ export default function Footer() {
           <a href="https://wa.me/5588981860582" target="_blank" rel="noreferrer" className="tap-gold rounded-full border border-gold/30 p-3 text-gold-light">
             <BsWhatsapp />
           </a>
-          {isAdmin && (
-            <Link to="/admin" className="tap-gold ml-2 rounded-full border border-white/10 p-3 text-cream/40 transition-colors hover:text-gold-light" aria-label="Painel Administrativo" title="Painel Administrativo">
-              <FiLock />
-            </Link>
-          )}
+          <button
+            type="button"
+            onClick={handleAdminClick}
+            className="tap-gold ml-2 rounded-full border border-white/10 p-3 text-cream/40 transition-colors hover:text-gold-light"
+            aria-label="Painel Administrativo"
+            title="Painel Administrativo"
+          >
+            <FiLock />
+          </button>
         </div>
       </div>
       <div className="section-shell mt-8 flex items-center justify-center md:justify-start">
