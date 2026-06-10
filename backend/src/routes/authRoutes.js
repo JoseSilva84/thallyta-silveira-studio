@@ -26,7 +26,24 @@ router.get('/google', googleEnabled
 router.get(
   '/google/callback',
   ...(googleEnabled
-    ? [passport.authenticate('google', { failureRedirect: '/login?error=google_failed', session: false }), googleCallback]
+    ? [
+        (req, res, next) => {
+          passport.authenticate('google', { session: false }, (error, user) => {
+            if (error || !user) {
+              console.error('Erro no OAuth Google:', error || 'Usuario Google ausente.');
+              const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173')
+                .split(',')
+                .map((origin) => origin.trim())
+                .filter(Boolean)[0];
+              return res.redirect(`${frontendUrl}/login?error=google_failed`);
+            }
+
+            req.user = user;
+            return next();
+          })(req, res, next);
+        },
+        googleCallback,
+      ]
     : [googleNotConfigured]
   )
 );

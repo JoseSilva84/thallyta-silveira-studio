@@ -5,35 +5,38 @@ import prisma from './prisma.js';
 
 dotenv.config();
 
-// Só registra a estratégia Google se as credenciais estiverem configuradas
+const getGoogleCallbackUrl = () => {
+  if (process.env.GOOGLE_CALLBACK_URL) return process.env.GOOGLE_CALLBACK_URL;
+  if (process.env.BACKEND_URL) {
+    return `${process.env.BACKEND_URL.replace(/\/$/, '')}/api/auth/google/callback`;
+  }
+  return '/api/auth/google/callback';
+};
+
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   passport.use(
     new GoogleStrategy(
       {
         clientID: process.env.GOOGLE_CLIENT_ID,
         clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        callbackURL: '/api/auth/google/callback',
-        proxy: true, // Necessário quando o backend roda no Render (atrás de proxy)
+        callbackURL: getGoogleCallbackUrl(),
+        proxy: true,
       },
       async (_accessToken, _refreshToken, profile, done) => {
         try {
           const email = profile.emails?.[0]?.value;
-          if (!email) return done(new Error('Email não disponível no perfil Google'), null);
+          if (!email) return done(new Error('Email nao disponivel no perfil Google'), null);
 
-          // Busca ou cria o usuário no banco
           let user = await prisma.user.findUnique({ where: { googleId: profile.id } });
 
           if (!user) {
-            // Verifica se já existe uma conta com o mesmo email (cadastro manual)
             const existingByEmail = await prisma.user.findUnique({ where: { email } });
             if (existingByEmail) {
-              // Vincula o googleId à conta existente
               user = await prisma.user.update({
                 where: { email },
                 data: { googleId: profile.id },
               });
             } else {
-              // Cria um novo usuário cliente
               user = await prisma.user.create({
                 data: {
                   name: profile.displayName || email.split('@')[0],
@@ -52,9 +55,9 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
       }
     )
   );
-  console.log('✅ Google OAuth configurado.');
+  console.log('Google OAuth configurado.');
 } else {
-  console.warn('⚠️  Google OAuth NÃO configurado (GOOGLE_CLIENT_ID ausente). Login com Google desativado.');
+  console.warn('Google OAuth nao configurado. Login com Google desativado.');
 }
 
 passport.serializeUser((user, done) => done(null, user.id));
