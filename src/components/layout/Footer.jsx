@@ -1,8 +1,11 @@
 import { BsInstagram, BsWhatsapp } from 'react-icons/bs'
 import { Link } from 'react-router-dom'
 import { FiLock } from 'react-icons/fi'
+import { useAuth } from '../../context/AuthContext.jsx'
 
 export default function Footer() {
+  const { isAdmin } = useAuth()
+
   return (
     <footer className="border-t border-gold/15 bg-black/30 py-10 pb-28 backdrop-blur md:pb-10">
       <div className="section-shell grid gap-8 md:grid-cols-[1.2fr_1fr_1fr]">
@@ -24,9 +27,11 @@ export default function Footer() {
           <a href="https://wa.me/5588981860582" target="_blank" rel="noreferrer" className="tap-gold rounded-full border border-gold/30 p-3 text-gold-light">
             <BsWhatsapp />
           </a>
-          <Link to="/admin" className="tap-gold ml-2 rounded-full border border-white/10 p-3 text-cream/40 transition-colors hover:text-gold-light" aria-label="Painel Administrativo" title="Painel Administrativo">
-            <FiLock />
-          </Link>
+          {isAdmin && (
+            <Link to="/admin" className="tap-gold ml-2 rounded-full border border-white/10 p-3 text-cream/40 transition-colors hover:text-gold-light" aria-label="Painel Administrativo" title="Painel Administrativo">
+              <FiLock />
+            </Link>
+          )}
         </div>
       </div>
       <div className="section-shell mt-8 flex items-center justify-center md:justify-start">

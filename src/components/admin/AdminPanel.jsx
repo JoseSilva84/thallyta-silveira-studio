@@ -130,6 +130,11 @@ export default function AdminPanel() {
     return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   };
 
+  const formatCurrency = (value) => {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return '—';
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+  };
+
   const statusBadge = (status) => {
     const map = {
       confirmed: { label: 'Confirmado', classes: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' },
@@ -260,6 +265,7 @@ export default function AdminPanel() {
                         <th className="px-5 py-4">Cliente</th>
                         <th className="px-5 py-4">WhatsApp</th>
                         <th className="px-5 py-4">Serviço(s)</th>
+                        <th className="px-5 py-4">Valor</th>
                         <th className="px-5 py-4">Data</th>
                         <th className="px-5 py-4">Horário</th>
                         <th className="px-5 py-4">Status</th>
@@ -278,6 +284,7 @@ export default function AdminPanel() {
                               {b.service}
                             </span>
                           </td>
+                          <td className="px-5 py-4 text-cream/70">{formatCurrency(b.estimatedValue)}</td>
                           <td className="px-5 py-4 text-cream/70">{formatDate(b.scheduledAt)}</td>
                           <td className="px-5 py-4 text-cream/70">
                             {formatTime(b.scheduledAt)}

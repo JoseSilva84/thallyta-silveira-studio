@@ -44,6 +44,7 @@ export default function Booking() {
     total: 0,
     name: '',
     email: '',
+    whatsapp: '',
   })
 
   const focusBookingSection = useCallback(() => {
@@ -172,8 +173,9 @@ export default function Booking() {
       total: totalEstimado,
       name: user?.name || '',
       email: user?.email || '',
+      whatsapp: user?.whatsappPhone || '',
     }
-  }, [servicesParam, totalEstimado, user?.email, user?.name])
+  }, [servicesParam, totalEstimado, user?.email, user?.name, user?.whatsappPhone])
 
   return (
     <section ref={sectionRef} id="agendamento" className="premium-section py-16 md:py-20">
@@ -224,6 +226,9 @@ export default function Booking() {
                       <span className="block text-xs font-bold uppercase tracking-wider text-gold-light/80">Cliente</span>
                       <span className="mt-1 block font-medium text-cream">{confirmedSummary?.name || user?.name}</span>
                       <span className="block text-sm text-cream/50">{confirmedSummary?.email || user?.email}</span>
+                      {(confirmedSummary?.whatsapp || user?.whatsappPhone) && (
+                        <span className="block text-sm text-cream/50">{confirmedSummary?.whatsapp || user?.whatsappPhone}</span>
+                      )}
                     </div>
                     {(confirmedSummary?.total || totalEstimado) > 0 && (
                       <>
@@ -372,6 +377,9 @@ export default function Booking() {
                         notes: `Serviços: ${servicesParam}`,
                         'metadata[services]': selectedServices.map((s) => s.id).join(','),
                         'metadata[serviceNames]': servicesParam,
+                        'metadata[servicePrices]': selectedServices.map((s) => `${s.name}: ${s.price}`).join(' | '),
+                        'metadata[estimatedValue]': totalEstimado.toFixed(2),
+                        'metadata[attendeeWhatsapp]': user?.whatsappPhone || '',
                       }}
                     />
                   </div>

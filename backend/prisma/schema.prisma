@@ -36,6 +36,7 @@ model Booking {
   userId        String?                // Nullable: visitante pode agendar sem conta
   user          User?    @relation(fields: [userId], references: [id])
   service       String                 // Serviços selecionados (concatenados)
+  estimatedValue Float?
   scheduledAt   DateTime
   endTime       DateTime?
   status        String   @default("confirmed")

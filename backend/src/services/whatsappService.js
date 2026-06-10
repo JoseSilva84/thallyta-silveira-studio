@@ -20,6 +20,14 @@ const formatDateTime = (date) => {
   }).format(new Date(date));
 };
 
+const formatCurrency = (value) => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 'Nao informado';
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(value);
+};
+
 const sendText = async ({ chatId, text }) => {
   if (!enabled()) return { skipped: true, reason: 'WHATSAPP_ENABLED=false' };
 
@@ -50,13 +58,16 @@ const sendText = async ({ chatId, text }) => {
 };
 
 const buildOwnerBookingMessage = (booking) => {
+  const whatsapp = booking.user?.whatsappPhone || booking.attendeePhone || 'Nao informado';
+
   return [
     'Novo agendamento confirmado',
     '',
     `Cliente: ${booking.attendeeName || booking.user?.name || 'Nao informado'}`,
-    `WhatsApp: ${booking.attendeePhone || booking.user?.whatsappPhone || 'Nao informado'}`,
+    `WhatsApp: ${whatsapp}`,
     `Email: ${booking.attendeeEmail || booking.user?.email || 'Nao informado'}`,
     `Servico: ${booking.service || 'Nao informado'}`,
+    `Valor: ${formatCurrency(booking.estimatedValue)}`,
     `Data/Horario: ${formatDateTime(booking.scheduledAt)}`,
     booking.endTime ? `Termina: ${formatDateTime(booking.endTime)}` : null,
     `Local: ${booking.location || 'Presencial'}`,
@@ -69,6 +80,7 @@ const buildClientBookingMessage = (booking) => {
     `Ola, ${firstName}! Seu agendamento no Studio Thallyta Silveira foi confirmado.`,
     '',
     `Servico: ${booking.service || 'Nao informado'}`,
+    `Valor: ${formatCurrency(booking.estimatedValue)}`,
     `Data/Horario: ${formatDateTime(booking.scheduledAt)}`,
     '',
     'Se precisar reagendar ou cancelar, acesse sua area de agendamentos.',

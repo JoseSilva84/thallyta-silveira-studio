@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { FiAlertTriangle, FiArrowLeft, FiCalendar, FiClock, FiEdit3, FiExternalLink, FiGift, FiRefreshCw, FiScissors, FiTrash2, FiX } from 'react-icons/fi'
+import { FiAlertTriangle, FiArrowLeft, FiCalendar, FiClock, FiDollarSign, FiEdit3, FiExternalLink, FiGift, FiPhone, FiRefreshCw, FiScissors, FiTrash2, FiX } from 'react-icons/fi'
 import { Link } from 'react-router-dom'
 import { useBooking } from '../context/BookingContext.jsx'
 import Navbar from '../components/layout/Navbar.jsx'
@@ -22,6 +22,14 @@ const formatTime = (value) => {
     hour: '2-digit',
     minute: '2-digit',
   })
+}
+
+const formatCurrency = (value) => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(value)
 }
 
 const statusInfo = {
@@ -100,6 +108,8 @@ function BookingItem({ booking, cancelling, onCancel, onReschedule }) {
   const startsAt = new Date(booking.scheduledAt)
   const isFuture = startsAt > new Date()
   const canCancel = isFuture && booking.status !== 'cancelled'
+  const whatsapp = booking.user?.whatsappPhone || booking.attendeePhone
+  const estimatedValue = formatCurrency(booking.estimatedValue)
 
   return (
     <article className="gold-border rounded-lg bg-black/35 p-5 backdrop-blur-xl">
@@ -128,6 +138,16 @@ function BookingItem({ booking, cancelling, onCancel, onReschedule }) {
               {formatTime(booking.scheduledAt)}
               {booking.endTime && ` - ${formatTime(booking.endTime)}`}
             </span>
+            {whatsapp && (
+              <span className="flex items-center gap-2">
+                <FiPhone className="shrink-0 text-gold" /> {whatsapp}
+              </span>
+            )}
+            {estimatedValue && (
+              <span className="flex items-center gap-2">
+                <FiDollarSign className="shrink-0 text-gold" /> {estimatedValue}
+              </span>
+            )}
           </div>
         </div>
 

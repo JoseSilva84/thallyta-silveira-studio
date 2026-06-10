@@ -62,7 +62,8 @@ async function handleBookingCreated(payload) {
   const attendee = payload.attendees?.[0] || {};
   const attendeeName = attendee.name || payload.responses?.name?.value || null;
   const attendeeEmail = attendee.email || payload.responses?.email?.value || null;
-  const attendeePhone = attendee.phone || payload.responses?.phone?.value || null;
+  const attendeePhone = attendee.phone || payload.responses?.phone?.value || payload.metadata?.attendeeWhatsapp || null;
+  const estimatedValue = Number.parseFloat(String(payload.metadata?.estimatedValue || '').replace(',', '.'));
 
   // Extrai serviços do metadata ou notes
   const services = payload.metadata?.serviceNames
@@ -85,6 +86,7 @@ async function handleBookingCreated(payload) {
       calEventId: uid,
       userId,
       service: typeof services === 'string' ? services : JSON.stringify(services),
+      estimatedValue: Number.isFinite(estimatedValue) ? estimatedValue : null,
       scheduledAt: new Date(payload.startTime),
       endTime: payload.endTime ? new Date(payload.endTime) : null,
       status: 'confirmed',
@@ -94,6 +96,11 @@ async function handleBookingCreated(payload) {
       attendeePhone,
       location: payload.location || payload.meetingUrl || 'Presencial',
       calPayload: payload,
+    },
+    include: {
+      user: {
+        select: { id: true, name: true, email: true, whatsappPhone: true },
+      },
     },
   });
 
