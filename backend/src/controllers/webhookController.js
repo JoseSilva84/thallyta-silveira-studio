@@ -1,4 +1,5 @@
 import prisma from '../config/prisma.js';
+import { notifyBookingCreated } from '../services/whatsappService.js';
 
 /**
  * Webhook handler para eventos do Cal.com.
@@ -97,6 +98,12 @@ async function handleBookingCreated(payload) {
   });
 
   console.log(`✅ Booking criado: ${booking.id} (Cal UID: ${uid}) para ${attendeeName || attendeeEmail || 'visitante'}`);
+
+  try {
+    await notifyBookingCreated(prisma, booking);
+  } catch (error) {
+    console.error('Erro ao enviar WhatsApp do agendamento:', error);
+  }
 }
 
 /**

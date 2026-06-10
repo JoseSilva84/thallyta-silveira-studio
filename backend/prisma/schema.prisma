@@ -48,3 +48,15 @@ model Booking {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
+
+model NotificationLog {
+  id        String   @id @default(uuid())
+  bookingId String
+  type      String
+  target    String
+  status    String
+  error     String?
+  createdAt DateTime @default(now())
+
+  @@unique([bookingId, type, target])
+}
