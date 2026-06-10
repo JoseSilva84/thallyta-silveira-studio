@@ -22,7 +22,7 @@ export const getBookings = async (req, res) => {
       orderBy: { scheduledAt: 'desc' },
       include: {
         user: {
-          select: { id: true, name: true, email: true },
+          select: { id: true, name: true, email: true, whatsappPhone: true },
         },
       },
     });
@@ -46,7 +46,7 @@ export const getBookingById = async (req, res) => {
       where: { id: req.params.id },
       include: {
         user: {
-          select: { id: true, name: true, email: true },
+          select: { id: true, name: true, email: true, whatsappPhone: true },
         },
       },
     });

@@ -258,6 +258,7 @@ export default function AdminPanel() {
                     <thead>
                       <tr className="border-b border-white/10 text-xs font-bold uppercase tracking-wider text-gold-light/80">
                         <th className="px-5 py-4">Cliente</th>
+                        <th className="px-5 py-4">WhatsApp</th>
                         <th className="px-5 py-4">Serviço(s)</th>
                         <th className="px-5 py-4">Data</th>
                         <th className="px-5 py-4">Horário</th>
@@ -271,6 +272,7 @@ export default function AdminPanel() {
                             <div className="font-semibold text-cream">{b.attendeeName || b.user?.name || '—'}</div>
                             <div className="text-xs text-cream/40">{b.attendeeEmail || b.user?.email || ''}</div>
                           </td>
+                          <td className="px-5 py-4 text-cream/70">{b.attendeePhone || b.user?.whatsappPhone || '—'}</td>
                           <td className="max-w-[200px] px-5 py-4">
                             <span className="block truncate text-cream/80" title={b.service}>
                               {b.service}

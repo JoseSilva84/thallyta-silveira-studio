@@ -1,6 +1,6 @@
 import express from 'express';
 import passport from '../config/passport.js';
-import { register, login, googleCallback, getMe } from '../controllers/authController.js';
+import { register, login, googleCallback, getMe, updateWhatsapp } from '../controllers/authController.js';
 import { verifyToken } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
@@ -11,6 +11,7 @@ router.post('/login', login);
 
 // Dados do usuário logado
 router.get('/me', verifyToken, getMe);
+router.patch('/me/whatsapp', verifyToken, updateWhatsapp);
 
 // OAuth Google
 const googleNotConfigured = (_req, res) =>

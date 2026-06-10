@@ -10,7 +10,6 @@ const parseToken = (token) => {
   if (!token) return null
   try {
     const payload = JSON.parse(atob(token.split('.')[1]))
-    // Verifica se o token ainda é válido
     if (payload.exp && payload.exp * 1000 < Date.now()) {
       localStorage.removeItem('authToken')
       return null
@@ -21,7 +20,6 @@ const parseToken = (token) => {
   }
 }
 
-// Decodifica caracteres UTF-8 que podem vir mal codificados do JWT
 const decodeUtf8 = (str) => {
   if (!str) return str
   try {
@@ -34,45 +32,62 @@ const decodeUtf8 = (str) => {
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
     const payload = parseToken(readToken())
-    if (payload && payload.name) {
-      payload.name = decodeUtf8(payload.name)
-    }
+    if (payload?.name) payload.name = decodeUtf8(payload.name)
     return payload
   })
   const [loginOpen, setLoginOpen] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  // Ao montar, verifica se o token da URL é do Google OAuth callback
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const token = params.get('token')
-    if (token) {
-      localStorage.setItem('authToken', token)
-      const payload = parseToken(token)
-      if (payload && payload.name) {
-        payload.name = decodeUtf8(payload.name)
-      }
-      setUser(payload)
-      toast.success(`Bem-vinda, ${payload?.name || 'cliente'}!`)
-      // Limpa a URL sem recarregar a página
-      window.history.replaceState({}, '', '/')
+  const fetchMe = useCallback(async (token = readToken()) => {
+    if (!token) return null
+
+    try {
+      const res = await fetch(`${API}/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) throw new Error('Sessao expirada.')
+      const data = await res.json()
+      setUser(data)
+      return data
+    } catch {
+      localStorage.removeItem('authToken')
+      setUser(null)
+      return null
     }
   }, [])
 
-  const register = useCallback(async ({ name, email, password }) => {
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const token = params.get('token')
+
+    if (token) {
+      localStorage.setItem('authToken', token)
+      const payload = parseToken(token)
+      if (payload?.name) payload.name = decodeUtf8(payload.name)
+      setUser(payload)
+      fetchMe(token)
+      toast.success(`Bem-vinda, ${payload?.name || 'cliente'}!`)
+      window.history.replaceState({}, '', '/')
+      return
+    }
+
+    if (readToken()) {
+      fetchMe()
+    }
+  }, [fetchMe])
+
+  const register = useCallback(async ({ name, email, password, whatsappPhone }) => {
     setLoading(true)
     try {
       const res = await fetch(`${API}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name, email, password, whatsappPhone }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Erro ao criar conta.')
       localStorage.setItem('authToken', data.token)
-      const payload = parseToken(data.token)
-      if (payload && payload.name) payload.name = decodeUtf8(payload.name)
-      setUser(payload)
+      setUser(data.user)
       setLoginOpen(false)
       toast.success(`Conta criada! Bem-vinda, ${data.user.name}!`)
       return { ok: true }
@@ -86,9 +101,10 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(async ({ email, password }) => {
     if (!email || !password) {
-      toast.error('Email e senha são obrigatórios.')
+      toast.error('Email e senha sao obrigatorios.')
       return { ok: false }
     }
+
     setLoading(true)
     try {
       const res = await fetch(`${API}/auth/login`, {
@@ -97,11 +113,9 @@ export function AuthProvider({ children }) {
         body: JSON.stringify({ email, password }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Credenciais inválidas.')
+      if (!res.ok) throw new Error(data.error || 'Credenciais invalidas.')
       localStorage.setItem('authToken', data.token)
-      const payload = parseToken(data.token)
-      if (payload && payload.name) payload.name = decodeUtf8(payload.name)
-      setUser(payload)
+      setUser(data.user)
       setLoginOpen(false)
       toast.success(`Bem-vinda, ${data.user.name}!`)
       return { ok: true }
@@ -120,16 +134,59 @@ export function AuthProvider({ children }) {
   const logout = useCallback(() => {
     localStorage.removeItem('authToken')
     setUser(null)
-    toast.info('Você saiu da sua conta.')
+    toast.info('Voce saiu da sua conta.')
   }, [])
 
   const getToken = useCallback(() => readToken(), [])
 
+  const updateWhatsapp = useCallback(async (whatsappPhone) => {
+    const token = readToken()
+    if (!token) {
+      toast.error('Entre na sua conta para salvar o WhatsApp.')
+      return { ok: false }
+    }
+
+    setLoading(true)
+    try {
+      const res = await fetch(`${API}/auth/me/whatsapp`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ whatsappPhone }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Erro ao salvar WhatsApp.')
+      setUser(data)
+      toast.success('WhatsApp salvo com sucesso!')
+      return { ok: true }
+    } catch (error) {
+      toast.error(error.message)
+      return { ok: false, error: error.message }
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
   const isAdmin = user?.role === 'ADMIN'
 
   const value = useMemo(
-    () => ({ user, isAdmin, loading, login, logout, register, loginWithGoogle, loginOpen, setLoginOpen, getToken }),
-    [user, isAdmin, loading, login, logout, register, loginWithGoogle, loginOpen, getToken]
+    () => ({
+      user,
+      isAdmin,
+      loading,
+      login,
+      logout,
+      register,
+      loginWithGoogle,
+      loginOpen,
+      setLoginOpen,
+      getToken,
+      fetchMe,
+      updateWhatsapp,
+    }),
+    [user, isAdmin, loading, login, logout, register, loginWithGoogle, loginOpen, getToken, fetchMe, updateWhatsapp]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

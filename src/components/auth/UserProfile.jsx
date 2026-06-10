@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { FiChevronDown, FiLogOut, FiStar, FiCalendar } from 'react-icons/fi'
+import { FiChevronDown, FiLogOut, FiStar, FiCalendar, FiPhone } from 'react-icons/fi'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext.jsx'
 
@@ -37,6 +37,11 @@ export default function UserProfile() {
       </button>
       {open && (
         <div className="gold-border absolute right-0 mt-3 w-56 rounded-lg bg-dark-card/90 p-2 shadow-xl">
+          {user.whatsappPhone && (
+            <div className="mb-1 flex items-center gap-2 rounded-md px-3 py-2 text-xs text-cream/60">
+              <FiPhone className="text-gold" /> {user.whatsappPhone}
+            </div>
+          )}
           <Link
             to="/meus-agendamentos"
             onClick={() => setOpen(false)}

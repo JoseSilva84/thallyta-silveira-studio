@@ -16,6 +16,7 @@ import LoginPage from './pages/LoginPage.jsx'
 import RegisterPage from './pages/RegisterPage.jsx'
 import ProtectedRoute from './components/auth/ProtectedRoute.jsx'
 import MyBookingsPage from './pages/MyBookingsPage.jsx'
+import WhatsappPromptModal from './components/auth/WhatsappPromptModal.jsx'
 import { useAuth } from './context/AuthContext.jsx'
 import { useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
@@ -103,6 +104,7 @@ export default function App() {
         {/* Redireciona qualquer rota desconhecida para home */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      <WhatsappPromptModal />
     </div>
   )
 }

@@ -21,9 +21,43 @@ const generateToken = (user) => {
   );
 };
 
+const userSelect = {
+  id: true,
+  name: true,
+  email: true,
+  role: true,
+  whatsappPhone: true,
+  whatsappOptIn: true,
+  whatsappUpdatedAt: true,
+  createdAt: true,
+};
+
+const normalizeWhatsappPhone = (value) => {
+  const digits = String(value || '').replace(/\D/g, '');
+  if (!digits) return null;
+
+  const withCountryCode = digits.startsWith('55') ? digits : `55${digits}`;
+
+  if (withCountryCode.length < 12 || withCountryCode.length > 13) {
+    throw new Error('Informe um WhatsApp valido com DDD.');
+  }
+
+  return withCountryCode;
+};
+
+const publicUser = (user) => ({
+  id: user.id,
+  name: user.name,
+  email: user.email,
+  role: user.role,
+  whatsappPhone: user.whatsappPhone,
+  whatsappOptIn: user.whatsappOptIn,
+  whatsappUpdatedAt: user.whatsappUpdatedAt,
+});
+
 export const register = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, whatsappPhone } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ error: 'Nome, email e senha são obrigatórios.' });
@@ -39,15 +73,27 @@ export const register = async (req, res) => {
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
+    const normalizedWhatsapp = normalizeWhatsappPhone(whatsappPhone);
 
     const user = await prisma.user.create({
-      data: { name, email, passwordHash, role: 'CLIENT' },
+      data: {
+        name,
+        email,
+        passwordHash,
+        role: 'CLIENT',
+        whatsappPhone: normalizedWhatsapp,
+        whatsappOptIn: Boolean(normalizedWhatsapp),
+        whatsappUpdatedAt: normalizedWhatsapp ? new Date() : null,
+      },
     });
 
     const token = generateToken(user);
-    res.status(201).json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+    res.status(201).json({ token, user: publicUser(user) });
   } catch (error) {
     console.error('Erro no registro:', error);
+    if (error.message?.includes('WhatsApp')) {
+      return res.status(400).json({ error: error.message });
+    }
     res.status(500).json({ error: 'Erro interno ao criar conta.' });
   }
 };
@@ -75,7 +121,7 @@ export const login = async (req, res) => {
     }
 
     const token = generateToken(user);
-    res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+    res.json({ token, user: publicUser(user) });
   } catch (error) {
     console.error('Erro no login:', error);
     res.status(500).json({ error: 'Erro interno ao fazer login.' });
@@ -98,7 +144,7 @@ export const getMe = async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
-      select: { id: true, name: true, email: true, role: true, createdAt: true },
+      select: userSelect,
     });
 
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' });
@@ -107,5 +153,29 @@ export const getMe = async (req, res) => {
   } catch (error) {
     console.error('Erro ao buscar usuário:', error);
     res.status(500).json({ error: 'Erro interno.' });
+  }
+};
+
+export const updateWhatsapp = async (req, res) => {
+  try {
+    const normalizedWhatsapp = normalizeWhatsappPhone(req.body.whatsappPhone);
+
+    const user = await prisma.user.update({
+      where: { id: req.user.id },
+      data: {
+        whatsappPhone: normalizedWhatsapp,
+        whatsappOptIn: true,
+        whatsappUpdatedAt: new Date(),
+      },
+      select: userSelect,
+    });
+
+    res.json(user);
+  } catch (error) {
+    console.error('Erro ao atualizar WhatsApp:', error);
+    if (error.message?.includes('WhatsApp')) {
+      return res.status(400).json({ error: error.message });
+    }
+    res.status(500).json({ error: 'Erro interno ao atualizar WhatsApp.' });
   }
 };

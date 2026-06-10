@@ -1,17 +1,24 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { FiMail, FiLock, FiUser, FiEye, FiEyeOff } from 'react-icons/fi'
+import { FiMail, FiLock, FiUser, FiEye, FiEyeOff, FiPhone } from 'react-icons/fi'
 import { FcGoogle } from 'react-icons/fc'
 import { useAuth } from '../context/AuthContext'
+import { formatBrazilWhatsappInput, normalizeBrazilWhatsapp } from '../utils/phone'
 
 export default function RegisterPage() {
   const { register, loginWithGoogle, loading } = useAuth()
   const navigate = useNavigate()
   const [showPass, setShowPass] = useState(false)
-  const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '' })
+  const [form, setForm] = useState({ name: '', email: '', whatsappPhone: '', password: '', confirm: '' })
   const [error, setError] = useState('')
 
-  const handleChange = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }))
+  const handleChange = (e) => {
+    const { name, value } = e.target
+    setForm((f) => ({
+      ...f,
+      [name]: name === 'whatsappPhone' ? formatBrazilWhatsappInput(value) : value,
+    }))
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -26,7 +33,12 @@ export default function RegisterPage() {
       return
     }
 
-    const result = await register({ name: form.name, email: form.email, password: form.password })
+    const result = await register({
+      name: form.name,
+      email: form.email,
+      password: form.password,
+      whatsappPhone: normalizeBrazilWhatsapp(form.whatsappPhone),
+    })
     if (result.ok) navigate('/')
     else setError(result.error)
   }
@@ -85,6 +97,20 @@ export default function RegisterPage() {
                 value={form.email}
                 onChange={handleChange}
                 required
+                className="w-full rounded-xl border border-white/10 bg-white/5 py-3 pl-11 pr-4 text-sm text-cream placeholder-cream/30 outline-none focus:border-gold/50 focus:ring-1 focus:ring-gold/20 transition"
+              />
+            </div>
+
+            {/* WhatsApp */}
+            <div className="relative">
+              <FiPhone className="absolute left-4 top-1/2 -translate-y-1/2 text-gold/50" />
+              <input
+                type="tel"
+                name="whatsappPhone"
+                placeholder="WhatsApp com DDD"
+                value={form.whatsappPhone}
+                onChange={handleChange}
+                inputMode="numeric"
                 className="w-full rounded-xl border border-white/10 bg-white/5 py-3 pl-11 pr-4 text-sm text-cream placeholder-cream/30 outline-none focus:border-gold/50 focus:ring-1 focus:ring-gold/20 transition"
               />
             </div>
