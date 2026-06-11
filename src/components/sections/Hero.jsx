@@ -16,11 +16,11 @@ export default function Hero() {
   }, [])
 
   return (
-    <section id="inicio" className="relative min-h-[100dvh] md:min-h-0 lg:min-h-[100dvh] pt-10 md:pt-36 lg:pt-28">
-      <div className="section-shell flex flex-col md:grid md:min-h-0 lg:min-h-[calc(100vh-7rem)] md:items-center gap-8 md:gap-10 pb-28 md:pb-14 md:grid-cols-[0.92fr_0.78fr]">
-        <motion.div className="flex flex-col" initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }}>
-          <p className="mb-1 text-xs font-bold uppercase tracking-[0.34em] text-gold-light">Studio de Beleza</p>
-          <div className="hero-logo-wrap w-[85%] max-w-[280px] sm:max-w-[320px] md:w-[90%] md:max-w-[300px] lg:w-full lg:max-w-[400px]" aria-label="Thallyta Silveira Cabeleireira e Nail Designer">
+    <section id="inicio" className="relative pt-24 pb-12 sm:pt-28 md:min-h-0 lg:min-h-[100dvh] md:pt-36 lg:pt-28">
+      <div className="section-shell flex flex-col md:grid md:min-h-0 lg:min-h-[calc(100vh-7rem)] md:items-center gap-6 sm:gap-8 md:gap-10 pb-20 md:pb-14 md:grid-cols-[0.92fr_0.78fr]">
+        <motion.div className="flex flex-col sm:items-center md:items-start" initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }}>
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.34em] text-gold-light sm:text-center md:text-left">Studio de Beleza</p>
+          <div className="hero-logo-wrap w-[85%] max-w-[280px] sm:w-[90%] sm:max-w-[340px] md:w-[90%] md:max-w-[300px] lg:w-full lg:max-w-[400px]" aria-label="Thallyta Silveira Cabeleireira e Nail Designer">
             <img src="/logo.png" alt="Thallyta Silveira Cabeleireira e Nail Designer" className="hero-logo w-full" />
           </div>
 
@@ -47,15 +47,15 @@ export default function Hero() {
             <div className="absolute inset-x-2 bottom-2 h-40 rounded-b-[1.55rem] bg-gradient-to-t from-dark/82 to-transparent" />
           </div>
 
-          <p className="mt-2 max-w-xl text-base leading-8 text-cream/72 md:text-lg">
+          <p className="mt-4 max-w-xl text-base leading-8 text-cream/72 sm:text-center sm:mx-auto md:text-left md:text-lg md:mx-0">
             Bem-vinda ao seu momento de cuidado, beleza e confiança.
           </p>
-          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+          <div className="mt-6 flex flex-col sm:justify-center gap-3 sm:flex-row md:justify-start">
             <a href="#agendamento" className="gold-button inline-flex items-center justify-center gap-2 rounded-md px-6 py-3 font-bold">
               Começar Agendamento <FiArrowRight />
             </a>
             <a href="#sobre" className="tap-gold inline-flex items-center justify-center rounded-md border border-gold/40 bg-white/10 px-6 py-3 font-bold text-gold-light backdrop-blur hover:bg-white/15">
-              Conheca o Estudio
+              Conheça o Estudio
             </a>
           </div>
         </motion.div>
