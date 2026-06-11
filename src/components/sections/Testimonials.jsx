@@ -4,15 +4,43 @@ import { testimonials } from '../../data/testimonials.js'
 import Reveal from '../ui/Reveal.jsx'
 import SectionTitle from '../ui/SectionTitle.jsx'
 
+const API = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
+
 export default function Testimonials() {
   const [active, setActive] = useState(0)
+  const [items, setItems] = useState(testimonials)
 
   useEffect(() => {
-    const timer = setInterval(() => setActive((value) => (value + 1) % testimonials.length), 4200)
-    return () => clearInterval(timer)
+    let alive = true
+
+    fetch(`${API}/testimonials`)
+      .then((res) => {
+        if (!res.ok) throw new Error('Falha ao buscar depoimentos')
+        return res.json()
+      })
+      .then((data) => {
+        if (alive && Array.isArray(data) && data.length > 0) {
+          setItems(data)
+          setActive(0)
+        }
+      })
+      .catch(() => {
+        if (alive) setItems(testimonials)
+      })
+
+    return () => {
+      alive = false
+    }
   }, [])
 
-  const item = testimonials[active]
+  useEffect(() => {
+    if (!items.length) return undefined
+    const timer = setInterval(() => setActive((value) => (value + 1) % items.length), 4200)
+    return () => clearInterval(timer)
+  }, [items.length])
+
+  const item = items[active] || testimonials[0]
+  const rating = Math.min(5, Math.max(1, Number(item.rating || 5)))
 
   return (
     <section className="py-20">
@@ -30,7 +58,7 @@ export default function Testimonials() {
 
               <div className="relative z-10 flex flex-col items-center">
                 <div className="mb-8 flex justify-center gap-1.5 text-gold-light drop-shadow-[0_0_10px_rgba(217,177,92,0.4)]">
-                  {Array.from({ length: 5 }).map((_, index) => <FiStar key={index} className="size-5 sm:size-6" fill="currentColor" />)}
+                  {Array.from({ length: rating }).map((_, index) => <FiStar key={index} className="size-5 sm:size-6" fill="currentColor" />)}
                 </div>
                 
                 <p className="min-h-[8rem] font-display text-2xl font-light italic leading-relaxed text-cream/95 sm:min-h-[6rem] sm:text-3xl lg:text-4xl">
@@ -48,9 +76,9 @@ export default function Testimonials() {
                 </div>
                 
                 <div className="mt-10 flex justify-center gap-2.5">
-                  {testimonials.map((testimonial, index) => (
+                  {items.map((testimonial, index) => (
                     <button
-                      key={testimonial.name}
+                      key={testimonial.id || testimonial.name}
                       onClick={() => setActive(index)}
                       aria-label={`Ver depoimento ${index + 1}`}
                       className={`h-2.5 rounded-full transition-all duration-300 ${active === index ? 'w-10 bg-gradient-to-r from-gold to-gold-light shadow-[0_0_15px_rgba(217,177,92,0.5)]' : 'w-2.5 bg-white/20 hover:scale-110 hover:bg-gold/50'}`}

@@ -7,6 +7,7 @@ import galleryRoutes from './routes/galleryRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import webhookRoutes from './routes/webhookRoutes.js';
 import bookingRoutes from './routes/bookingRoutes.js';
+import testimonialRoutes from './routes/testimonialRoutes.js';
 
 dotenv.config();
 
@@ -16,6 +17,9 @@ const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173')
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
+const sessionSecret = process.env.JWT_SECRET
+  || process.env.SESSION_SECRET
+  || (process.env.NODE_ENV !== 'production' ? 'dev-session-secret' : undefined);
 
 app.set('trust proxy', 1);
 
@@ -29,7 +33,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Sessão necessária para o fluxo OAuth do Passport
 app.use(session({
-  secret: process.env.JWT_SECRET,
+  secret: sessionSecret,
   resave: false,
   saveUninitialized: false,
 }));
@@ -43,6 +47,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/gallery', galleryRoutes);
 app.use('/api/webhooks', webhookRoutes);
 app.use('/api/bookings', bookingRoutes);
+app.use('/api/testimonials', testimonialRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', timestamp: new Date() }));
