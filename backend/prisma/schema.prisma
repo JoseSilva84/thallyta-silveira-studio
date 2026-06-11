@@ -46,6 +46,8 @@ model Booking {
   attendeePhone String?
   location      String?               // "presencial" ou link da reunião
   calPayload    Json?                  // Payload bruto do Cal.com para debug
+  serviceCompletedAt DateTime?
+  serviceCompletedBy String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }

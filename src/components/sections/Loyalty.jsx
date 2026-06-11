@@ -9,17 +9,23 @@ export default function Loyalty() {
   const { user, setLoginOpen } = useAuth()
   const { bookings } = useBooking()
   const [stamps, setStamps] = useState(0)
+  const [pendingStamps, setPendingStamps] = useState(0)
 
   useEffect(() => {
     if (bookings && bookings.length > 0) {
-      // Calcula 1 selo para cada serviço realizado/agendado (separados por vírgula)
-      const totalServices = bookings.reduce((acc, b) => {
-        const count = b.service ? b.service.split(',').length : 1
-        return acc + count
-      }, 0)
+      const countBookingServices = (booking) => (booking.service ? booking.service.split(',').filter(Boolean).length : 1)
+      const eligibleBookings = bookings.filter((booking) => booking.status !== 'cancelled')
+      const totalServices = eligibleBookings
+        .filter((booking) => booking.serviceCompletedAt)
+        .reduce((acc, booking) => acc + countBookingServices(booking), 0)
+      const totalPending = eligibleBookings
+        .filter((booking) => !booking.serviceCompletedAt)
+        .reduce((acc, booking) => acc + countBookingServices(booking), 0)
       setStamps(totalServices)
+      setPendingStamps(totalPending)
     } else {
       setStamps(0)
+      setPendingStamps(0)
     }
   }, [bookings])
 
@@ -34,8 +40,13 @@ export default function Loyalty() {
               <div className="relative overflow-hidden rounded-[2.5rem] border border-gold/20 bg-black/40 p-8 shadow-2xl backdrop-blur-xl sm:p-10">
                 <div className="absolute -inset-10 z-0 bg-gradient-to-tr from-gold/5 via-transparent to-transparent opacity-50 blur-3xl"></div>
                 <h3 className="relative z-10 font-display text-3xl">Histórico de visitas</h3>
+                {pendingStamps > 0 && (
+                  <p className="relative z-10 mt-3 rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4 text-sm text-amber-100">
+                    {pendingStamps} {pendingStamps === 1 ? 'selo pendente' : 'selos pendentes'} aguardando confirmacao do studio.
+                  </p>
+                )}
                 <div className="relative z-10 mt-8 space-y-4">
-                  {(bookings.length ? bookings : []).slice(0, 5).map((booking) => (
+                  {(bookings.length ? bookings : []).filter((booking) => booking.serviceCompletedAt).slice(0, 5).map((booking) => (
                     <div key={booking.id} className="group flex flex-col justify-between rounded-2xl border border-white/5 bg-white/5 p-5 transition-all hover:-translate-y-0.5 hover:border-gold/20 hover:bg-white/10 sm:flex-row sm:items-center">
                       <span className="font-semibold text-cream">{booking.service || 'Serviço'}</span>
                       <span className="mt-2 text-xs font-bold uppercase tracking-wider text-gold-light/80 sm:mt-0">

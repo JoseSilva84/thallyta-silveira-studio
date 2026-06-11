@@ -122,6 +122,15 @@ function BookingItem({ booking, cancelling, onCancel, onReschedule }) {
                 Proximo
               </span>
             )}
+            {booking.status !== 'cancelled' && (
+              <span className={`rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wider ${
+                booking.serviceCompletedAt
+                  ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-200'
+                  : 'border-amber-300/30 bg-amber-300/10 text-amber-100'
+              }`}>
+                {booking.serviceCompletedAt ? 'Fidelidade liberada' : 'Fidelidade pendente'}
+              </span>
+            )}
           </div>
 
           <div>
@@ -287,9 +296,13 @@ function countServices(bookings) {
 }
 
 function ClientLoyaltySummary({ bookings }) {
-  const stamps = countServices(bookings)
+  const eligibleBookings = bookings.filter((booking) => booking.status !== 'cancelled')
+  const completedBookings = eligibleBookings.filter((booking) => booking.serviceCompletedAt)
+  const pendingBookings = eligibleBookings.filter((booking) => !booking.serviceCompletedAt)
+  const stamps = countServices(completedBookings)
+  const pendingStamps = countServices(pendingBookings)
   const visibleStamps = Math.min(stamps, 10)
-  const recentBookings = bookings.slice(0, 5)
+  const recentBookings = completedBookings.slice(0, 5)
 
   return (
     <section className="pt-2">
@@ -306,8 +319,13 @@ function ClientLoyaltySummary({ bookings }) {
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.28em] text-gold-light/70">Resumo geral</p>
               <h3 className="mt-2 font-display text-3xl font-semibold text-gold-light">
-                {stamps} {stamps === 1 ? 'selo acumulado' : 'selos acumulados'}
+                {stamps} {stamps === 1 ? 'selo liberado' : 'selos liberados'}
               </h3>
+              {pendingStamps > 0 && (
+                <p className="mt-2 text-sm text-amber-100">
+                  {pendingStamps} {pendingStamps === 1 ? 'selo pendente' : 'selos pendentes'} aguardando confirmacao do studio.
+                </p>
+              )}
             </div>
             <span className="rounded-full border border-gold/25 bg-gold/10 px-4 py-2 text-sm font-bold text-gold-light">
               {Math.max(10 - visibleStamps, 0)} para completar
@@ -318,7 +336,7 @@ function ClientLoyaltySummary({ bookings }) {
             <h4 className="text-sm font-bold uppercase tracking-wider text-cream/60">Ultimos registros</h4>
             {recentBookings.length === 0 ? (
               <p className="mt-4 rounded-lg border border-white/10 bg-white/5 p-4 text-sm text-cream/55">
-                Seus selos aparecem aqui conforme seus agendamentos forem registrados.
+                Seus selos aparecem aqui quando o studio confirmar que o servico foi realizado.
               </p>
             ) : (
               <div className="mt-4 space-y-3">

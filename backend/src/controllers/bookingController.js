@@ -139,7 +139,7 @@ export const cancelBooking = async (req, res) => {
       },
       include: {
         user: {
-          select: { id: true, name: true, email: true },
+          select: { id: true, name: true, email: true, whatsappPhone: true },
         },
       },
     });
@@ -148,5 +148,70 @@ export const cancelBooking = async (req, res) => {
   } catch (error) {
     console.error('Erro ao cancelar agendamento:', error);
     res.status(500).json({ error: 'Erro ao cancelar agendamento.' });
+  }
+};
+
+export const completeBookingService = async (req, res) => {
+  try {
+    if (req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Acesso negado. Apenas administradores.' });
+    }
+
+    const booking = await prisma.booking.findUnique({ where: { id: req.params.id } });
+
+    if (!booking) {
+      return res.status(404).json({ error: 'Agendamento nao encontrado.' });
+    }
+
+    if (booking.status === 'cancelled') {
+      return res.status(409).json({ error: 'Agendamento cancelado nao pode liberar fidelidade.' });
+    }
+
+    const updated = await prisma.booking.update({
+      where: { id: booking.id },
+      data: {
+        serviceCompletedAt: new Date(),
+        serviceCompletedBy: req.user.id,
+      },
+      include: {
+        user: {
+          select: { id: true, name: true, email: true, whatsappPhone: true },
+        },
+      },
+    });
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Erro ao confirmar servico realizado:', error);
+    res.status(500).json({ error: 'Erro ao confirmar servico realizado.' });
+  }
+};
+
+export const undoBookingServiceCompletion = async (req, res) => {
+  try {
+    if (req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Acesso negado. Apenas administradores.' });
+    }
+
+    const updated = await prisma.booking.update({
+      where: { id: req.params.id },
+      data: {
+        serviceCompletedAt: null,
+        serviceCompletedBy: null,
+      },
+      include: {
+        user: {
+          select: { id: true, name: true, email: true, whatsappPhone: true },
+        },
+      },
+    });
+
+    res.json(updated);
+  } catch (error) {
+    if (error.code === 'P2025') {
+      return res.status(404).json({ error: 'Agendamento nao encontrado.' });
+    }
+    console.error('Erro ao desfazer confirmacao do servico:', error);
+    res.status(500).json({ error: 'Erro ao desfazer confirmacao do servico.' });
   }
 };

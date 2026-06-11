@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 import {
   FiBarChart2,
+  FiAward,
   FiCalendar,
+  FiCheckCircle,
   FiChevronLeft,
   FiChevronRight,
   FiDollarSign,
@@ -16,6 +18,7 @@ import {
   FiRefreshCw,
   FiSave,
   FiStar,
+  FiClock,
   FiTrash2,
   FiTrendingUp,
   FiUploadCloud,
@@ -167,6 +170,42 @@ export default function AdminPanel() {
     }
   };
 
+  const updateBookingInList = (updatedBooking) => {
+    setBookings((current) => current.map((booking) => (booking.id === updatedBooking.id ? updatedBooking : booking)));
+  };
+
+  const handleCompleteService = async (booking) => {
+    try {
+      const res = await fetch(`${API}/bookings/${booking.id}/complete-service`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Erro ao confirmar servico realizado');
+      updateBookingInList(data);
+      toast.success('Servico confirmado e fidelidade liberada!');
+    } catch (error) {
+      toast.error(error.message);
+    }
+  };
+
+  const handleUndoCompleteService = async (booking) => {
+    if (!window.confirm('Desfazer a confirmacao deste servico e remover os selos liberados?')) return;
+
+    try {
+      const res = await fetch(`${API}/bookings/${booking.id}/undo-complete-service`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Erro ao desfazer confirmacao');
+      updateBookingInList(data);
+      toast.info('Confirmacao desfeita. Fidelidade voltou para pendente.');
+    } catch (error) {
+      toast.error(error.message);
+    }
+  };
+
   const handleSaveTestimonial = async (e) => {
     e.preventDefault();
     const name = testimonialForm.name.trim();
@@ -247,6 +286,11 @@ export default function AdminPanel() {
   const filteredBookings = statusFilter === 'all'
     ? bookings
     : bookings.filter((booking) => booking.status === statusFilter);
+  const pendingCompletionBookings = useMemo(
+    () => bookings.filter((booking) => booking.status !== 'cancelled' && !booking.serviceCompletedAt),
+    [bookings],
+  );
+  const loyaltyClients = useMemo(() => buildLoyaltyClients(bookings), [bookings]);
 
   const analytics = useMemo(() => buildAnalytics(bookings), [bookings]);
   const calendarDays = useMemo(() => buildCalendarDays(monthCursor, bookings), [monthCursor, bookings]);
@@ -294,12 +338,32 @@ export default function AdminPanel() {
         <div className="mb-6 flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-black/30 p-1 backdrop-blur-md">
           <TabButton active={activeTab === 'bookings'} icon={<FiCalendar />} label="Agenda" count={bookings.length} onClick={() => setActiveTab('bookings')} />
           <TabButton active={activeTab === 'analytics'} icon={<FiBarChart2 />} label="Analises" onClick={() => setActiveTab('analytics')} />
+          <TabButton active={activeTab === 'loyalty'} icon={<FiAward />} label="Fidelidade" count={pendingCompletionBookings.length} onClick={() => setActiveTab('loyalty')} />
           <TabButton active={activeTab === 'gallery'} icon={<FiImage />} label="Galeria" count={images.length} onClick={() => setActiveTab('gallery')} />
           <TabButton active={activeTab === 'testimonials'} icon={<FiMessageSquare />} label="Depoimentos" count={testimonials.length} onClick={() => setActiveTab('testimonials')} />
         </div>
 
         {activeTab === 'bookings' && (
           <div className="space-y-6">
+            {pendingCompletionBookings.length > 0 && (
+              <div className="rounded-2xl border border-amber-300/20 bg-amber-300/10 p-5 text-amber-50">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wider text-amber-100/75">Fidelidade pendente</p>
+                    <h2 className="mt-1 text-xl font-semibold">
+                      {pendingCompletionBookings.length} {pendingCompletionBookings.length === 1 ? 'agendamento precisa' : 'agendamentos precisam'} de confirmacao de presenca.
+                    </h2>
+                  </div>
+                  <button
+                    onClick={() => setActiveTab('loyalty')}
+                    className="inline-flex items-center justify-center gap-2 rounded-full border border-amber-100/30 px-4 py-2 text-sm font-semibold hover:bg-amber-100/10"
+                  >
+                    <FiAward /> Ver pendencias
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="flex flex-wrap items-center gap-2">
               <SegmentedButton active={bookingView === 'table'} onClick={() => setBookingView('table')}>Lista</SegmentedButton>
               <SegmentedButton active={bookingView === 'calendar'} onClick={() => setBookingView('calendar')}>Calendario</SegmentedButton>
@@ -336,6 +400,8 @@ export default function AdminPanel() {
                 fetching={fetchingBookings}
                 statusFilter={statusFilter}
                 statusBadge={statusBadge}
+                onCompleteService={handleCompleteService}
+                onUndoCompleteService={handleUndoCompleteService}
               />
             )}
           </div>
@@ -343,6 +409,15 @@ export default function AdminPanel() {
 
         {activeTab === 'analytics' && (
           <AnalyticsView analytics={analytics} />
+        )}
+
+        {activeTab === 'loyalty' && (
+          <LoyaltyAdminView
+            clients={loyaltyClients}
+            pendingBookings={pendingCompletionBookings}
+            onCompleteService={handleCompleteService}
+            onUndoCompleteService={handleUndoCompleteService}
+          />
         )}
 
         {activeTab === 'gallery' && (
@@ -413,7 +488,7 @@ function SegmentedButton({ active, onClick, children }) {
   );
 }
 
-function BookingsTable({ bookings, fetching, statusFilter, statusBadge }) {
+function BookingsTable({ bookings, fetching, statusFilter, statusBadge, onCompleteService, onUndoCompleteService }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-gold/20 bg-black/40 backdrop-blur-md">
       {fetching ? (
@@ -434,6 +509,7 @@ function BookingsTable({ bookings, fetching, statusFilter, statusBadge }) {
                 <th className="px-5 py-4">Data</th>
                 <th className="px-5 py-4">Horario</th>
                 <th className="px-5 py-4">Status</th>
+                <th className="px-5 py-4">Fidelidade</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
@@ -454,6 +530,13 @@ function BookingsTable({ bookings, fetching, statusFilter, statusBadge }) {
                     {booking.endTime && ` - ${formatTime(booking.endTime)}`}
                   </td>
                   <td className="px-5 py-4">{statusBadge(booking.status)}</td>
+                  <td className="px-5 py-4">
+                    <CompletionAction
+                      booking={booking}
+                      onCompleteService={onCompleteService}
+                      onUndoCompleteService={onUndoCompleteService}
+                    />
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -461,6 +544,37 @@ function BookingsTable({ bookings, fetching, statusFilter, statusBadge }) {
         </div>
       )}
     </div>
+  );
+}
+
+function CompletionAction({ booking, onCompleteService, onUndoCompleteService }) {
+  if (booking.status === 'cancelled') {
+    return <span className="text-xs font-semibold uppercase tracking-wider text-cream/35">Sem fidelidade</span>;
+  }
+
+  if (booking.serviceCompletedAt) {
+    return (
+      <div className="flex flex-col gap-2">
+        <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-emerald-400">
+          <FiCheckCircle /> Liberada
+        </span>
+        <button
+          onClick={() => onUndoCompleteService(booking)}
+          className="text-left text-xs font-semibold text-cream/45 hover:text-gold"
+        >
+          Desfazer
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => onCompleteService(booking)}
+      className="inline-flex items-center gap-2 rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-xs font-bold uppercase tracking-wider text-amber-100 hover:bg-amber-300/20"
+    >
+      <FiClock /> Confirmar ida
+    </button>
   );
 }
 
@@ -552,7 +666,7 @@ function AnalyticsView({ analytics }) {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <ChartPanel title="Quantidade por servico">
+        <ChartPanel title="Quantidade por serviço">
           <div className="space-y-4">
             {analytics.serviceStats.length === 0 ? (
               <p className="text-sm text-cream/50">Ainda nao ha servicos suficientes para analisar.</p>
@@ -568,6 +682,8 @@ function AnalyticsView({ analytics }) {
             <SmallStat label="Reagendados" value={analytics.statusCounts.rescheduled || 0} />
             <SmallStat label="Cancelados" value={analytics.cancelledCount} />
             <SmallStat label="Sem valor informado" value={analytics.missingValueCount} />
+            <SmallStat label="Selos liberados" value={analytics.completedStamps} />
+            <SmallStat label="Selos pendentes" value={analytics.pendingStamps} />
           </div>
         </ChartPanel>
       </div>
@@ -614,6 +730,102 @@ function SmallStat({ label, value }) {
     <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
       <p className="text-xs font-bold uppercase tracking-wider text-cream/40">{label}</p>
       <p className="mt-2 text-2xl font-bold text-cream">{value}</p>
+    </div>
+  );
+}
+
+function LoyaltyAdminView({ clients, pendingBookings, onCompleteService, onUndoCompleteService }) {
+  return (
+    <div className="space-y-6">
+      <section className="rounded-2xl border border-amber-300/20 bg-amber-300/10 p-5">
+        <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider text-amber-100/70">Aguardando confirmacao</p>
+            <h2 className="mt-1 text-2xl font-semibold text-amber-50">
+              {pendingBookings.length} {pendingBookings.length === 1 ? 'servico pendente' : 'servicos pendentes'}
+            </h2>
+          </div>
+          <span className="text-sm text-amber-100/70">Confirme apenas quando a cliente realmente realizou o atendimento.</span>
+        </div>
+
+        {pendingBookings.length === 0 ? (
+          <p className="rounded-xl border border-white/10 bg-black/20 p-4 text-sm text-cream/60">
+            Nenhuma fidelidade pendente no momento.
+          </p>
+        ) : (
+          <div className="grid gap-3 lg:grid-cols-2">
+            {pendingBookings.map((booking) => (
+              <div key={booking.id} className="rounded-xl border border-white/10 bg-black/30 p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <h3 className="truncate font-semibold text-cream">{booking.attendeeName || booking.user?.name || 'Cliente'}</h3>
+                    <p className="truncate text-sm text-cream/50">{booking.attendeeEmail || booking.user?.email || booking.attendeePhone || booking.user?.whatsappPhone || 'Sem contato'}</p>
+                    <p className="mt-2 text-sm text-gold-light">{booking.service}</p>
+                    <p className="mt-1 text-xs text-cream/45">{formatDate(booking.scheduledAt)} - {formatTime(booking.scheduledAt)}</p>
+                  </div>
+                  <button
+                    onClick={() => onCompleteService(booking)}
+                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-gold to-gold-light px-4 py-2 text-xs font-bold uppercase tracking-wider text-dark"
+                  >
+                    <FiCheckCircle /> Confirmar
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-2xl border border-gold/20 bg-black/40 p-5">
+        <h2 className="mb-5 text-xl font-semibold text-gold-light">Cartoes fidelidade por cliente</h2>
+        {clients.length === 0 ? (
+          <p className="text-sm text-cream/50">Nenhum cliente com agendamento encontrado.</p>
+        ) : (
+          <div className="grid gap-4 xl:grid-cols-2">
+            {clients.map((client) => (
+              <article key={client.key} className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                  <div className="min-w-0">
+                    <h3 className="truncate text-lg font-semibold text-cream">{client.name}</h3>
+                    <p className="truncate text-sm text-cream/45">{client.contact}</p>
+                  </div>
+                  <div className="flex gap-2 text-xs font-bold uppercase tracking-wider">
+                    <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-emerald-400">{client.completedStamps}/10 liberados</span>
+                    {client.pendingStamps > 0 && <span className="rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1 text-amber-100">{client.pendingStamps} pend.</span>}
+                  </div>
+                </div>
+
+                <div className="mt-4 grid grid-cols-10 gap-1.5">
+                  {Array.from({ length: 10 }).map((_, index) => (
+                    <span
+                      key={index}
+                      className={`grid aspect-square place-items-center rounded-full text-[0.62rem] font-bold ${
+                        index < Math.min(client.completedStamps, 10)
+                          ? 'bg-gradient-to-br from-gold to-gold-light text-dark'
+                          : 'border border-white/10 bg-black/40 text-cream/20'
+                      }`}
+                    >
+                      TS
+                    </span>
+                  ))}
+                </div>
+
+                <div className="mt-4 space-y-2">
+                  {client.bookings.slice(0, 4).map((booking) => (
+                    <div key={booking.id} className="flex flex-col gap-2 rounded-lg border border-white/10 bg-black/25 p-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-cream/80">{booking.service}</p>
+                        <p className="text-xs text-cream/40">{formatDate(booking.scheduledAt)} - {formatTime(booking.scheduledAt)}</p>
+                      </div>
+                      <CompletionAction booking={booking} onCompleteService={onCompleteService} onUndoCompleteService={onUndoCompleteService} />
+                    </div>
+                  ))}
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
@@ -789,6 +1001,8 @@ function buildAnalytics(bookings) {
   let totalServices = 0;
   let missingValueCount = 0;
   let activeBookings = 0;
+  let completedStamps = 0;
+  let pendingStamps = 0;
 
   const monthSeeds = Array.from({ length: 6 }).map((_, index) => {
     const date = new Date();
@@ -818,7 +1032,12 @@ function buildAnalytics(bookings) {
     const clientKey = booking.attendeeEmail || booking.user?.email || booking.attendeePhone || booking.user?.whatsappPhone || booking.attendeeName || booking.user?.name;
     if (clientKey) clientKeys.add(String(clientKey).toLowerCase());
 
-    splitServices(booking.service).forEach((service) => {
+    const services = splitServices(booking.service);
+    const stampCount = Math.max(1, services.length);
+    if (booking.serviceCompletedAt) completedStamps += stampCount;
+    else pendingStamps += stampCount;
+
+    (services.length ? services : ['Servico nao informado']).forEach((service) => {
       totalServices += 1;
       serviceCounts.set(service, (serviceCounts.get(service) || 0) + 1);
     });
@@ -851,7 +1070,54 @@ function buildAnalytics(bookings) {
     statusCounts,
     cancelledCount: statusCounts.cancelled || 0,
     missingValueCount,
+    completedStamps,
+    pendingStamps,
   };
+}
+
+function buildLoyaltyClients(bookings) {
+  const clients = new Map();
+
+  bookings
+    .filter((booking) => booking.status !== 'cancelled')
+    .forEach((booking) => {
+      const key = String(
+        booking.attendeeEmail
+          || booking.user?.email
+          || booking.attendeePhone
+          || booking.user?.whatsappPhone
+          || booking.attendeeName
+          || booking.user?.name
+          || booking.id,
+      ).toLowerCase();
+
+      if (!clients.has(key)) {
+        clients.set(key, {
+          key,
+          name: booking.attendeeName || booking.user?.name || 'Cliente',
+          contact: booking.attendeeEmail || booking.user?.email || booking.attendeePhone || booking.user?.whatsappPhone || 'Sem contato',
+          completedStamps: 0,
+          pendingStamps: 0,
+          bookings: [],
+        });
+      }
+
+      const client = clients.get(key);
+      const stampCount = Math.max(1, splitServices(booking.service).length);
+      if (booking.serviceCompletedAt) {
+        client.completedStamps += stampCount;
+      } else {
+        client.pendingStamps += stampCount;
+      }
+      client.bookings.push(booking);
+    });
+
+  return Array.from(clients.values())
+    .map((client) => ({
+      ...client,
+      bookings: client.bookings.sort((a, b) => new Date(b.scheduledAt) - new Date(a.scheduledAt)),
+    }))
+    .sort((a, b) => b.pendingStamps - a.pendingStamps || b.completedStamps - a.completedStamps || a.name.localeCompare(b.name));
 }
 
 function buildCalendarDays(monthCursor, bookings) {
