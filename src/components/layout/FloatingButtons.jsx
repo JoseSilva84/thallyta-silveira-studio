@@ -2,7 +2,7 @@ import { BsInstagram, BsWhatsapp } from 'react-icons/bs'
 
 export default function FloatingButtons() {
   return (
-    <div className="fixed bottom-20 right-5 z-[60] flex flex-col gap-3 md:bottom-5">
+    <div className="fixed bottom-20 right-5 z-40 flex flex-col gap-3 md:bottom-5">
       <a
         href="https://instagram.com/studiodebelezathallytasilveira"
         target="_blank"
