@@ -26,7 +26,7 @@ export default function FloatingCart() {
   }, 0)
 
   return (
-    <div className="fixed bottom-[4.5rem] inset-x-4 z-[60] md:bottom-8 md:max-w-md md:mx-auto transition-all duration-500 animate-in slide-in-from-bottom-10 fade-in pointer-events-auto">
+    <div className="fixed bottom-[5.5rem] inset-x-4 z-[60] md:bottom-8 md:max-w-md md:mx-auto transition-all duration-500 animate-in slide-in-from-bottom-10 fade-in pointer-events-auto">
       <div className="bg-dark-card/95 border border-gold/30 backdrop-blur-xl shadow-2xl rounded-[1.5rem] p-4">
         <div className="flex justify-between items-center mb-1">
           <span className="text-gold-light font-bold text-xs uppercase tracking-wider">
