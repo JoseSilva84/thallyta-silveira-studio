@@ -57,12 +57,12 @@ const sendText = async ({ chatId, text }) => {
   return response.json().catch(() => ({ ok: true }));
 };
 
-const buildOwnerBookingMessage = (booking) => {
+const getBookingWhatsapp = (booking) => booking.user?.whatsappPhone || booking.attendeePhone;
+
+const buildBookingSummaryLines = (booking) => {
   const whatsapp = booking.user?.whatsappPhone || booking.attendeePhone;
 
   return [
-    'Novo agendamento confirmado',
-    '',
     `Cliente: ${booking.attendeeName || booking.user?.name || 'Nao informado'}`,
     `Email: ${booking.attendeeEmail || booking.user?.email || 'Nao informado'}`,
     whatsapp ? `WhatsApp: ${whatsapp}` : null,
@@ -71,17 +71,23 @@ const buildOwnerBookingMessage = (booking) => {
     `Data/Horario: ${formatDateTime(booking.scheduledAt)}`,
     booking.endTime ? `Termina: ${formatDateTime(booking.endTime)}` : null,
     `Local: ${booking.location || 'Presencial'}`,
-  ].filter(Boolean).join('\n');
+  ].filter(Boolean);
+};
+
+const buildOwnerBookingMessage = (booking) => {
+  return [
+    'Novo agendamento confirmado',
+    '',
+    ...buildBookingSummaryLines(booking),
+  ].join('\n');
 };
 
 const buildClientBookingMessage = (booking) => {
   const firstName = (booking.attendeeName || booking.user?.name || '').split(' ')[0] || 'Tudo bem';
   return [
-    `Ola, ${firstName}! Seu agendamento no Studio Thallyta Silveira foi confirmado.`,
+    `Ola, ${firstName}! Seu agendamento no Studio Thallyta Silveira foi confirmado:`,
     '',
-    `Servico: ${booking.service || 'Nao informado'}`,
-    `Valor: ${formatCurrency(booking.estimatedValue)}`,
-    `Data/Horario: ${formatDateTime(booking.scheduledAt)}`,
+    ...buildBookingSummaryLines(booking),
     '',
     'Se precisar reagendar ou cancelar, acesse sua area de agendamentos.',
   ].join('\n');
@@ -139,7 +145,7 @@ export const notifyBookingCreated = async (prisma, booking) => {
 
   if (process.env.SEND_CLIENT_WHATSAPP !== 'true') return;
 
-  const clientPhone = booking.attendeePhone || booking.user?.whatsappPhone;
+  const clientPhone = getBookingWhatsapp(booking);
   const clientChatId = toChatId(clientPhone);
   if (!clientChatId) return;
 
