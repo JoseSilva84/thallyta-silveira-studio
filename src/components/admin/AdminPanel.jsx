@@ -580,15 +580,16 @@ function CompletionAction({ booking, onCompleteService, onUndoCompleteService })
 
 function CalendarView({ days, monthLabel, onPrev, onNext, statusBadge, formatTime }) {
   const todayKey = dateKey(new Date());
+  const [selectedDay, setSelectedDay] = useState(null);
 
   return (
     <div className="rounded-2xl border border-gold/20 bg-black/40 p-4 backdrop-blur-md md:p-6">
       <div className="mb-5 flex items-center justify-between gap-4">
-        <button onClick={onPrev} className="rounded-full border border-white/10 p-2 text-cream/60 hover:border-gold/30 hover:text-gold">
+        <button onClick={onPrev} className="rounded-full border border-white/10 p-2 text-cream/60 transition hover:border-gold/30 hover:bg-gold/10 hover:text-gold">
           <FiChevronLeft />
         </button>
         <h2 className="text-center font-display text-2xl font-semibold capitalize text-gold-light">{monthLabel}</h2>
-        <button onClick={onNext} className="rounded-full border border-white/10 p-2 text-cream/60 hover:border-gold/30 hover:text-gold">
+        <button onClick={onNext} className="rounded-full border border-white/10 p-2 text-cream/60 transition hover:border-gold/30 hover:bg-gold/10 hover:text-gold">
           <FiChevronRight />
         </button>
       </div>
@@ -597,33 +598,178 @@ function CalendarView({ days, monthLabel, onPrev, onNext, statusBadge, formatTim
         {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'].map((day) => <div key={day}>{day}</div>)}
       </div>
       <div className="mt-2 grid grid-cols-1 gap-3 md:grid-cols-7 md:gap-2">
-        {days.map((day) => (
-          <div
-            key={day.key}
-            className={`min-h-32 rounded-xl border p-3 ${
-              day.inMonth ? 'border-white/10 bg-white/[0.03]' : 'border-white/5 bg-black/20 opacity-40'
-            } ${day.key === todayKey ? 'ring-1 ring-gold/70' : ''}`}
-          >
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-sm font-bold text-cream">{day.date.getDate()}</span>
-              {day.bookings.length > 0 && <span className="rounded-full bg-gold/20 px-2 py-0.5 text-[0.65rem] font-bold text-gold">{day.bookings.length}</span>}
+        {days.map((day) => {
+          const visibleBookings = day.bookings.slice(0, 3);
+          const hiddenCount = Math.max(day.bookings.length - visibleBookings.length, 0);
+
+          return (
+            <div
+              key={day.key}
+              className={`relative min-h-36 rounded-xl border p-3 transition duration-200 ${
+                day.inMonth ? 'border-white/10 bg-white/[0.03] hover:border-gold/25 hover:bg-gold/[0.035]' : 'border-white/5 bg-black/20 opacity-40'
+              } ${day.key === todayKey ? 'ring-1 ring-gold/70' : ''}`}
+            >
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-sm font-bold text-cream">{day.date.getDate()}</span>
+                {day.bookings.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDay(day)}
+                    className="rounded-full bg-gold/20 px-2 py-0.5 text-[0.65rem] font-bold text-gold transition hover:bg-gold hover:text-dark"
+                    title="Ver agenda do dia"
+                  >
+                    {day.bookings.length}
+                  </button>
+                )}
+              </div>
+              <div className="space-y-2">
+                {visibleBookings.map((booking) => (
+                  <CalendarBookingCard key={booking.id} booking={booking} formatTime={formatTime} />
+                ))}
+                {hiddenCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDay(day)}
+                    className="mt-1 inline-flex w-full cursor-pointer items-center justify-center rounded-lg border border-gold/25 bg-gold/10 px-2 py-2 text-xs font-bold text-gold-light transition hover:border-gold/50 hover:bg-gold/20 hover:text-gold"
+                  >
+                    +{hiddenCount} {hiddenCount === 1 ? 'outro' : 'outros'}
+                  </button>
+                )}
+              </div>
             </div>
-            <div className="space-y-2">
-              {day.bookings.slice(0, 3).map((booking) => (
-                <div key={booking.id} className="rounded-lg border border-white/10 bg-black/35 p-2 text-left">
-                  <div className="text-xs font-bold text-gold-light">{formatTime(booking.scheduledAt)}</div>
-                  <div className="truncate text-xs text-cream">{booking.attendeeName || booking.user?.name || 'Cliente'}</div>
-                  <div className="truncate text-[0.68rem] text-cream/50">{booking.service}</div>
-                </div>
-              ))}
-              {day.bookings.length > 3 && <div className="text-xs text-gold">+{day.bookings.length - 3} outros</div>}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="mt-5 flex flex-wrap gap-2">
         {['confirmed', 'rescheduled', 'cancelled'].map((status) => <span key={status}>{statusBadge(status)}</span>)}
+      </div>
+
+      <DayAgendaModal
+        day={selectedDay}
+        onClose={() => setSelectedDay(null)}
+        statusBadge={statusBadge}
+        formatTime={formatTime}
+      />
+    </div>
+  );
+}
+
+function CalendarBookingCard({ booking, formatTime }) {
+  const client = booking.attendeeName || booking.user?.name || 'Cliente';
+  const contact = booking.attendeeEmail || booking.user?.email || booking.attendeePhone || booking.user?.whatsappPhone || 'Contato nao informado';
+  const isCompleted = Boolean(booking.serviceCompletedAt);
+  const isCancelled = booking.status === 'cancelled';
+
+  return (
+    <div className="group relative">
+      <button
+        type="button"
+        className={`w-full cursor-pointer rounded-lg border p-2 text-left transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_30px_rgba(0,0,0,0.35)] ${
+          isCancelled
+            ? 'border-red-500/20 bg-red-500/[0.06]'
+            : isCompleted
+              ? 'border-emerald-500/20 bg-emerald-500/[0.06] hover:border-emerald-400/35'
+              : 'border-white/10 bg-black/35 hover:border-gold/35 hover:bg-black/55'
+        }`}
+      >
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-bold text-gold-light">{formatTime(booking.scheduledAt)}</span>
+          <span className={`size-2 rounded-full ${isCancelled ? 'bg-red-400' : isCompleted ? 'bg-emerald-400' : 'bg-amber-300'}`} />
+        </div>
+        <div className="truncate text-xs font-semibold text-cream">{client}</div>
+        <div className="truncate text-[0.68rem] text-cream/50">{booking.service}</div>
+      </button>
+
+      <div className="pointer-events-none absolute left-1/2 top-full z-30 mt-2 hidden w-72 -translate-x-1/2 rounded-2xl border border-gold/25 bg-[#100d0a]/95 p-4 text-left shadow-[0_24px_70px_rgba(0,0,0,0.65)] backdrop-blur-xl group-hover:block">
+        <div className="absolute left-1/2 top-0 size-3 -translate-x-1/2 -translate-y-1/2 rotate-45 border-l border-t border-gold/25 bg-[#100d0a]" />
+        <div className="relative">
+          <div className="mb-3 flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="truncate font-semibold text-cream">{client}</p>
+              <p className="truncate text-xs text-cream/45">{contact}</p>
+            </div>
+            <span className="rounded-full border border-gold/25 bg-gold/10 px-2 py-1 text-[0.65rem] font-bold text-gold">
+              {formatTime(booking.scheduledAt)}
+            </span>
+          </div>
+          <div className="space-y-2 text-xs text-cream/65">
+            <p><span className="font-bold text-gold-light">Servico:</span> {booking.service || 'Nao informado'}</p>
+            <p><span className="font-bold text-gold-light">Valor:</span> {formatCurrency(booking.estimatedValue)}</p>
+            <p><span className="font-bold text-gold-light">Fidelidade:</span> {isCancelled ? 'sem selo' : isCompleted ? 'liberada' : 'pendente'}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DayAgendaModal({ day, onClose, statusBadge, formatTime }) {
+  if (!day) return null;
+
+  const title = day.date.toLocaleDateString('pt-BR', {
+    weekday: 'long',
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  });
+
+  return (
+    <div className="fixed inset-0 z-[90] grid place-items-center bg-black/70 px-4 py-6 backdrop-blur-sm">
+      <div className="w-full max-w-3xl overflow-hidden rounded-3xl border border-gold/25 bg-[#100d0a] shadow-[0_28px_90px_rgba(0,0,0,0.75)]">
+        <div className="border-b border-gold/15 bg-gradient-to-r from-gold/15 via-white/[0.03] to-transparent p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-gold-light/70">Agenda do dia</p>
+              <h2 className="mt-1 font-display text-3xl font-semibold capitalize text-gold-light">{title}</h2>
+              <p className="mt-2 text-sm text-cream/55">
+                {day.bookings.length} {day.bookings.length === 1 ? 'agendamento registrado' : 'agendamentos registrados'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="grid size-10 place-items-center rounded-full border border-white/10 text-cream/60 transition hover:border-gold/30 hover:bg-gold/10 hover:text-gold"
+              aria-label="Fechar agenda do dia"
+            >
+              <FiX />
+            </button>
+          </div>
+        </div>
+
+        <div className="max-h-[70vh] overflow-y-auto p-5">
+          <div className="space-y-3">
+            {day.bookings.map((booking) => {
+              const client = booking.attendeeName || booking.user?.name || 'Cliente';
+              const contact = booking.attendeeEmail || booking.user?.email || booking.attendeePhone || booking.user?.whatsappPhone || 'Contato nao informado';
+              const value = formatCurrency(booking.estimatedValue);
+              const loyalty = booking.status === 'cancelled' ? 'Sem fidelidade' : booking.serviceCompletedAt ? 'Fidelidade liberada' : 'Fidelidade pendente';
+
+              return (
+                <article key={booking.id} className="rounded-2xl border border-white/10 bg-white/[0.035] p-4 transition hover:border-gold/25 hover:bg-gold/[0.045]">
+                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-full border border-gold/25 bg-gold/10 px-3 py-1 text-xs font-bold text-gold-light">
+                          {formatTime(booking.scheduledAt)}
+                          {booking.endTime && ` - ${formatTime(booking.endTime)}`}
+                        </span>
+                        {statusBadge(booking.status)}
+                      </div>
+                      <h3 className="mt-3 text-lg font-semibold text-cream">{client}</h3>
+                      <p className="mt-1 text-sm text-cream/45">{contact}</p>
+                      <p className="mt-3 text-sm text-cream/80">{booking.service || 'Servico nao informado'}</p>
+                    </div>
+                    <div className="grid gap-2 text-sm md:min-w-48">
+                      <span className="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-cream/70">Valor: <strong className="text-gold-light">{value}</strong></span>
+                      <span className="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-cream/70">{loyalty}</span>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </div>
   );
