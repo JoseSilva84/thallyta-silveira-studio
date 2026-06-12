@@ -406,7 +406,7 @@ export default function AdminPanel() {
 
             <div className="flex flex-wrap items-center gap-2">
               <SegmentedButton active={bookingView === 'table'} onClick={() => setBookingView('table')}>Lista</SegmentedButton>
-              <SegmentedButton active={bookingView === 'calendar'} onClick={() => setBookingView('calendar')}>Calendario</SegmentedButton>
+              <SegmentedButton active={bookingView === 'calendar'} onClick={() => setBookingView('calendar')}>Calendário</SegmentedButton>
               <div className="ml-auto flex flex-wrap gap-2">
                 {[
                   { value: 'all', label: 'Todos' },
@@ -595,10 +595,10 @@ function BookingsTable({ bookings, fetching, statusFilter, statusBadge, onComple
               <tr className="border-b border-white/10 text-xs font-bold uppercase tracking-wider text-gold-light/80">
                 <th className="px-5 py-4">Cliente</th>
                 <th className="px-5 py-4">WhatsApp</th>
-                <th className="px-5 py-4">Servico(s)</th>
+                <th className="px-5 py-4">Serviço(s)</th>
                 <th className="px-5 py-4">Valor</th>
                 <th className="px-5 py-4">Data</th>
-                <th className="px-5 py-4">Horario</th>
+                <th className="px-5 py-4">Horário</th>
                 <th className="px-5 py-4">Status</th>
                 <th className="px-5 py-4">Fidelidade</th>
               </tr>
@@ -802,7 +802,7 @@ function CalendarBookingCard({ booking, formatTime }) {
             </span>
           </div>
           <div className="space-y-2 text-xs text-cream/65">
-            <p><span className="font-bold text-gold-light">Servico:</span> {booking.service || 'Nao informado'}</p>
+            <p><span className="font-bold text-gold-light">Serviço:</span> {booking.service || 'Nao informado'}</p>
             <p><span className="font-bold text-gold-light">Valor:</span> {formatCurrency(booking.estimatedValue)}</p>
             <p><span className="font-bold text-gold-light">Fidelidade:</span> {isCancelled || isNoShow ? 'sem selo' : isCompleted ? 'liberada' : 'pendente'}</p>
           </div>
@@ -1225,7 +1225,7 @@ function LoyaltyAdminView({ clients, pendingBookings, onCompleteService, onUndoC
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-amber-100/70">Aguardando confirmacao</p>
             <h2 className="mt-1 text-2xl font-semibold text-amber-50">
-              {pendingBookings.length} {pendingBookings.length === 1 ? 'servico pendente' : 'servicos pendentes'}
+              {pendingBookings.length} {pendingBookings.length === 1 ? 'serviço pendente' : 'servicos pendentes'}
             </h2>
           </div>
           <span className="text-sm text-amber-100/70">Confirme apenas quando a cliente realmente realizou o atendimento.</span>
@@ -1271,7 +1271,7 @@ function LoyaltyAdminView({ clients, pendingBookings, onCompleteService, onUndoC
       </section>
 
       <section className="rounded-2xl border border-gold/20 bg-black/40 p-5">
-        <h2 className="mb-5 text-xl font-semibold text-gold-light">Cartoes fidelidade por cliente</h2>
+        <h2 className="mb-5 text-xl font-semibold text-gold-light">Cartões fidelidade por cliente</h2>
         {clients.length === 0 ? (
           <p className="text-sm text-cream/50">Nenhum cliente com agendamento encontrado.</p>
         ) : (

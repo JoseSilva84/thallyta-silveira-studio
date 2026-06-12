@@ -128,7 +128,7 @@ export const cancelBooking = async (req, res) => {
       await cancelOnCal(booking);
     } catch (error) {
       console.error('Erro ao cancelar no Cal.com:', error);
-      return res.status(502).json({ error: 'Nao foi possivel cancelar no calendario. Tente novamente.' });
+      return res.status(502).json({ error: 'Nao foi possivel cancelar no calendário. Tente novamente.' });
     }
 
     const updated = await prisma.booking.update({
