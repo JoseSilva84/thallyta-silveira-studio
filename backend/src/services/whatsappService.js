@@ -20,6 +20,23 @@ const formatDateTime = (date) => {
   }).format(new Date(date));
 };
 
+const formatDate = (date) => {
+  if (!date) return 'Nao informado';
+  return new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Fortaleza',
+    dateStyle: 'full',
+  }).format(new Date(date));
+};
+
+const formatTime = (date) => {
+  if (!date) return 'Nao informado';
+  return new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Fortaleza',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(date));
+};
+
 const formatCurrency = (value) => {
   if (typeof value !== 'number' || !Number.isFinite(value)) return 'Nao informado';
   return new Intl.NumberFormat('pt-BR', {
@@ -93,6 +110,20 @@ const buildClientBookingMessage = (booking) => {
   ].join('\n');
 };
 
+const buildClientReminderMessage = (booking) => {
+  const firstName = (booking.attendeeName || booking.user?.name || '').split(' ')[0] || 'Tudo bem';
+
+  return [
+    `Ola, ${firstName}! Estamos aguardando você daqui a 1 hora no Studio Thallyta Silveira.`,
+    '',
+    `Dia: ${formatDate(booking.scheduledAt)}`,
+    `Horario: ${formatTime(booking.scheduledAt)}`,
+    `Servico: ${booking.service || 'Nao informado'}`,
+    '',
+    'Ate ja!',
+  ].join('\n');
+};
+
 const alreadyLogged = async (prisma, { bookingId, type, target }) => {
   const existing = await prisma.notificationLog.findUnique({
     where: {
@@ -154,5 +185,20 @@ export const notifyBookingCreated = async (prisma, booking) => {
     type: 'booking_created_client',
     target: clientChatId,
     text: buildClientBookingMessage(booking),
+  });
+};
+
+export const notifyUpcomingBookingReminder = async (prisma, booking) => {
+  if (process.env.SEND_CLIENT_REMINDER_WHATSAPP !== 'true') return;
+
+  const clientPhone = getBookingWhatsapp(booking);
+  const clientChatId = toChatId(clientPhone);
+  if (!clientChatId) return;
+
+  await sendOnce(prisma, {
+    booking,
+    type: 'booking_reminder_1h_client',
+    target: clientChatId,
+    text: buildClientReminderMessage(booking),
   });
 };

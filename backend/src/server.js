@@ -8,6 +8,7 @@ import authRoutes from './routes/authRoutes.js';
 import webhookRoutes from './routes/webhookRoutes.js';
 import bookingRoutes from './routes/bookingRoutes.js';
 import testimonialRoutes from './routes/testimonialRoutes.js';
+import { startBookingReminderService } from './services/bookingReminderService.js';
 
 dotenv.config();
 
@@ -55,4 +56,5 @@ app.get('/api/health', (_req, res) => res.json({ status: 'ok', timestamp: new Da
 // Inicia o servidor
 app.listen(PORT, () => {
   console.log(`✅ Servidor rodando na porta ${PORT}`);
+  startBookingReminderService();
 });
