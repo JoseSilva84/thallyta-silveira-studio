@@ -785,13 +785,21 @@ function AnalyticsView({ analytics }) {
         <MetricCard icon={<FiUsers />} label="Clientes atendidos" value={analytics.uniqueClients} hint="por email, WhatsApp ou nome" />
       </div>
 
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <InsightCard label="Serviço mais agendado" value={analytics.topService?.name || 'Sem dados'} hint={analytics.topService ? `${analytics.topService.count} agendamento(s)` : 'Aguardando agendamentos'} />
+        <InsightCard label="Serviço mais cancelado" value={analytics.topCancelledService?.name || 'Sem cancelamentos'} hint={analytics.topCancelledService ? `${analytics.topCancelledService.count} cancelamento(s)` : 'Nenhum serviço cancelado'} tone="danger" />
+        <InsightCard label="Melhor dia" value={analytics.busiestDay?.label || 'Sem dados'} hint={analytics.busiestDay ? `${analytics.busiestDay.count} serviço(s) ativo(s)` : 'Aguardando volume'} />
+        <InsightCard label="Taxa de cancelamento" value={`${analytics.cancellationRate.toFixed(0)}%`} hint={`${analytics.cancelledCount} de ${analytics.totalBookings} agendamentos`} tone={analytics.cancellationRate > 25 ? 'danger' : 'default'} />
+      </div>
+
       <div className="grid gap-6 xl:grid-cols-3">
         <ChartPanel title="Valor por mês" className="xl:col-span-2">
-          <div className="space-y-4">
-            {analytics.monthStats.map((item) => (
-              <BarRow key={item.key} label={item.label} value={formatCurrency(item.value)} width={analytics.maxMonthValue ? (item.value / analytics.maxMonthValue) * 100 : 0} />
-            ))}
-          </div>
+          <ColumnChart
+            items={analytics.monthStats}
+            valueKey="value"
+            valueFormatter={formatCurrency}
+            emptyText="Ainda nao ha valores suficientes para analisar."
+          />
         </ChartPanel>
 
         <ChartPanel title="Agenda próxima">
@@ -812,24 +820,70 @@ function AnalyticsView({ analytics }) {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <ChartPanel title="Quantidade por serviço">
-          <div className="space-y-4">
-            {analytics.serviceStats.length === 0 ? (
-              <p className="text-sm text-cream/50">Ainda nao ha servicos suficientes para analisar.</p>
-            ) : analytics.serviceStats.map((item) => (
-              <BarRow key={item.name} label={item.name} value={`${item.count}x`} width={analytics.maxServiceCount ? (item.count / analytics.maxServiceCount) * 100 : 0} />
-            ))}
-          </div>
+        <ChartPanel title="Serviços mais agendados">
+          <HorizontalBarChart
+            items={analytics.serviceStats}
+            valueKey="count"
+            valueFormatter={(value) => `${value}x`}
+            emptyText="Ainda nao ha servicos suficientes para analisar."
+          />
+        </ChartPanel>
+
+        <ChartPanel title="Serviços mais cancelados">
+          <HorizontalBarChart
+            items={analytics.cancelledServiceStats}
+            valueKey="count"
+            valueFormatter={(value) => `${value}x`}
+            emptyText="Nenhum cancelamento por serviço registrado."
+            tone="danger"
+          />
+        </ChartPanel>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-3">
+        <ChartPanel title="Status dos agendamentos">
+          <DonutChart items={analytics.statusStats} />
+        </ChartPanel>
+
+        <ChartPanel title="Horários com mais agenda">
+          <ColumnChart
+            items={analytics.hourStats}
+            valueKey="count"
+            valueFormatter={(value) => `${value}x`}
+            emptyText="Ainda nao ha horarios suficientes para analisar."
+          />
         </ChartPanel>
 
         <ChartPanel title="Resumo operacional">
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
             <SmallStat label="Confirmados" value={analytics.statusCounts.confirmed || 0} />
             <SmallStat label="Reagendados" value={analytics.statusCounts.rescheduled || 0} />
             <SmallStat label="Cancelados" value={analytics.cancelledCount} />
             <SmallStat label="Sem valor informado" value={analytics.missingValueCount} />
             <SmallStat label="Selos liberados" value={analytics.completedStamps} />
             <SmallStat label="Selos pendentes" value={analytics.pendingStamps} />
+          </div>
+        </ChartPanel>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-2">
+        <ChartPanel title="Serviços que mais geram valor">
+          <HorizontalBarChart
+            items={analytics.serviceRevenueStats}
+            valueKey="value"
+            valueFormatter={formatCurrency}
+            emptyText="Ainda nao ha valores por serviço para analisar."
+          />
+        </ChartPanel>
+
+        <ChartPanel title="Pontos de atenção">
+          <div className="space-y-3">
+            {analytics.attentionPoints.map((point) => (
+              <div key={point.label} className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                <p className="text-xs font-bold uppercase tracking-wider text-cream/40">{point.label}</p>
+                <p className="mt-2 text-sm leading-relaxed text-cream/75">{point.text}</p>
+              </div>
+            ))}
           </div>
         </ChartPanel>
       </div>
@@ -848,12 +902,186 @@ function MetricCard({ icon, label, value, hint }) {
   );
 }
 
+function InsightCard({ label, value, hint, tone = 'default' }) {
+  const toneClasses = tone === 'danger'
+    ? 'border-red-500/20 bg-red-500/[0.06] text-red-200'
+    : 'border-gold/20 bg-gold/[0.06] text-gold-light';
+
+  return (
+    <div className={`rounded-2xl border p-5 ${toneClasses}`}>
+      <p className="text-xs font-bold uppercase tracking-wider opacity-70">{label}</p>
+      <p className="mt-2 truncate text-xl font-bold text-cream" title={value}>{value}</p>
+      <p className="mt-1 text-xs text-cream/45">{hint}</p>
+    </div>
+  );
+}
+
 function ChartPanel({ title, children, className = '' }) {
   return (
     <section className={`rounded-2xl border border-gold/20 bg-black/40 p-5 ${className}`}>
       <h2 className="mb-5 text-xl font-semibold text-gold-light">{title}</h2>
       {children}
     </section>
+  );
+}
+
+function HorizontalBarChart({ items, valueKey, valueFormatter, emptyText, tone = 'gold' }) {
+  const [activeIndex, setActiveIndex] = useState(null);
+  const max = Math.max(0, ...items.map((item) => Number(item[valueKey]) || 0));
+  const gradient = tone === 'danger' ? 'from-red-400 to-amber-200' : 'from-gold to-gold-light';
+
+  if (!items.length || max === 0) {
+    return <p className="text-sm text-cream/50">{emptyText}</p>;
+  }
+
+  return (
+    <div className="space-y-4">
+      {items.map((item, index) => {
+        const value = Number(item[valueKey]) || 0;
+        const width = max ? (value / max) * 100 : 0;
+        const isActive = activeIndex === index;
+
+        return (
+          <button
+            type="button"
+            key={item.name}
+            onMouseEnter={() => setActiveIndex(index)}
+            onFocus={() => setActiveIndex(index)}
+            onMouseLeave={() => setActiveIndex(null)}
+            onBlur={() => setActiveIndex(null)}
+            className="block w-full rounded-xl p-2 text-left transition hover:bg-white/[0.03] focus:bg-white/[0.03]"
+            title={`${item.name}: ${valueFormatter(value)}`}
+          >
+            <div className="mb-2 flex items-center justify-between gap-4 text-sm">
+              <span className="truncate text-cream/75">{item.name}</span>
+              <span className={`font-semibold ${tone === 'danger' ? 'text-red-200' : 'text-gold'}`}>{valueFormatter(value)}</span>
+            </div>
+            <div className="h-3 overflow-hidden rounded-full bg-white/10">
+              <div
+                className={`h-full rounded-full bg-gradient-to-r ${gradient} transition-all duration-300 ${isActive ? 'brightness-125' : ''}`}
+                style={{ width: `${Math.max(5, width)}%` }}
+              />
+            </div>
+            {isActive && item.detail && <p className="mt-2 text-xs text-cream/45">{item.detail}</p>}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function ColumnChart({ items, valueKey, valueFormatter, emptyText }) {
+  const [activeIndex, setActiveIndex] = useState(null);
+  const max = Math.max(0, ...items.map((item) => Number(item[valueKey]) || 0));
+
+  if (!items.length || max === 0) {
+    return <p className="text-sm text-cream/50">{emptyText}</p>;
+  }
+
+  return (
+    <div className="relative">
+      <div className="flex h-64 items-end gap-2 rounded-2xl border border-white/10 bg-white/[0.025] px-3 pb-10 pt-4 sm:gap-3">
+        {items.map((item, index) => {
+          const value = Number(item[valueKey]) || 0;
+          const height = max ? (value / max) * 100 : 0;
+          const isActive = activeIndex === index;
+
+          return (
+            <button
+              type="button"
+              key={item.key || item.label}
+              onMouseEnter={() => setActiveIndex(index)}
+              onFocus={() => setActiveIndex(index)}
+              onMouseLeave={() => setActiveIndex(null)}
+              onBlur={() => setActiveIndex(null)}
+              className="group relative flex h-full min-w-0 flex-1 items-end justify-center"
+              title={`${item.label}: ${valueFormatter(value)}`}
+            >
+              <span
+                className={`w-full max-w-14 rounded-t-lg bg-gradient-to-t from-gold to-gold-light transition-all duration-300 ${isActive ? 'brightness-125' : 'opacity-85 group-hover:opacity-100'}`}
+                style={{ height: `${Math.max(7, height)}%` }}
+              />
+              <span className="absolute -bottom-7 max-w-full truncate text-[0.68rem] font-semibold text-cream/55">{item.label}</span>
+              {isActive && (
+                <span className="absolute bottom-[calc(100%+0.5rem)] z-10 whitespace-nowrap rounded-lg border border-gold/20 bg-[#110d09] px-3 py-2 text-xs font-bold text-gold-light shadow-xl">
+                  {valueFormatter(value)}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function DonutChart({ items }) {
+  const [activeIndex, setActiveIndex] = useState(null);
+  const total = items.reduce((sum, item) => sum + item.value, 0);
+  const radius = 42;
+  const circumference = 2 * Math.PI * radius;
+  let offset = 0;
+
+  if (!total) {
+    return <p className="text-sm text-cream/50">Ainda nao ha agendamentos para analisar.</p>;
+  }
+
+  return (
+    <div className="grid gap-5 sm:grid-cols-[180px_1fr] sm:items-center xl:grid-cols-1">
+      <div className="relative mx-auto size-44">
+        <svg viewBox="0 0 120 120" className="-rotate-90">
+          <circle cx="60" cy="60" r={radius} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="16" />
+          {items.map((item, index) => {
+            const dash = (item.value / total) * circumference;
+            const circle = (
+              <circle
+                key={item.label}
+                cx="60"
+                cy="60"
+                r={radius}
+                fill="none"
+                stroke={item.color}
+                strokeWidth={activeIndex === index ? 18 : 14}
+                strokeDasharray={`${dash} ${circumference - dash}`}
+                strokeDashoffset={-offset}
+                strokeLinecap="round"
+                className="transition-all duration-300"
+                onMouseEnter={() => setActiveIndex(index)}
+                onMouseLeave={() => setActiveIndex(null)}
+              />
+            );
+            offset += dash;
+            return circle;
+          })}
+        </svg>
+        <div className="absolute inset-0 grid place-items-center text-center">
+          <div>
+            <p className="text-3xl font-bold text-cream">{total}</p>
+            <p className="text-xs uppercase tracking-wider text-cream/40">total</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        {items.map((item, index) => (
+          <button
+            type="button"
+            key={item.label}
+            onMouseEnter={() => setActiveIndex(index)}
+            onFocus={() => setActiveIndex(index)}
+            onMouseLeave={() => setActiveIndex(null)}
+            onBlur={() => setActiveIndex(null)}
+            className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm transition hover:border-gold/20"
+          >
+            <span className="flex items-center gap-2 text-cream/70">
+              <span className="size-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+              {item.label}
+            </span>
+            <span className="font-bold text-cream">{item.value}</span>
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -1139,9 +1367,14 @@ function TestimonialsAdmin({ form, setForm, saving, onSave, testimonials, fetchi
 
 function buildAnalytics(bookings) {
   const serviceCounts = new Map();
+  const cancelledServiceCounts = new Map();
+  const serviceRevenue = new Map();
+  const dayCounts = new Map();
+  const hourCounts = new Map();
   const monthMap = new Map();
   const clientKeys = new Set();
   const statusCounts = {};
+  let totalBookings = 0;
   let totalRevenue = 0;
   let paidBookings = 0;
   let totalServices = 0;
@@ -1160,8 +1393,17 @@ function buildAnalytics(bookings) {
   });
 
   bookings.forEach((booking) => {
+    totalBookings += 1;
     statusCounts[booking.status] = (statusCounts[booking.status] || 0) + 1;
-    if (booking.status === 'cancelled') return;
+    const services = splitServices(booking.service);
+
+    if (booking.status === 'cancelled') {
+      (services.length ? services : ['Servico nao informado']).forEach((service) => {
+        cancelledServiceCounts.set(service, (cancelledServiceCounts.get(service) || 0) + 1);
+      });
+      return;
+    }
+
     activeBookings += 1;
 
     const value = Number(booking.estimatedValue);
@@ -1178,14 +1420,22 @@ function buildAnalytics(bookings) {
     const clientKey = booking.attendeeEmail || booking.user?.email || booking.attendeePhone || booking.user?.whatsappPhone || booking.attendeeName || booking.user?.name;
     if (clientKey) clientKeys.add(String(clientKey).toLowerCase());
 
-    const services = splitServices(booking.service);
     const stampCount = Math.max(1, services.length);
     if (booking.serviceCompletedAt) completedStamps += stampCount;
     else pendingStamps += stampCount;
 
+    const date = new Date(booking.scheduledAt);
+    const dayIndex = date.getDay();
+    const hour = date.getHours();
+    dayCounts.set(dayIndex, (dayCounts.get(dayIndex) || 0) + stampCount);
+    hourCounts.set(hour, (hourCounts.get(hour) || 0) + 1);
+
     (services.length ? services : ['Servico nao informado']).forEach((service) => {
       totalServices += 1;
       serviceCounts.set(service, (serviceCounts.get(service) || 0) + 1);
+      if (Number.isFinite(value) && value > 0) {
+        serviceRevenue.set(service, (serviceRevenue.get(service) || 0) + value / Math.max(1, services.length));
+      }
     });
   });
 
@@ -1194,14 +1444,78 @@ function buildAnalytics(bookings) {
     .sort((a, b) => b.count - a.count)
     .slice(0, 8);
 
+  const cancelledServiceStats = Array.from(cancelledServiceCounts.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+    .slice(0, 8);
+
+  const serviceRevenueStats = Array.from(serviceRevenue.entries())
+    .map(([name, value]) => ({
+      name,
+      value,
+      detail: `${serviceCounts.get(name) || 0} agendamento(s) ativo(s)`,
+    }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 8);
+
   const monthStats = monthSeeds.map((key) => monthMap.get(key));
+  const dayLabels = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+  const dayStats = dayLabels.map((label, index) => ({
+    key: String(index),
+    label,
+    count: dayCounts.get(index) || 0,
+  }));
+  const busiestDay = [...dayStats].sort((a, b) => b.count - a.count)[0];
+  const hourStats = Array.from(hourCounts.entries())
+    .map(([hour, count]) => ({
+      key: String(hour),
+      label: `${String(hour).padStart(2, '0')}h`,
+      count,
+    }))
+    .sort((a, b) => a.key - b.key);
+  const statusStats = [
+    { label: 'Confirmados', value: statusCounts.confirmed || 0, color: '#34d399' },
+    { label: 'Reagendados', value: statusCounts.rescheduled || 0, color: '#fbbf24' },
+    { label: 'Cancelados', value: statusCounts.cancelled || 0, color: '#f87171' },
+  ].filter((item) => item.value > 0);
   const now = new Date();
   const nextBookings = bookings
     .filter((booking) => booking.status !== 'cancelled' && new Date(booking.scheduledAt) >= now)
     .sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt))
     .slice(0, 5);
+  const topService = serviceStats[0] || null;
+  const topCancelledService = cancelledServiceStats[0] || null;
+  const cancellationRate = totalBookings ? ((statusCounts.cancelled || 0) / totalBookings) * 100 : 0;
+  const completionRate = activeBookings ? (completedStamps / Math.max(1, completedStamps + pendingStamps)) * 100 : 0;
+  const attentionPoints = [
+    {
+      label: 'Demanda principal',
+      text: topService
+        ? `${topService.name} lidera os agendamentos. Vale manter destaque desse serviço nas ofertas e nas fotos da galeria.`
+        : 'Ainda nao ha volume suficiente para identificar o serviço com maior procura.',
+    },
+    {
+      label: 'Cancelamentos',
+      text: topCancelledService
+        ? `${topCancelledService.name} aparece como o serviço mais cancelado. Pode valer revisar confirmação, duração, preço ou explicação antes do agendamento.`
+        : 'Nenhum serviço cancelado até agora. Excelente sinal para acompanhar conforme a agenda crescer.',
+    },
+    {
+      label: 'Fidelidade',
+      text: pendingStamps > completedStamps
+        ? `Existem ${pendingStamps} selo(s) pendente(s). Confirmar presença mantém a fidelidade correta e evita cliente sem recompensa.`
+        : `A liberação de selos está em bom ritmo: ${completedStamps} liberado(s) e ${pendingStamps} pendente(s).`,
+    },
+    {
+      label: 'Valores',
+      text: missingValueCount
+        ? `${missingValueCount} agendamento(s) estao sem valor informado, entao receita e ticket medio podem estar abaixo do real.`
+        : 'Todos os agendamentos ativos têm valor informado, deixando receita e ticket medio mais confiáveis.',
+    },
+  ];
 
   return {
+    totalBookings,
     totalRevenue,
     paidBookings,
     averageTicket: paidBookings ? totalRevenue / paidBookings : 0,
@@ -1209,12 +1523,23 @@ function buildAnalytics(bookings) {
     totalServices,
     uniqueClients: clientKeys.size,
     serviceStats,
+    cancelledServiceStats,
+    serviceRevenueStats,
     maxServiceCount: Math.max(0, ...serviceStats.map((item) => item.count)),
     monthStats,
     maxMonthValue: Math.max(0, ...monthStats.map((item) => item.value)),
+    dayStats,
+    busiestDay: busiestDay?.count ? busiestDay : null,
+    hourStats,
+    statusStats,
     nextBookings,
     statusCounts,
     cancelledCount: statusCounts.cancelled || 0,
+    cancellationRate,
+    completionRate,
+    topService,
+    topCancelledService,
+    attentionPoints,
     missingValueCount,
     completedStamps,
     pendingStamps,
