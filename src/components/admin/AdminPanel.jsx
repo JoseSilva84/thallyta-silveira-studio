@@ -155,21 +155,26 @@ export default function AdminPanel() {
   };
 
   const handleDeleteImage = async (id) => {
-    if (!window.confirm('Tem certeza que deseja deletar esta imagem?')) return;
+    showConfirmToast({
+      message: 'Tem certeza que deseja deletar esta imagem?',
+      confirmLabel: 'Deletar',
+      tone: 'danger',
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`${API}/gallery?id=${encodeURIComponent(id)}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${getToken()}` },
+          });
 
-    try {
-      const res = await fetch(`${API}/gallery?id=${encodeURIComponent(id)}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${getToken()}` },
-      });
-
-      if (!res.ok) throw new Error('Falha ao deletar');
-      toast.success('Imagem deletada!');
-      fetchImages();
-    } catch (error) {
-      toast.error('Erro ao deletar imagem');
-      console.error(error);
-    }
+          if (!res.ok) throw new Error('Falha ao deletar');
+          toast.success('Imagem deletada!');
+          fetchImages();
+        } catch (error) {
+          toast.error('Erro ao deletar imagem');
+          console.error(error);
+        }
+      },
+    });
   };
 
   const updateBookingInList = (updatedBooking) => {
@@ -192,37 +197,46 @@ export default function AdminPanel() {
   };
 
   const handleUndoCompleteService = async (booking) => {
-    if (!window.confirm('Desfazer a confirmacao deste servico e remover os selos liberados?')) return;
-
-    try {
-      const res = await fetch(`${API}/bookings/${booking.id}/undo-complete-service`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${getToken()}` },
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || 'Erro ao desfazer confirmacao');
-      updateBookingInList(data);
-      toast.info('Confirmacao desfeita. Fidelidade voltou para pendente.');
-    } catch (error) {
-      toast.error(error.message);
-    }
+    showConfirmToast({
+      message: 'Desfazer a confirmacao deste servico e remover os selos liberados?',
+      confirmLabel: 'Desfazer',
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`${API}/bookings/${booking.id}/undo-complete-service`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${getToken()}` },
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.error || 'Erro ao desfazer confirmacao');
+          updateBookingInList(data);
+          toast.info('Confirmacao desfeita. Fidelidade voltou para pendente.');
+        } catch (error) {
+          toast.error(error.message);
+        }
+      },
+    });
   };
 
   const handleMarkNoShow = async (booking) => {
-    if (!window.confirm('Marcar este cliente como faltou ao agendamento?')) return;
-
-    try {
-      const res = await fetch(`${API}/bookings/${booking.id}/no-show`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${getToken()}` },
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || 'Erro ao marcar falta');
-      updateBookingInList(data);
-      toast.info('Agendamento marcado como falta.');
-    } catch (error) {
-      toast.error(error.message);
-    }
+    showConfirmToast({
+      message: 'Marcar este cliente como faltou ao agendamento?',
+      confirmLabel: 'Marcar falta',
+      tone: 'danger',
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`${API}/bookings/${booking.id}/no-show`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${getToken()}` },
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.error || 'Erro ao marcar falta');
+          updateBookingInList(data);
+          toast.info('Agendamento marcado como falta.');
+        } catch (error) {
+          toast.error(error.message);
+        }
+      },
+    });
   };
 
   const handleSaveTestimonial = async (e) => {
@@ -270,19 +284,24 @@ export default function AdminPanel() {
   };
 
   const handleDeleteTestimonial = async (id) => {
-    if (!window.confirm('Tem certeza que deseja deletar este depoimento?')) return;
-
-    try {
-      const res = await fetch(`${API}/testimonials/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${getToken()}` },
-      });
-      if (!res.ok) throw new Error('Falha ao deletar depoimento');
-      toast.success('Depoimento deletado!');
-      fetchTestimonials();
-    } catch (error) {
-      toast.error(error.message);
-    }
+    showConfirmToast({
+      message: 'Tem certeza que deseja deletar este depoimento?',
+      confirmLabel: 'Deletar',
+      tone: 'danger',
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`${API}/testimonials/${id}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${getToken()}` },
+          });
+          if (!res.ok) throw new Error('Falha ao deletar depoimento');
+          toast.success('Depoimento deletado!');
+          fetchTestimonials();
+        } catch (error) {
+          toast.error(error.message);
+        }
+      },
+    });
   };
 
   const toggleTestimonial = async (testimonial) => {
@@ -522,6 +541,42 @@ function SegmentedButton({ active, onClick, children }) {
       {children}
     </button>
   );
+}
+
+function showConfirmToast({ message, confirmLabel = 'Confirmar', cancelLabel = 'Cancelar', tone = 'default', onConfirm }) {
+  toast(({ closeToast }) => (
+    <div className="space-y-3">
+      <p className="text-sm font-semibold text-cream">{message}</p>
+      <div className="flex flex-wrap justify-end gap-2">
+        <button
+          type="button"
+          onClick={closeToast}
+          className="rounded-full border border-white/10 px-3 py-2 text-xs font-bold uppercase tracking-wider text-cream/60 hover:border-gold/30 hover:text-gold"
+        >
+          {cancelLabel}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            closeToast?.();
+            void onConfirm();
+          }}
+          className={`rounded-full px-3 py-2 text-xs font-bold uppercase tracking-wider ${
+            tone === 'danger'
+              ? 'border border-red-500/30 bg-red-500/15 text-red-100 hover:bg-red-500/25'
+              : 'bg-gradient-to-r from-gold to-gold-light text-dark'
+          }`}
+        >
+          {confirmLabel}
+        </button>
+      </div>
+    </div>
+  ), {
+    autoClose: false,
+    closeOnClick: false,
+    draggable: false,
+    position: 'top-center',
+  });
 }
 
 function BookingsTable({ bookings, fetching, statusFilter, statusBadge, onCompleteService, onUndoCompleteService, onMarkNoShow }) {
