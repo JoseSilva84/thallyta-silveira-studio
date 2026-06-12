@@ -17,6 +17,7 @@ import {
   FiMessageSquare,
   FiRefreshCw,
   FiSave,
+  FiSearch,
   FiStar,
   FiClock,
   FiTrash2,
@@ -55,6 +56,7 @@ export default function AdminPanel() {
   const [bookings, setBookings] = useState([]);
   const [fetchingBookings, setFetchingBookings] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
+  const [clientSearch, setClientSearch] = useState('');
 
   const [testimonials, setTestimonials] = useState([]);
   const [fetchingTestimonials, setFetchingTestimonials] = useState(true);
@@ -206,6 +208,23 @@ export default function AdminPanel() {
     }
   };
 
+  const handleMarkNoShow = async (booking) => {
+    if (!window.confirm('Marcar este cliente como faltou ao agendamento?')) return;
+
+    try {
+      const res = await fetch(`${API}/bookings/${booking.id}/no-show`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Erro ao marcar falta');
+      updateBookingInList(data);
+      toast.info('Agendamento marcado como falta.');
+    } catch (error) {
+      toast.error(error.message);
+    }
+  };
+
   const handleSaveTestimonial = async (e) => {
     e.preventDefault();
     const name = testimonialForm.name.trim();
@@ -287,10 +306,11 @@ export default function AdminPanel() {
     ? bookings
     : bookings.filter((booking) => booking.status === statusFilter);
   const pendingCompletionBookings = useMemo(
-    () => bookings.filter((booking) => booking.status !== 'cancelled' && !booking.serviceCompletedAt),
+    () => bookings.filter((booking) => !['cancelled', 'no_show'].includes(booking.status) && !booking.serviceCompletedAt),
     [bookings],
   );
   const loyaltyClients = useMemo(() => buildLoyaltyClients(bookings), [bookings]);
+  const clientProfiles = useMemo(() => buildClientProfiles(bookings), [bookings]);
 
   const analytics = useMemo(() => buildAnalytics(bookings), [bookings]);
   const calendarDays = useMemo(() => buildCalendarDays(monthCursor, bookings), [monthCursor, bookings]);
@@ -339,6 +359,7 @@ export default function AdminPanel() {
           <TabButton active={activeTab === 'bookings'} icon={<FiCalendar />} label="Agenda" count={bookings.length} onClick={() => setActiveTab('bookings')} />
           <TabButton active={activeTab === 'analytics'} icon={<FiBarChart2 />} label="Análises" onClick={() => setActiveTab('analytics')} />
           <TabButton active={activeTab === 'loyalty'} icon={<FiAward />} label="Fidelidade" count={pendingCompletionBookings.length} onClick={() => setActiveTab('loyalty')} />
+          <TabButton active={activeTab === 'clients'} icon={<FiUsers />} label="Clientes" count={clientProfiles.length} onClick={() => setActiveTab('clients')} />
           <TabButton active={activeTab === 'gallery'} icon={<FiImage />} label="Galeria" count={images.length} onClick={() => setActiveTab('gallery')} />
           <TabButton active={activeTab === 'testimonials'} icon={<FiMessageSquare />} label="Depoimentos" count={testimonials.length} onClick={() => setActiveTab('testimonials')} />
         </div>
@@ -373,6 +394,7 @@ export default function AdminPanel() {
                   { value: 'confirmed', label: 'Confirmados' },
                   { value: 'rescheduled', label: 'Reagendados' },
                   { value: 'cancelled', label: 'Cancelados' },
+                  { value: 'no_show', label: 'Faltou' },
                 ].map((filter) => (
                   <SegmentedButton
                     key={filter.value}
@@ -402,6 +424,7 @@ export default function AdminPanel() {
                 statusBadge={statusBadge}
                 onCompleteService={handleCompleteService}
                 onUndoCompleteService={handleUndoCompleteService}
+                onMarkNoShow={handleMarkNoShow}
               />
             )}
           </div>
@@ -417,6 +440,19 @@ export default function AdminPanel() {
             pendingBookings={pendingCompletionBookings}
             onCompleteService={handleCompleteService}
             onUndoCompleteService={handleUndoCompleteService}
+            onMarkNoShow={handleMarkNoShow}
+          />
+        )}
+
+        {activeTab === 'clients' && (
+          <ClientsView
+            clients={clientProfiles}
+            search={clientSearch}
+            setSearch={setClientSearch}
+            statusBadge={statusBadge}
+            onCompleteService={handleCompleteService}
+            onUndoCompleteService={handleUndoCompleteService}
+            onMarkNoShow={handleMarkNoShow}
           />
         )}
 
@@ -488,7 +524,7 @@ function SegmentedButton({ active, onClick, children }) {
   );
 }
 
-function BookingsTable({ bookings, fetching, statusFilter, statusBadge, onCompleteService, onUndoCompleteService }) {
+function BookingsTable({ bookings, fetching, statusFilter, statusBadge, onCompleteService, onUndoCompleteService, onMarkNoShow }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-gold/20 bg-black/40 backdrop-blur-md">
       {fetching ? (
@@ -535,6 +571,7 @@ function BookingsTable({ bookings, fetching, statusFilter, statusBadge, onComple
                       booking={booking}
                       onCompleteService={onCompleteService}
                       onUndoCompleteService={onUndoCompleteService}
+                      onMarkNoShow={onMarkNoShow}
                     />
                   </td>
                 </tr>
@@ -547,9 +584,13 @@ function BookingsTable({ bookings, fetching, statusFilter, statusBadge, onComple
   );
 }
 
-function CompletionAction({ booking, onCompleteService, onUndoCompleteService }) {
+function CompletionAction({ booking, onCompleteService, onUndoCompleteService, onMarkNoShow }) {
   if (booking.status === 'cancelled') {
     return <span className="text-xs font-semibold uppercase tracking-wider text-cream/35">Sem fidelidade</span>;
+  }
+
+  if (booking.status === 'no_show') {
+    return <span className="text-xs font-semibold uppercase tracking-wider text-red-300/70">Faltou ao agendamento</span>;
   }
 
   if (booking.serviceCompletedAt) {
@@ -569,12 +610,23 @@ function CompletionAction({ booking, onCompleteService, onUndoCompleteService })
   }
 
   return (
-    <button
-      onClick={() => onCompleteService(booking)}
-      className="inline-flex items-center gap-2 rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-xs font-bold uppercase tracking-wider text-amber-100 hover:bg-amber-300/20"
-    >
-      <FiClock /> Confirmar ida
-    </button>
+    <div className="flex flex-col items-start gap-2">
+      <button
+        onClick={() => onCompleteService(booking)}
+        className="inline-flex items-center gap-2 rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-xs font-bold uppercase tracking-wider text-amber-100 hover:bg-amber-300/20"
+      >
+        <FiClock /> Confirmar ida
+      </button>
+      <div>
+        <p className="mb-1 text-[0.68rem] font-semibold uppercase tracking-wider text-cream/35">Faltou ao agendamento</p>
+        <button
+          onClick={() => onMarkNoShow?.(booking)}
+          className="inline-flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-bold uppercase tracking-wider text-red-200 hover:bg-red-500/20"
+        >
+          <FiX /> Não confirmar
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -642,7 +694,7 @@ function CalendarView({ days, monthLabel, onPrev, onNext, statusBadge, formatTim
       </div>
 
       <div className="mt-5 flex flex-wrap gap-2">
-        {['confirmed', 'rescheduled', 'cancelled'].map((status) => <span key={status}>{statusBadge(status)}</span>)}
+        {['confirmed', 'rescheduled', 'cancelled', 'no_show'].map((status) => <span key={status}>{statusBadge(status)}</span>)}
       </div>
 
       <DayAgendaModal
@@ -660,13 +712,14 @@ function CalendarBookingCard({ booking, formatTime }) {
   const contact = booking.attendeeEmail || booking.user?.email || booking.attendeePhone || booking.user?.whatsappPhone || 'Contato nao informado';
   const isCompleted = Boolean(booking.serviceCompletedAt);
   const isCancelled = booking.status === 'cancelled';
+  const isNoShow = booking.status === 'no_show';
 
   return (
     <div className="group relative">
       <button
         type="button"
         className={`w-full cursor-pointer rounded-lg border p-2 text-left transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_30px_rgba(0,0,0,0.35)] ${
-          isCancelled
+          isCancelled || isNoShow
             ? 'border-red-500/20 bg-red-500/[0.06]'
             : isCompleted
               ? 'border-emerald-500/20 bg-emerald-500/[0.06] hover:border-emerald-400/35'
@@ -696,7 +749,7 @@ function CalendarBookingCard({ booking, formatTime }) {
           <div className="space-y-2 text-xs text-cream/65">
             <p><span className="font-bold text-gold-light">Servico:</span> {booking.service || 'Nao informado'}</p>
             <p><span className="font-bold text-gold-light">Valor:</span> {formatCurrency(booking.estimatedValue)}</p>
-            <p><span className="font-bold text-gold-light">Fidelidade:</span> {isCancelled ? 'sem selo' : isCompleted ? 'liberada' : 'pendente'}</p>
+            <p><span className="font-bold text-gold-light">Fidelidade:</span> {isCancelled || isNoShow ? 'sem selo' : isCompleted ? 'liberada' : 'pendente'}</p>
           </div>
         </div>
       </div>
@@ -743,7 +796,7 @@ function DayAgendaModal({ day, onClose, statusBadge, formatTime }) {
               const client = booking.attendeeName || booking.user?.name || 'Cliente';
               const contact = booking.attendeeEmail || booking.user?.email || booking.attendeePhone || booking.user?.whatsappPhone || 'Contato nao informado';
               const value = formatCurrency(booking.estimatedValue);
-              const loyalty = booking.status === 'cancelled' ? 'Sem fidelidade' : booking.serviceCompletedAt ? 'Fidelidade liberada' : 'Fidelidade pendente';
+              const loyalty = ['cancelled', 'no_show'].includes(booking.status) ? 'Sem fidelidade' : booking.serviceCompletedAt ? 'Fidelidade liberada' : 'Fidelidade pendente';
 
               return (
                 <article key={booking.id} className="rounded-2xl border border-white/10 bg-white/[0.035] p-4 transition hover:border-gold/25 hover:bg-gold/[0.045]">
@@ -789,7 +842,7 @@ function AnalyticsView({ analytics }) {
         <InsightCard label="Serviço mais agendado" value={analytics.topService?.name || 'Sem dados'} hint={analytics.topService ? `${analytics.topService.count} agendamento(s)` : 'Aguardando agendamentos'} />
         <InsightCard label="Serviço mais cancelado" value={analytics.topCancelledService?.name || 'Sem cancelamentos'} hint={analytics.topCancelledService ? `${analytics.topCancelledService.count} cancelamento(s)` : 'Nenhum serviço cancelado'} tone="danger" />
         <InsightCard label="Melhor dia" value={analytics.busiestDay?.label || 'Sem dados'} hint={analytics.busiestDay ? `${analytics.busiestDay.count} serviço(s) ativo(s)` : 'Aguardando volume'} />
-        <InsightCard label="Taxa de cancelamento" value={`${analytics.cancellationRate.toFixed(0)}%`} hint={`${analytics.cancelledCount} de ${analytics.totalBookings} agendamentos`} tone={analytics.cancellationRate > 25 ? 'danger' : 'default'} />
+        <InsightCard label="Taxa de cancelamento" value={`${analytics.cancellationRate.toFixed(0)}%`} hint={`${analytics.cancelledCount} cancelado(s) e ${analytics.noShowCount} falta(s)`} tone={analytics.cancellationRate > 25 ? 'danger' : 'default'} />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-3">
@@ -859,6 +912,7 @@ function AnalyticsView({ analytics }) {
             <SmallStat label="Confirmados" value={analytics.statusCounts.confirmed || 0} />
             <SmallStat label="Reagendados" value={analytics.statusCounts.rescheduled || 0} />
             <SmallStat label="Cancelados" value={analytics.cancelledCount} />
+            <SmallStat label="Faltou" value={analytics.noShowCount} />
             <SmallStat label="Sem valor informado" value={analytics.missingValueCount} />
             <SmallStat label="Selos liberados" value={analytics.completedStamps} />
             <SmallStat label="Selos pendentes" value={analytics.pendingStamps} />
@@ -1108,7 +1162,7 @@ function SmallStat({ label, value }) {
   );
 }
 
-function LoyaltyAdminView({ clients, pendingBookings, onCompleteService, onUndoCompleteService }) {
+function LoyaltyAdminView({ clients, pendingBookings, onCompleteService, onUndoCompleteService, onMarkNoShow }) {
   return (
     <div className="space-y-6">
       <section className="rounded-2xl border border-amber-300/20 bg-amber-300/10 p-5">
@@ -1137,12 +1191,23 @@ function LoyaltyAdminView({ clients, pendingBookings, onCompleteService, onUndoC
                     <p className="mt-2 text-sm text-gold-light">{booking.service}</p>
                     <p className="mt-1 text-xs text-cream/45">{formatDate(booking.scheduledAt)} - {formatTime(booking.scheduledAt)}</p>
                   </div>
-                  <button
-                    onClick={() => onCompleteService(booking)}
-                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-gold to-gold-light px-4 py-2 text-xs font-bold uppercase tracking-wider text-dark"
-                  >
-                    <FiCheckCircle /> Confirmar
-                  </button>
+                  <div className="flex shrink-0 flex-col items-stretch gap-2">
+                    <button
+                      onClick={() => onCompleteService(booking)}
+                      className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-gold to-gold-light px-4 py-2 text-xs font-bold uppercase tracking-wider text-dark"
+                    >
+                      <FiCheckCircle /> Confirmar
+                    </button>
+                    <div>
+                      <p className="mb-1 text-center text-[0.68rem] font-semibold uppercase tracking-wider text-cream/35">Faltou ao agendamento</p>
+                      <button
+                        onClick={() => onMarkNoShow(booking)}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-4 py-2 text-xs font-bold uppercase tracking-wider text-red-200 hover:bg-red-500/20"
+                      >
+                        <FiX /> Não confirmar
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             ))}
@@ -1191,12 +1256,159 @@ function LoyaltyAdminView({ clients, pendingBookings, onCompleteService, onUndoC
                         <p className="truncate text-sm font-semibold text-cream/80">{booking.service}</p>
                         <p className="text-xs text-cream/40">{formatDate(booking.scheduledAt)} - {formatTime(booking.scheduledAt)}</p>
                       </div>
-                      <CompletionAction booking={booking} onCompleteService={onCompleteService} onUndoCompleteService={onUndoCompleteService} />
+                      <CompletionAction booking={booking} onCompleteService={onCompleteService} onUndoCompleteService={onUndoCompleteService} onMarkNoShow={onMarkNoShow} />
                     </div>
                   ))}
                 </div>
               </article>
             ))}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function ClientsView({ clients, search, setSearch, statusBadge, onCompleteService, onUndoCompleteService, onMarkNoShow }) {
+  const [selectedKey, setSelectedKey] = useState(null);
+  const normalizedSearch = search.trim().toLowerCase();
+  const filteredClients = useMemo(() => (
+    normalizedSearch
+      ? clients.filter((client) => client.searchText.includes(normalizedSearch))
+      : clients
+  ), [clients, normalizedSearch]);
+  const selectedClient = filteredClients.find((client) => client.key === selectedKey) || filteredClients[0] || null;
+
+  useEffect(() => {
+    if (selectedClient && selectedClient.key !== selectedKey) setSelectedKey(selectedClient.key);
+    if (!selectedClient && selectedKey) setSelectedKey(null);
+  }, [selectedClient, selectedKey]);
+
+  return (
+    <div className="grid gap-6 xl:grid-cols-[minmax(300px,420px)_1fr]">
+      <section className="rounded-2xl border border-gold/20 bg-black/40 p-5">
+        <div className="mb-4">
+          <h2 className="text-xl font-semibold text-gold-light">Clientes</h2>
+          <p className="mt-1 text-sm text-cream/45">{clients.length} cliente(s) encontrados no histórico</p>
+        </div>
+
+        <label className="mb-4 flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-cream/70 focus-within:border-gold/40">
+          <FiSearch className="text-gold" />
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Pesquisar por nome, email, WhatsApp ou serviço"
+            className="w-full bg-transparent text-cream placeholder:text-cream/35 outline-none"
+          />
+        </label>
+
+        {filteredClients.length === 0 ? (
+          <p className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-cream/50">Nenhum cliente encontrado para esta busca.</p>
+        ) : (
+          <div className="max-h-[680px] space-y-2 overflow-y-auto pr-1">
+            {filteredClients.map((client) => (
+              <button
+                key={client.key}
+                type="button"
+                onClick={() => setSelectedKey(client.key)}
+                className={`w-full rounded-xl border p-4 text-left transition ${
+                  selectedClient?.key === client.key
+                    ? 'border-gold/40 bg-gold/10'
+                    : 'border-white/10 bg-white/[0.03] hover:border-gold/25 hover:bg-white/[0.05]'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="truncate font-semibold text-cream">{client.name}</h3>
+                    <p className="truncate text-sm text-cream/45">{client.contact}</p>
+                  </div>
+                  <span className="rounded-full bg-gold/15 px-2 py-1 text-xs font-bold text-gold">{client.totalBookings}</span>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2 text-[0.68rem] font-bold uppercase tracking-wider">
+                  <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-1 text-emerald-300">{client.completedCount} feitos</span>
+                  {client.pendingCount > 0 && <span className="rounded-full border border-amber-300/25 bg-amber-300/10 px-2 py-1 text-amber-100">{client.pendingCount} pend.</span>}
+                  {client.noShowCount > 0 && <span className="rounded-full border border-red-400/25 bg-red-500/10 px-2 py-1 text-red-200">{client.noShowCount} faltou</span>}
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-2xl border border-gold/20 bg-black/40 p-5">
+        {!selectedClient ? (
+          <p className="text-sm text-cream/50">Selecione um cliente para ver detalhes.</p>
+        ) : (
+          <div className="space-y-6">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="min-w-0">
+                <p className="text-xs font-bold uppercase tracking-wider text-gold-light/60">Detalhes do cliente</p>
+                <h2 className="mt-1 truncate text-2xl font-bold text-cream">{selectedClient.name}</h2>
+                <p className="mt-1 text-sm text-cream/50">{selectedClient.email || selectedClient.phone || 'Contato nao informado'}</p>
+                {selectedClient.email && selectedClient.phone && <p className="text-sm text-cream/40">{selectedClient.phone}</p>}
+              </div>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:min-w-[420px]">
+                <SmallStat label="Serviços" value={selectedClient.totalServices} />
+                <SmallStat label="Valor" value={formatCurrency(selectedClient.totalRevenue)} />
+                <SmallStat label="Faltas" value={selectedClient.noShowCount} />
+                <SmallStat label="Cancelados" value={selectedClient.cancelledCount} />
+              </div>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                <p className="mb-3 text-xs font-bold uppercase tracking-wider text-cream/40">Serviços mais feitos</p>
+                {selectedClient.serviceStats.length === 0 ? (
+                  <p className="text-sm text-cream/45">Nenhum serviço registrado.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {selectedClient.serviceStats.map((service) => (
+                      <div key={service.name} className="flex items-center justify-between gap-3 text-sm">
+                        <span className="truncate text-cream/75">{service.name}</span>
+                        <span className="font-bold text-gold">{service.count}x</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                <p className="mb-3 text-xs font-bold uppercase tracking-wider text-cream/40">Resumo</p>
+                <div className="space-y-2 text-sm text-cream/65">
+                  <p>Primeiro agendamento: <strong className="text-cream">{selectedClient.firstBooking ? formatDate(selectedClient.firstBooking.scheduledAt) : '-'}</strong></p>
+                  <p>Último agendamento: <strong className="text-cream">{selectedClient.lastBooking ? formatDate(selectedClient.lastBooking.scheduledAt) : '-'}</strong></p>
+                  <p>Ticket médio: <strong className="text-cream">{formatCurrency(selectedClient.averageTicket)}</strong></p>
+                  <p>Selos liberados: <strong className="text-cream">{selectedClient.completedStamps}</strong></p>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="mb-3 text-lg font-semibold text-gold-light">Histórico de serviços</h3>
+              <div className="space-y-3">
+                {selectedClient.bookings.map((booking) => (
+                  <article key={booking.id} className="rounded-xl border border-white/10 bg-black/25 p-4">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="min-w-0">
+                        <div className="mb-2 flex flex-wrap items-center gap-2">
+                          {statusBadge(booking.status)}
+                          {booking.serviceCompletedAt && <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-emerald-300">Fidelidade liberada</span>}
+                        </div>
+                        <h4 className="text-base font-semibold text-cream">{booking.service || 'Servico nao informado'}</h4>
+                        <p className="mt-1 text-sm text-cream/45">{formatDate(booking.scheduledAt)} - {formatTime(booking.scheduledAt)}{booking.endTime && ` ate ${formatTime(booking.endTime)}`}</p>
+                        <p className="mt-1 text-sm text-cream/45">Valor: <strong className="text-gold-light">{formatCurrency(booking.estimatedValue)}</strong></p>
+                      </div>
+                      <CompletionAction
+                        booking={booking}
+                        onCompleteService={onCompleteService}
+                        onUndoCompleteService={onUndoCompleteService}
+                        onMarkNoShow={onMarkNoShow}
+                      />
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </div>
           </div>
         )}
       </section>
@@ -1397,7 +1609,7 @@ function buildAnalytics(bookings) {
     statusCounts[booking.status] = (statusCounts[booking.status] || 0) + 1;
     const services = splitServices(booking.service);
 
-    if (booking.status === 'cancelled') {
+    if (['cancelled', 'no_show'].includes(booking.status)) {
       (services.length ? services : ['Servico nao informado']).forEach((service) => {
         cancelledServiceCounts.set(service, (cancelledServiceCounts.get(service) || 0) + 1);
       });
@@ -1477,6 +1689,7 @@ function buildAnalytics(bookings) {
     { label: 'Confirmados', value: statusCounts.confirmed || 0, color: '#34d399' },
     { label: 'Reagendados', value: statusCounts.rescheduled || 0, color: '#fbbf24' },
     { label: 'Cancelados', value: statusCounts.cancelled || 0, color: '#f87171' },
+    { label: 'Faltou', value: statusCounts.no_show || 0, color: '#fb7185' },
   ].filter((item) => item.value > 0);
   const now = new Date();
   const nextBookings = bookings
@@ -1535,6 +1748,7 @@ function buildAnalytics(bookings) {
     nextBookings,
     statusCounts,
     cancelledCount: statusCounts.cancelled || 0,
+    noShowCount: statusCounts.no_show || 0,
     cancellationRate,
     completionRate,
     topService,
@@ -1550,7 +1764,7 @@ function buildLoyaltyClients(bookings) {
   const clients = new Map();
 
   bookings
-    .filter((booking) => booking.status !== 'cancelled')
+    .filter((booking) => !['cancelled', 'no_show'].includes(booking.status))
     .forEach((booking) => {
       const key = String(
         booking.attendeeEmail
@@ -1589,6 +1803,98 @@ function buildLoyaltyClients(bookings) {
       bookings: client.bookings.sort((a, b) => new Date(b.scheduledAt) - new Date(a.scheduledAt)),
     }))
     .sort((a, b) => b.pendingStamps - a.pendingStamps || b.completedStamps - a.completedStamps || a.name.localeCompare(b.name));
+}
+
+function buildClientProfiles(bookings) {
+  const clients = new Map();
+
+  bookings.forEach((booking) => {
+    const key = String(
+      booking.attendeeEmail
+        || booking.user?.email
+        || booking.attendeePhone
+        || booking.user?.whatsappPhone
+        || booking.attendeeName
+        || booking.user?.name
+        || booking.id,
+    ).toLowerCase();
+
+    if (!clients.has(key)) {
+      clients.set(key, {
+        key,
+        name: booking.attendeeName || booking.user?.name || 'Cliente',
+        email: booking.attendeeEmail || booking.user?.email || '',
+        phone: booking.attendeePhone || booking.user?.whatsappPhone || '',
+        bookings: [],
+        serviceCounts: new Map(),
+        totalRevenue: 0,
+        paidBookings: 0,
+        totalServices: 0,
+        completedCount: 0,
+        pendingCount: 0,
+        noShowCount: 0,
+        cancelledCount: 0,
+        completedStamps: 0,
+      });
+    }
+
+    const client = clients.get(key);
+    const services = splitServices(booking.service);
+    const serviceList = services.length ? services : ['Servico nao informado'];
+    const stampCount = Math.max(1, serviceList.length);
+    const value = Number(booking.estimatedValue);
+
+    client.bookings.push(booking);
+    client.totalServices += stampCount;
+
+    serviceList.forEach((service) => {
+      client.serviceCounts.set(service, (client.serviceCounts.get(service) || 0) + 1);
+    });
+
+    if (Number.isFinite(value) && value > 0 && !['cancelled', 'no_show'].includes(booking.status)) {
+      client.totalRevenue += value;
+      client.paidBookings += 1;
+    }
+
+    if (booking.status === 'cancelled') {
+      client.cancelledCount += 1;
+    } else if (booking.status === 'no_show') {
+      client.noShowCount += 1;
+    } else if (booking.serviceCompletedAt) {
+      client.completedCount += 1;
+      client.completedStamps += stampCount;
+    } else {
+      client.pendingCount += 1;
+    }
+  });
+
+  return Array.from(clients.values())
+    .map((client) => {
+      const bookingsSorted = client.bookings.sort((a, b) => new Date(b.scheduledAt) - new Date(a.scheduledAt));
+      const serviceStats = Array.from(client.serviceCounts.entries())
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+        .slice(0, 6);
+      const contact = client.email || client.phone || 'Sem contato';
+
+      return {
+        ...client,
+        contact,
+        bookings: bookingsSorted,
+        firstBooking: bookingsSorted[bookingsSorted.length - 1] || null,
+        lastBooking: bookingsSorted[0] || null,
+        totalBookings: bookingsSorted.length,
+        averageTicket: client.paidBookings ? client.totalRevenue / client.paidBookings : 0,
+        serviceStats,
+        searchText: [
+          client.name,
+          client.email,
+          client.phone,
+          ...serviceStats.map((service) => service.name),
+        ].join(' ').toLowerCase(),
+      };
+    })
+    .sort((a, b) => new Date(b.lastBooking?.scheduledAt || 0) - new Date(a.lastBooking?.scheduledAt || 0));
 }
 
 function buildCalendarDays(monthCursor, bookings) {
@@ -1641,6 +1947,7 @@ function statusBadge(status) {
     confirmed: { label: 'Confirmado', classes: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' },
     rescheduled: { label: 'Reagendado', classes: 'border-amber-500/30 bg-amber-500/10 text-amber-400' },
     cancelled: { label: 'Cancelado', classes: 'border-red-500/30 bg-red-500/10 text-red-400' },
+    no_show: { label: 'Faltou', classes: 'border-red-400/30 bg-red-500/10 text-red-200' },
   };
   const item = map[status] || { label: status || 'Status', classes: 'border-white/20 bg-white/5 text-cream/60' };
   return <span className={`inline-block rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wider ${item.classes}`}>{item.label}</span>;

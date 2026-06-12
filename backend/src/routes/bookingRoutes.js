@@ -4,6 +4,7 @@ import {
   completeBookingService,
   getBookings,
   getBookingById,
+  markBookingNoShow,
   undoBookingServiceCompletion,
 } from '../controllers/bookingController.js';
 import { verifyAdmin, verifyToken } from '../middleware/authMiddleware.js';
@@ -15,6 +16,7 @@ router.get('/', verifyToken, getBookings);
 router.get('/:id', verifyToken, getBookingById);
 router.post('/:id/cancel', verifyToken, cancelBooking);
 router.post('/:id/complete-service', verifyToken, verifyAdmin, completeBookingService);
+router.post('/:id/no-show', verifyToken, verifyAdmin, markBookingNoShow);
 router.post('/:id/undo-complete-service', verifyToken, verifyAdmin, undoBookingServiceCompletion);
 
 export default router;

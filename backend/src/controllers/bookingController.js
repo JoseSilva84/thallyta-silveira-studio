@@ -167,9 +167,14 @@ export const completeBookingService = async (req, res) => {
       return res.status(409).json({ error: 'Agendamento cancelado nao pode liberar fidelidade.' });
     }
 
+    if (booking.status === 'no_show') {
+      return res.status(409).json({ error: 'Agendamento marcado como falta nao pode liberar fidelidade.' });
+    }
+
     const updated = await prisma.booking.update({
       where: { id: booking.id },
       data: {
+        status: booking.status === 'rescheduled' ? 'rescheduled' : 'confirmed',
         serviceCompletedAt: new Date(),
         serviceCompletedBy: req.user.id,
       },
@@ -184,6 +189,44 @@ export const completeBookingService = async (req, res) => {
   } catch (error) {
     console.error('Erro ao confirmar servico realizado:', error);
     res.status(500).json({ error: 'Erro ao confirmar servico realizado.' });
+  }
+};
+
+export const markBookingNoShow = async (req, res) => {
+  try {
+    if (req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Acesso negado. Apenas administradores.' });
+    }
+
+    const booking = await prisma.booking.findUnique({ where: { id: req.params.id } });
+
+    if (!booking) {
+      return res.status(404).json({ error: 'Agendamento nao encontrado.' });
+    }
+
+    if (booking.status === 'cancelled') {
+      return res.status(409).json({ error: 'Agendamento cancelado nao pode ser marcado como falta.' });
+    }
+
+    const updated = await prisma.booking.update({
+      where: { id: booking.id },
+      data: {
+        status: 'no_show',
+        serviceCompletedAt: null,
+        serviceCompletedBy: null,
+        notes: [booking.notes, 'Faltou ao agendamento.'].filter(Boolean).join('\n'),
+      },
+      include: {
+        user: {
+          select: { id: true, name: true, email: true, whatsappPhone: true },
+        },
+      },
+    });
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Erro ao marcar falta no agendamento:', error);
+    res.status(500).json({ error: 'Erro ao marcar falta no agendamento.' });
   }
 };
 
