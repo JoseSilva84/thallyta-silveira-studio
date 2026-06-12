@@ -337,7 +337,7 @@ export default function AdminPanel() {
 
         <div className="mb-6 flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-black/30 p-1 backdrop-blur-md">
           <TabButton active={activeTab === 'bookings'} icon={<FiCalendar />} label="Agenda" count={bookings.length} onClick={() => setActiveTab('bookings')} />
-          <TabButton active={activeTab === 'analytics'} icon={<FiBarChart2 />} label="Analises" onClick={() => setActiveTab('analytics')} />
+          <TabButton active={activeTab === 'analytics'} icon={<FiBarChart2 />} label="Análises" onClick={() => setActiveTab('analytics')} />
           <TabButton active={activeTab === 'loyalty'} icon={<FiAward />} label="Fidelidade" count={pendingCompletionBookings.length} onClick={() => setActiveTab('loyalty')} />
           <TabButton active={activeTab === 'gallery'} icon={<FiImage />} label="Galeria" count={images.length} onClick={() => setActiveTab('gallery')} />
           <TabButton active={activeTab === 'testimonials'} icon={<FiMessageSquare />} label="Depoimentos" count={testimonials.length} onClick={() => setActiveTab('testimonials')} />
@@ -351,14 +351,14 @@ export default function AdminPanel() {
                   <div>
                     <p className="text-xs font-bold uppercase tracking-wider text-amber-100/75">Fidelidade pendente</p>
                     <h2 className="mt-1 text-xl font-semibold">
-                      {pendingCompletionBookings.length} {pendingCompletionBookings.length === 1 ? 'agendamento precisa' : 'agendamentos precisam'} de confirmacao de presenca.
+                      {pendingCompletionBookings.length} {pendingCompletionBookings.length === 1 ? 'agendamento precisa' : 'agendamentos precisam'} de confirmacao de presença.
                     </h2>
                   </div>
                   <button
                     onClick={() => setActiveTab('loyalty')}
                     className="inline-flex items-center justify-center gap-2 rounded-full border border-amber-100/30 px-4 py-2 text-sm font-semibold hover:bg-amber-100/10"
                   >
-                    <FiAward /> Ver pendencias
+                    <FiAward /> Ver pendências
                   </button>
                 </div>
               </div>
@@ -779,14 +779,14 @@ function AnalyticsView({ analytics }) {
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard icon={<FiDollarSign />} label="Valor em servicos" value={formatCurrency(analytics.totalRevenue)} hint={`${analytics.paidBookings} agendamentos com valor`} />
-        <MetricCard icon={<FiTrendingUp />} label="Ticket medio" value={formatCurrency(analytics.averageTicket)} hint="considerando valores informados" />
-        <MetricCard icon={<FiCalendar />} label="Servicos agendados" value={analytics.totalServices} hint={`${analytics.activeBookings} agendamentos ativos`} />
+        <MetricCard icon={<FiDollarSign />} label="Valor em serviços" value={formatCurrency(analytics.totalRevenue)} hint={`${analytics.paidBookings} agendamentos com valor`} />
+        <MetricCard icon={<FiTrendingUp />} label="Ticket médio" value={formatCurrency(analytics.averageTicket)} hint="considerando valores informados" />
+        <MetricCard icon={<FiCalendar />} label="Serviços agendados" value={analytics.totalServices} hint={`${analytics.activeBookings} agendamentos ativos`} />
         <MetricCard icon={<FiUsers />} label="Clientes atendidos" value={analytics.uniqueClients} hint="por email, WhatsApp ou nome" />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-3">
-        <ChartPanel title="Valor por mes" className="xl:col-span-2">
+        <ChartPanel title="Valor por mês" className="xl:col-span-2">
           <div className="space-y-4">
             {analytics.monthStats.map((item) => (
               <BarRow key={item.key} label={item.label} value={formatCurrency(item.value)} width={analytics.maxMonthValue ? (item.value / analytics.maxMonthValue) * 100 : 0} />
@@ -794,7 +794,7 @@ function AnalyticsView({ analytics }) {
           </div>
         </ChartPanel>
 
-        <ChartPanel title="Agenda proxima">
+        <ChartPanel title="Agenda próxima">
           <div className="space-y-3">
             {analytics.nextBookings.length === 0 ? (
               <p className="text-sm text-cream/50">Nenhum proximo agendamento.</p>

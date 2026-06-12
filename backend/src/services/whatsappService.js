@@ -106,7 +106,7 @@ const buildClientBookingMessage = (booking) => {
     '',
     ...buildBookingSummaryLines(booking),
     '',
-    'Se precisar reagendar ou cancelar, acesse sua area de agendamentos.',
+    'Se precisar reagendar ou cancelar, acesse sua área de agendamentos.',
   ].join('\n');
 };
 
