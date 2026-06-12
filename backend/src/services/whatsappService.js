@@ -102,7 +102,7 @@ const buildOwnerBookingMessage = (booking) => {
 const buildClientBookingMessage = (booking) => {
   const firstName = (booking.attendeeName || booking.user?.name || '').split(' ')[0] || 'Tudo bem';
   return [
-    `Ola, ${firstName}! Seu agendamento no Studio Thallyta Silveira foi confirmado:`,
+    `Olá, ${firstName}! Seu agendamento no Studio Thallyta Silveira foi confirmado:`,
     '',
     ...buildBookingSummaryLines(booking),
     '',
@@ -114,13 +114,15 @@ const buildClientReminderMessage = (booking) => {
   const firstName = (booking.attendeeName || booking.user?.name || '').split(' ')[0] || 'Tudo bem';
 
   return [
-    `Ola, ${firstName}! Estamos aguardando você daqui a 1 hora no Studio Thallyta Silveira.`,
+    `Olá, ${firstName}! Estamos aguardando você daqui a 1 hora no Studio Thallyta Silveira.`,
     '',
     `Dia: ${formatDate(booking.scheduledAt)}`,
-    `Horario: ${formatTime(booking.scheduledAt)}`,
-    `Servico: ${booking.service || 'Nao informado'}`,
+    `Horário: ${formatTime(booking.scheduledAt)}`,
+    `Serviço: ${booking.service || 'Não informado'}`,
     '',
-    'Ate ja!',
+    'Até já, ${firstName}!',
+    '',
+    'Studio Thallyta Silveira - Servindo beleza e bem-estar com carinho.',
   ].join('\n');
 };
 
