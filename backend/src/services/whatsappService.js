@@ -11,6 +11,39 @@ const toChatId = (phone) => {
   return normalized ? `${normalized}@c.us` : null;
 };
 
+const getWahaConfig = () => ({
+  baseUrl: process.env.WAHA_BASE_URL?.replace(/\/$/, ''),
+  apiKey: process.env.WAHA_API_KEY,
+  session: process.env.WAHA_SESSION || 'default',
+});
+
+const resolveChatId = async (chatId) => {
+  const { baseUrl, apiKey, session } = getWahaConfig();
+  const phone = String(chatId || '').replace(/@c\.us$/, '').replace(/\D/g, '');
+  const url = new URL(`${baseUrl}/api/contacts/check-exists`);
+  url.searchParams.set('phone', phone);
+  url.searchParams.set('session', session);
+
+  const response = await fetch(url, {
+    headers: {
+      Accept: 'application/json',
+      'X-Api-Key': apiKey,
+    },
+  });
+
+  if (!response.ok) {
+    const details = await response.text();
+    throw new Error(details || `WAHA retornou HTTP ${response.status} ao validar o numero`);
+  }
+
+  const result = await response.json();
+  if (!result.numberExists || !result.chatId) {
+    throw new Error(`O numero ${phone} nao foi encontrado no WhatsApp`);
+  }
+
+  return result.chatId;
+};
+
 const formatDateTime = (date) => {
   if (!date) return 'Nao informado';
   return new Intl.DateTimeFormat('pt-BR', {
@@ -48,12 +81,15 @@ const formatCurrency = (value) => {
 const sendText = async ({ chatId, text }) => {
   if (!enabled()) return { skipped: true, reason: 'WHATSAPP_ENABLED=false' };
 
-  const baseUrl = process.env.WAHA_BASE_URL?.replace(/\/$/, '');
-  const apiKey = process.env.WAHA_API_KEY;
-  const session = process.env.WAHA_SESSION || 'default';
+  const { baseUrl, apiKey, session } = getWahaConfig();
 
   if (!baseUrl || !apiKey) {
     return { skipped: true, reason: 'WAHA_BASE_URL ou WAHA_API_KEY ausente' };
+  }
+
+  const resolvedChatId = await resolveChatId(chatId);
+  if (resolvedChatId !== chatId) {
+    console.log(`WhatsApp ajustado pela WAHA: ${chatId} -> ${resolvedChatId}`);
   }
 
   const response = await fetch(`${baseUrl}/api/sendText`, {
@@ -63,7 +99,7 @@ const sendText = async ({ chatId, text }) => {
       Accept: 'application/json',
       'X-Api-Key': apiKey,
     },
-    body: JSON.stringify({ chatId, text, session }),
+    body: JSON.stringify({ chatId: resolvedChatId, text, session }),
   });
 
   if (!response.ok) {
@@ -71,7 +107,9 @@ const sendText = async ({ chatId, text }) => {
     throw new Error(details || `WAHA retornou HTTP ${response.status}`);
   }
 
-  return response.json().catch(() => ({ ok: true }));
+  const result = await response.json().catch(() => ({ ok: true }));
+  console.log(`WhatsApp aceito pela WAHA para ${resolvedChatId}`);
+  return { ...result, resolvedChatId };
 };
 
 const getBookingWhatsapp = (booking) => booking.user?.whatsappPhone || booking.attendeePhone;
