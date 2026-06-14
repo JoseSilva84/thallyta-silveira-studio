@@ -60,6 +60,9 @@ export default function LoginModal() {
           <FcGoogle />
           Entrar com Google
         </button>
+        <p className="mt-2 text-center text-xs leading-5 text-cream/45">
+          Em aplicativos como Instagram e Facebook, abra o site no Chrome ou Safari.
+        </p>
         <button
           type="button"
           onClick={handleGoToRegister}

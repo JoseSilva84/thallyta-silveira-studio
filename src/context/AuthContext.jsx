@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { toast } from 'react-toastify'
+import { isGoogleOAuthRiskBrowser } from '../utils/browser.js'
 
 const AuthContext = createContext(null)
 
@@ -36,6 +37,7 @@ export function AuthProvider({ children }) {
     return payload
   })
   const [loginOpen, setLoginOpen] = useState(false)
+  const [googleBrowserWarningOpen, setGoogleBrowserWarningOpen] = useState(false)
   const [loading, setLoading] = useState(false)
 
   const fetchMe = useCallback(async (token = readToken()) => {
@@ -127,8 +129,31 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
-  const loginWithGoogle = useCallback(() => {
+  const continueGoogleLogin = useCallback(() => {
+    setGoogleBrowserWarningOpen(false)
     window.location.href = `${API}/auth/google`
+  }, [])
+
+  const loginWithGoogle = useCallback(() => {
+    if (isGoogleOAuthRiskBrowser()) {
+      setGoogleBrowserWarningOpen(true)
+      return
+    }
+    continueGoogleLogin()
+  }, [continueGoogleLogin])
+
+  const openSiteInChrome = useCallback(() => {
+    const path = `${window.location.host}${window.location.pathname}${window.location.search}${window.location.hash}`
+    window.location.href = `intent://${path}#Intent;scheme=${window.location.protocol.replace(':', '')};package=com.android.chrome;end`
+  }, [])
+
+  const copySiteAddress = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href)
+      toast.success('Endereço copiado. Abra o Chrome ou Safari e cole na barra de endereço.')
+    } catch {
+      toast.info('Use o menu do navegador e escolha “Abrir no Chrome” ou “Abrir no Safari”.')
+    }
   }, [])
 
   const logout = useCallback(() => {
@@ -182,11 +207,32 @@ export function AuthProvider({ children }) {
       loginWithGoogle,
       loginOpen,
       setLoginOpen,
+      googleBrowserWarningOpen,
+      setGoogleBrowserWarningOpen,
+      continueGoogleLogin,
+      openSiteInChrome,
+      copySiteAddress,
       getToken,
       fetchMe,
       updateWhatsapp,
     }),
-    [user, isAdmin, loading, login, logout, register, loginWithGoogle, loginOpen, getToken, fetchMe, updateWhatsapp]
+    [
+      user,
+      isAdmin,
+      loading,
+      login,
+      logout,
+      register,
+      loginWithGoogle,
+      loginOpen,
+      googleBrowserWarningOpen,
+      continueGoogleLogin,
+      openSiteInChrome,
+      copySiteAddress,
+      getToken,
+      fetchMe,
+      updateWhatsapp,
+    ]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

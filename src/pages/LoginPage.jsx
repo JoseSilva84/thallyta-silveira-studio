@@ -56,6 +56,9 @@ export default function LoginPage() {
             <FcGoogle size={20} />
             Entrar com Google
           </button>
+          <p className="-mt-2 mb-4 text-center text-xs leading-5 text-cream/40">
+            Se abriu o site por outro aplicativo, use o Chrome ou Safari para entrar com Google.
+          </p>
 
           <div className="flex items-center gap-3 mb-4">
             <div className="h-px flex-1 bg-white/10" />

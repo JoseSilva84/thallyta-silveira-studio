@@ -17,6 +17,7 @@ import RegisterPage from './pages/RegisterPage.jsx'
 import ProtectedRoute from './components/auth/ProtectedRoute.jsx'
 import MyBookingsPage from './pages/MyBookingsPage.jsx'
 import WhatsappPromptModal from './components/auth/WhatsappPromptModal.jsx'
+import GoogleBrowserWarning from './components/auth/GoogleBrowserWarning.jsx'
 import { useAuth } from './context/AuthContext.jsx'
 import { useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
@@ -105,6 +106,7 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <WhatsappPromptModal />
+      <GoogleBrowserWarning />
     </div>
   )
 }
