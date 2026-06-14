@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { FiChevronDown, FiLogOut, FiStar, FiCalendar, FiPhone, FiEdit2, FiX } from 'react-icons/fi'
+import { FiChevronDown, FiLogOut, FiStar, FiCalendar, FiPhone, FiEdit2, FiX, FiGrid } from 'react-icons/fi'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext.jsx'
 import {
@@ -14,7 +14,7 @@ export default function UserProfile() {
   const [editingWhatsapp, setEditingWhatsapp] = useState(false)
   const [phone, setPhone] = useState('')
   const [error, setError] = useState('')
-  const { user, logout, loading, updateWhatsapp } = useAuth()
+  const { user, isAdmin, logout, loading, updateWhatsapp } = useAuth()
   const menuRef = useRef(null)
 
   useEffect(() => {
@@ -114,6 +114,15 @@ export default function UserProfile() {
               <span className="flex-1">{user.whatsappPhone ? formatBrazilWhatsappDisplay(user.whatsappPhone) : 'Adicionar WhatsApp'}</span>
               <FiEdit2 />
             </button>
+          )}
+          {isAdmin && (
+            <Link
+              to="/admin"
+              onClick={() => setOpen(false)}
+              className="tap-gold flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold text-gold-light hover:bg-white/10"
+            >
+              <FiGrid /> Painel administrativo
+            </Link>
           )}
           <Link
             to="/meus-agendamentos"
