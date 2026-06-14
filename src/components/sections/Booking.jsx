@@ -30,7 +30,14 @@ const CAL_THEME = {
 
 export default function Booking() {
   const { user, setLoginOpen, getToken } = useAuth()
-  const { selectedServices, toggleService, clearServices, fetchBookings, scheduleRequestId } = useBooking()
+  const {
+    selectedServices,
+    toggleService,
+    clearServices,
+    fetchBookings,
+    scheduleRequestId,
+    setIsBookingDetailsStep,
+  } = useBooking()
   const [showCal, setShowCal] = useState(false)
   const [bookingConfirmed, setBookingConfirmed] = useState(false)
   const [confirmedSummary, setConfirmedSummary] = useState(null)
@@ -39,6 +46,7 @@ export default function Booking() {
   const calFrameWrapRef = useRef(null)
   const lastScheduleRequest = useRef(scheduleRequestId)
   const lastBookingSuccessAt = useRef(0)
+  const isCalReadyRef = useRef(false)
   const bookingSnapshotRef = useRef({
     services: '',
     total: 0,
@@ -56,8 +64,12 @@ export default function Booking() {
 
   // Inicializa a API do Cal.com embed e escuta o evento de booking concluído
   useEffect(() => {
+    let isActive = true
+
     (async () => {
       const cal = await getCalApi()
+      if (!isActive) return
+
       cal('ui', {
         theme: 'dark',
         styles: { branding: { brandColor: '#D9B15C' } },
@@ -68,8 +80,24 @@ export default function Booking() {
         },
       })
       cal('on', {
+        action: 'linkReady',
+        callback: () => {
+          if (!isActive) return
+          isCalReadyRef.current = true
+          setIsBookingDetailsStep(false)
+        },
+      })
+      cal('on', {
+        action: '__routeChanged',
+        callback: () => {
+          if (!isActive || !isCalReadyRef.current) return
+          setIsBookingDetailsStep((current) => !current)
+        },
+      })
+      cal('on', {
         action: 'bookingSuccessful',
         callback: () => {
+          if (!isActive) return
           const now = Date.now()
           if (now - lastBookingSuccessAt.current < 5000) return
           lastBookingSuccessAt.current = now
@@ -77,6 +105,7 @@ export default function Booking() {
           // Esconde o Cal.com e mostra nossa tela de confirmação
           setConfirmedSummary(bookingSnapshotRef.current)
           setBookingConfirmed(true)
+          setIsBookingDetailsStep(false)
           clearServices()
           toast.success('🎉 Agendamento confirmado com sucesso!')
           // Atualiza os bookings no contexto (para os selos de fidelidade)
@@ -91,7 +120,13 @@ export default function Booking() {
         },
       })
     })()
-  }, [clearServices, getToken, fetchBookings])
+
+    return () => {
+      isActive = false
+      isCalReadyRef.current = false
+      setIsBookingDetailsStep(false)
+    }
+  }, [clearServices, getToken, fetchBookings, setIsBookingDetailsStep])
 
   useEffect(() => {
     if (!showCal) return undefined
@@ -138,11 +173,13 @@ export default function Booking() {
       return toast.info('Entre na sua conta para agendar.')
     }
     setIsCalFrameLoaded(false)
+    isCalReadyRef.current = false
+    setIsBookingDetailsStep(false)
     setShowCal(true)
     setBookingConfirmed(false)
     setConfirmedSummary(null)
     focusBookingSection()
-  }, [focusBookingSection, selectedServices.length, setLoginOpen, user])
+  }, [focusBookingSection, selectedServices.length, setIsBookingDetailsStep, setLoginOpen, user])
 
   useEffect(() => {
     if (scheduleRequestId === lastScheduleRequest.current) return
@@ -151,6 +188,8 @@ export default function Booking() {
   }, [handleProceed, scheduleRequestId])
 
   const handleNewBooking = () => {
+    isCalReadyRef.current = false
+    setIsBookingDetailsStep(false)
     setShowCal(false)
     setBookingConfirmed(false)
     setConfirmedSummary(null)
@@ -330,7 +369,11 @@ export default function Booking() {
                   <div className="flex items-center justify-between">
                     <h3 className="font-display text-3xl">2. Escolha data e horário</h3>
                     <button
-                      onClick={() => setShowCal(false)}
+                      onClick={() => {
+                        isCalReadyRef.current = false
+                        setIsBookingDetailsStep(false)
+                        setShowCal(false)
+                      }}
                       className="rounded-full border border-white/10 px-4 py-2 text-sm text-cream/70 transition-colors hover:border-gold/30 hover:text-gold"
                     >
                       ← Voltar aos serviços

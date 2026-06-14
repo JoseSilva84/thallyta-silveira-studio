@@ -3,7 +3,12 @@ import { FiX, FiCheck } from 'react-icons/fi'
 import { useEffect, useState } from 'react'
 
 export default function FloatingCart() {
-  const { selectedServices, clearServices, requestSchedule } = useBooking()
+  const {
+    selectedServices,
+    clearServices,
+    requestSchedule,
+    isBookingDetailsStep,
+  } = useBooking()
   const [isVisible, setIsVisible] = useState(false)
 
   useEffect(() => {
@@ -14,7 +19,7 @@ export default function FloatingCart() {
     }
   }, [selectedServices.length])
 
-  if (!isVisible) return null
+  if (!isVisible || isBookingDetailsStep) return null
 
   // Calcula o total estimado
   const totalEstimado = selectedServices.reduce((sum, s) => {

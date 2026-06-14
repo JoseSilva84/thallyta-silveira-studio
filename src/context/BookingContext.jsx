@@ -12,6 +12,7 @@ export function BookingProvider({ children }) {
   const [bookings, setBookings] = useState([])
   const [loadingBookings, setLoadingBookings] = useState(false)
   const [scheduleRequestId, setScheduleRequestId] = useState(0)
+  const [isBookingDetailsStep, setIsBookingDetailsStep] = useState(false)
 
   const toggleService = useCallback((service) => {
     setSelectedServices((current) =>
@@ -94,6 +95,8 @@ export function BookingProvider({ children }) {
       clearServices,
       requestSchedule,
       scheduleRequestId,
+      isBookingDetailsStep,
+      setIsBookingDetailsStep,
       fetchBookings,
       cancelBooking,
     }),
@@ -106,6 +109,7 @@ export function BookingProvider({ children }) {
       clearServices,
       requestSchedule,
       scheduleRequestId,
+      isBookingDetailsStep,
       fetchBookings,
       cancelBooking,
     ],
