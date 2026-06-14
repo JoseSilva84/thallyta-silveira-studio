@@ -25,7 +25,7 @@ export default function Location() {
                   <FiMapPin />
                 </div>
                 <h3 className="font-display text-4xl leading-tight">Studio de Beleza<br/><span className="text-gold-light italic">Thallyta Silveira</span></h3>
-                <p className="mt-5 text-lg leading-relaxed text-cream/80">Rua José Firmino da Costa, Centro, 481 — Ao lado de Carmela Dutra</p>
+                <p className="mt-5 text-lg leading-relaxed text-cream/80">Rua José Firmino da Costa, Centro, 481 — Ao lado do Carmela Dutra</p>
                 
                 <div className="mt-8 flex gap-4 rounded-2xl border border-white/5 bg-white/5 p-5 backdrop-blur transition-all hover:border-gold/20 hover:bg-white/10">
                   <FiClock className="mt-1 text-xl text-gold-light drop-shadow-[0_0_8px_rgba(217,177,92,0.5)]" />
