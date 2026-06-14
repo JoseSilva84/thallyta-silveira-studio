@@ -391,7 +391,7 @@ export default function AdminPanel() {
                   <div>
                     <p className="text-xs font-bold uppercase tracking-wider text-amber-100/75">Fidelidade pendente</p>
                     <h2 className="mt-1 text-xl font-semibold">
-                      {pendingCompletionBookings.length} {pendingCompletionBookings.length === 1 ? 'agendamento precisa' : 'agendamentos precisam'} de confirmacao de presença.
+                      {pendingCompletionBookings.length} {pendingCompletionBookings.length === 1 ? 'agendamento precisa' : 'agendamentos precisam'} de confirmação de presença.
                     </h2>
                   </div>
                   <button
