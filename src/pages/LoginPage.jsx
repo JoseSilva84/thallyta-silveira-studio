@@ -13,6 +13,9 @@ export default function LoginPage() {
   const [error, setError] = useState('')
 
   const googleError = searchParams.get('error')
+  const googleErrorMessage = googleError === 'database_update_required'
+    ? 'O servidor está sendo atualizado. Tente entrar com Google novamente em alguns minutos.'
+    : 'Falha ao entrar com o Google. Tente novamente.'
 
   const handleChange = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }))
 
@@ -44,7 +47,7 @@ export default function LoginPage() {
 
           {googleError && (
             <div className="mb-4 rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-400">
-              Falha ao entrar com o Google. Tente novamente.
+              {googleErrorMessage}
             </div>
           )}
 

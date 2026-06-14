@@ -23,16 +23,39 @@ const generateToken = (user) => {
   );
 };
 
-const userSelect = {
+const baseUserSelect = {
   id: true,
   name: true,
   email: true,
   role: true,
-  avatarUrl: true,
   whatsappPhone: true,
   whatsappOptIn: true,
   whatsappUpdatedAt: true,
   createdAt: true,
+};
+
+const userSelect = {
+  ...baseUserSelect,
+  avatarUrl: true,
+};
+
+const isMissingAvatarColumn = (error) =>
+  error?.code === 'P2022' && String(error?.meta?.column || '').includes('avatarUrl');
+
+const findPublicUser = async (userId) => {
+  try {
+    return await prisma.user.findUnique({
+      where: { id: userId },
+      select: userSelect,
+    });
+  } catch (error) {
+    if (!isMissingAvatarColumn(error)) throw error;
+    console.warn('Coluna avatarUrl ainda não foi migrada; perfil carregado sem foto.');
+    return prisma.user.findUnique({
+      where: { id: userId },
+      select: baseUserSelect,
+    });
+  }
 };
 
 const normalizeWhatsappPhone = (value) => {
@@ -151,10 +174,7 @@ export const googleCallback = (req, res) => {
 
 export const getMe = async (req, res) => {
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.user.id },
-      select: userSelect,
-    });
+    const user = await findPublicUser(req.user.id);
 
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' });
 

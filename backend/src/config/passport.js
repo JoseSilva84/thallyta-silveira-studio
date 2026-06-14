@@ -5,6 +5,37 @@ import prisma from './prisma.js';
 
 dotenv.config();
 
+const googleUserSelect = {
+  id: true,
+  name: true,
+  email: true,
+  role: true,
+  googleId: true,
+  whatsappPhone: true,
+  whatsappOptIn: true,
+  whatsappUpdatedAt: true,
+  createdAt: true,
+  updatedAt: true,
+};
+
+const isMissingAvatarColumn = (error) =>
+  error?.code === 'P2022' && String(error?.meta?.column || '').includes('avatarUrl');
+
+const saveGoogleAvatar = async (user, avatarUrl) => {
+  if (!avatarUrl) return user;
+
+  try {
+    return await prisma.user.update({
+      where: { id: user.id },
+      data: { avatarUrl },
+    });
+  } catch (error) {
+    if (!isMissingAvatarColumn(error)) throw error;
+    console.warn('Coluna avatarUrl ainda não foi migrada; login Google continuará sem foto.');
+    return user;
+  }
+};
+
 const getGoogleCallbackUrl = () => {
   if (process.env.GOOGLE_CALLBACK_URL) return process.env.GOOGLE_CALLBACK_URL;
   if (process.env.BACKEND_URL) {
@@ -28,14 +59,21 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
           const avatarUrl = profile.photos?.[0]?.value || null;
           if (!email) return done(new Error('Email nao disponivel no perfil Google'), null);
 
-          let user = await prisma.user.findUnique({ where: { googleId: profile.id } });
+          let user = await prisma.user.findUnique({
+            where: { googleId: profile.id },
+            select: googleUserSelect,
+          });
 
           if (!user) {
-            const existingByEmail = await prisma.user.findUnique({ where: { email } });
+            const existingByEmail = await prisma.user.findUnique({
+              where: { email },
+              select: googleUserSelect,
+            });
             if (existingByEmail) {
               user = await prisma.user.update({
                 where: { email },
-                data: { googleId: profile.id, avatarUrl },
+                data: { googleId: profile.id },
+                select: googleUserSelect,
               });
             } else {
               user = await prisma.user.create({
@@ -43,18 +81,14 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
                   name: profile.displayName || email.split('@')[0],
                   email,
                   googleId: profile.id,
-                  avatarUrl,
                   role: 'CLIENT',
                 },
+                select: googleUserSelect,
               });
             }
-          } else if (avatarUrl && user.avatarUrl !== avatarUrl) {
-            user = await prisma.user.update({
-              where: { id: user.id },
-              data: { avatarUrl },
-            });
           }
 
+          user = await saveGoogleAvatar(user, avatarUrl);
           return done(null, user);
         } catch (error) {
           return done(error, null);
