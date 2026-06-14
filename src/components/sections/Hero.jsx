@@ -55,7 +55,7 @@ export default function Hero() {
               Começar Agendamento <FiArrowRight />
             </a>
             <a href="#sobre" className="tap-gold inline-flex items-center justify-center rounded-md border border-gold/40 bg-white/10 px-6 py-3 font-bold text-gold-light backdrop-blur hover:bg-white/15">
-              Conheça o Estudio
+              Conheça o Estúdio
             </a>
           </div>
         </motion.div>
