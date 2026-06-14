@@ -1,17 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
-import { FiPhone, FiX } from 'react-icons/fi'
+import { FiLogOut, FiPhone } from 'react-icons/fi'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { formatBrazilWhatsappInput, normalizeBrazilWhatsapp, onlyDigits } from '../../utils/phone.js'
 
 export default function WhatsappPromptModal() {
-  const { user, loading, updateWhatsapp } = useAuth()
-  const [dismissedFor, setDismissedFor] = useState(null)
+  const { user, loading, authHydrated, updateWhatsapp, logout } = useAuth()
   const [phone, setPhone] = useState('')
   const [error, setError] = useState('')
 
   const shouldOpen = useMemo(() => {
-    return Boolean(user?.id && user.role !== 'ADMIN' && !user.whatsappPhone && dismissedFor !== user.id)
-  }, [user, dismissedFor])
+    return Boolean(authHydrated && user?.id && user.role !== 'ADMIN' && !user.whatsappPhone)
+  }, [authHydrated, user])
 
   useEffect(() => {
     if (shouldOpen) {
@@ -33,9 +32,7 @@ export default function WhatsappPromptModal() {
     }
 
     const result = await updateWhatsapp(normalizeBrazilWhatsapp(phone))
-    if (result.ok) {
-      setDismissedFor(user.id)
-    } else {
+    if (!result.ok) {
       setError(result.error)
     }
   }
@@ -43,23 +40,13 @@ export default function WhatsappPromptModal() {
   return (
     <div className="fixed inset-0 z-[80] grid place-items-center bg-black/70 px-4 backdrop-blur-sm">
       <div className="gold-border w-full max-w-md rounded-2xl bg-dark-card p-6 shadow-2xl">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.25em] text-gold/70">WhatsApp</p>
-            <h2 className="mt-2 font-display text-3xl text-gold-light">Complete seu contato</h2>
-          </div>
-          <button
-            type="button"
-            onClick={() => setDismissedFor(user.id)}
-            className="tap-gold grid size-9 place-items-center rounded-full border border-white/10 bg-white/5 text-cream/70 hover:text-cream"
-            aria-label="Fechar"
-          >
-            <FiX />
-          </button>
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.25em] text-gold/70">WhatsApp obrigatório</p>
+          <h2 className="mt-2 font-display text-3xl text-gold-light">Complete seu contato</h2>
         </div>
 
         <p className="mt-3 text-sm leading-relaxed text-cream/65">
-          Informe seu WhatsApp para receber confirmacoes e avisos dos seus agendamentos.
+          Informe seu WhatsApp para continuar e receber confirmações e avisos dos seus agendamentos.
         </p>
 
         <form onSubmit={handleSubmit} className="mt-5 space-y-4">
@@ -72,13 +59,14 @@ export default function WhatsappPromptModal() {
               placeholder="WhatsApp com DDD"
               inputMode="numeric"
               autoFocus
+              required
               className="w-full rounded-xl border border-white/10 bg-white/5 py-3 pl-11 pr-4 text-sm text-cream placeholder-cream/30 outline-none transition focus:border-gold/50 focus:ring-1 focus:ring-gold/20"
             />
           </div>
 
           {error && <p className="text-sm text-red-400">{error}</p>}
 
-          <div className="flex flex-col gap-3 sm:flex-row">
+          <div className="flex flex-col gap-3">
             <button
               type="submit"
               disabled={loading}
@@ -86,12 +74,8 @@ export default function WhatsappPromptModal() {
             >
               {loading ? 'Salvando...' : 'Salvar WhatsApp'}
             </button>
-            <button
-              type="button"
-              onClick={() => setDismissedFor(user.id)}
-              className="tap-gold rounded-xl border border-white/10 px-5 py-3 text-sm font-semibold text-cream/70 hover:bg-white/5 hover:text-cream"
-            >
-              Agora nao
+            <button type="button" onClick={logout} className="flex items-center justify-center gap-2 px-5 py-2 text-sm text-cream/55 hover:text-cream">
+              <FiLogOut /> Sair da conta
             </button>
           </div>
         </form>

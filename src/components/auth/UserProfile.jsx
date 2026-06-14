@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { FiChevronDown, FiLogOut, FiStar, FiCalendar, FiPhone, FiEdit2, FiX, FiGrid } from 'react-icons/fi'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext.jsx'
+import UserAvatar from './UserAvatar.jsx'
 import {
   formatBrazilWhatsappDisplay,
   formatBrazilWhatsappInput,
@@ -67,9 +68,7 @@ export default function UserProfile() {
         onClick={() => setOpen((value) => !value)}
         className="tap-gold flex items-center gap-2 rounded-full border border-gold/30 bg-white/5 py-1 pl-1 pr-3 text-sm"
       >
-        <span className="silver-glow grid size-8 place-items-center rounded-full bg-gold font-bold text-dark">
-          {user.name.slice(0, 1).toUpperCase()}
-        </span>
+        <UserAvatar user={user} className="silver-glow size-8 rounded-full" />
         <span className="hidden max-w-24 truncate md:block">{user.name}</span>
         <FiChevronDown />
       </button>

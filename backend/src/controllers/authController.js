@@ -15,6 +15,8 @@ const generateToken = (user) => {
       name: user.name,
       email: user.email,
       role: user.role,
+      avatarUrl: user.avatarUrl,
+      whatsappPhone: user.whatsappPhone,
     },
     process.env.JWT_SECRET,
     { expiresIn: '7d' }
@@ -26,6 +28,7 @@ const userSelect = {
   name: true,
   email: true,
   role: true,
+  avatarUrl: true,
   whatsappPhone: true,
   whatsappOptIn: true,
   whatsappUpdatedAt: true,
@@ -50,6 +53,7 @@ const publicUser = (user) => ({
   name: user.name,
   email: user.email,
   role: user.role,
+  avatarUrl: user.avatarUrl,
   whatsappPhone: user.whatsappPhone,
   whatsappOptIn: user.whatsappOptIn,
   whatsappUpdatedAt: user.whatsappUpdatedAt,
@@ -58,27 +62,32 @@ const publicUser = (user) => ({
 export const register = async (req, res) => {
   try {
     const { name, email, password, whatsappPhone } = req.body;
+    const normalizedName = String(name || '').trim();
+    const normalizedEmail = String(email || '').trim().toLowerCase();
 
-    if (!name || !email || !password) {
-      return res.status(400).json({ error: 'Nome, email e senha são obrigatórios.' });
+    if (!normalizedName || !normalizedEmail || !password || !String(whatsappPhone || '').trim()) {
+      return res.status(400).json({ error: 'Nome, email, WhatsApp e senha são obrigatórios.' });
     }
 
     if (password.length < 6) {
       return res.status(400).json({ error: 'A senha deve ter pelo menos 6 caracteres.' });
     }
 
-    const existing = await prisma.user.findUnique({ where: { email } });
+    const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
     if (existing) {
       return res.status(409).json({ error: 'Este email já está cadastrado.' });
     }
 
-    const passwordHash = await bcrypt.hash(password, 12);
     const normalizedWhatsapp = normalizeWhatsappPhone(whatsappPhone);
+    if (!normalizedWhatsapp) {
+      return res.status(400).json({ error: 'Informe um WhatsApp válido com DDD.' });
+    }
+    const passwordHash = await bcrypt.hash(password, 12);
 
     const user = await prisma.user.create({
       data: {
-        name,
-        email,
+        name: normalizedName,
+        email: normalizedEmail,
         passwordHash,
         role: 'CLIENT',
         whatsappPhone: normalizedWhatsapp,

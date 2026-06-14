@@ -1,10 +1,17 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { FiCalendar, FiGrid, FiHome, FiMenu, FiUser, FiX, FiLogOut } from 'react-icons/fi'
+import { FiCalendar, FiEdit2, FiGrid, FiHome, FiMenu, FiUser, FiX, FiLogOut, FiPhone } from 'react-icons/fi'
 import { Link, useNavigate } from 'react-router-dom'
 import LoginModal from '../auth/LoginModal.jsx'
 import UserProfile from '../auth/UserProfile.jsx'
+import UserAvatar from '../auth/UserAvatar.jsx'
 import { useAuth } from '../../context/AuthContext.jsx'
+import {
+  formatBrazilWhatsappDisplay,
+  formatBrazilWhatsappInput,
+  normalizeBrazilWhatsapp,
+  onlyDigits,
+} from '../../utils/phone.js'
 
 const links = [
   ['Início', '#inicio'],
@@ -29,7 +36,10 @@ export default function Navbar() {
   const [scrolled, setScrolled] = useState(false)
   const [activeSection, setActiveSection] = useState('inicio')
   const [open, setOpen] = useState(false)
-  const { user, setLoginOpen, logout } = useAuth()
+  const [editingWhatsapp, setEditingWhatsapp] = useState(false)
+  const [phone, setPhone] = useState('')
+  const [phoneError, setPhoneError] = useState('')
+  const { user, setLoginOpen, logout, loading, updateWhatsapp } = useAuth()
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -57,6 +67,30 @@ export default function Navbar() {
   }, [])
 
   const isActive = (href) => activeSection === href.slice(1)
+
+  const startWhatsappEditing = () => {
+    setPhone(formatBrazilWhatsappDisplay(user?.whatsappPhone))
+    setPhoneError('')
+    setEditingWhatsapp(true)
+  }
+
+  const saveWhatsapp = async (event) => {
+    event.preventDefault()
+    const digits = onlyDigits(phone)
+
+    if (digits.length < 10 || digits.length > 11) {
+      setPhoneError('Informe um WhatsApp válido com DDD.')
+      return
+    }
+
+    const result = await updateWhatsapp(normalizeBrazilWhatsapp(phone))
+    if (result.ok) {
+      setEditingWhatsapp(false)
+      setPhoneError('')
+    } else {
+      setPhoneError(result.error)
+    }
+  }
 
   return (
     <>
@@ -141,14 +175,56 @@ export default function Navbar() {
                       Sua Conta
                     </p>
                     <div className="mt-1 flex items-center gap-2">
-                      <span className="silver-glow grid size-6 place-items-center rounded-full bg-gold text-xs font-bold text-dark">
-                        {user.name.slice(0, 1).toUpperCase()}
-                      </span>
+                      <UserAvatar user={user} className="silver-glow size-8 rounded-full text-xs" />
                       <p className="text-sm text-cream/90 truncate">
                         {user.name}
                       </p>
                     </div>
                   </div>
+                  {editingWhatsapp ? (
+                    <form onSubmit={saveWhatsapp} className="mb-2 rounded-xl border border-white/10 bg-white/5 p-3">
+                      <div className="mb-2 flex items-center justify-between">
+                        <span className="text-xs font-semibold text-cream/70">Editar WhatsApp</span>
+                        <button
+                          type="button"
+                          onClick={() => setEditingWhatsapp(false)}
+                          className="text-cream/50 hover:text-cream"
+                          aria-label="Cancelar edição"
+                        >
+                          <FiX />
+                        </button>
+                      </div>
+                      <input
+                        type="tel"
+                        value={phone}
+                        onChange={(event) => setPhone(formatBrazilWhatsappInput(event.target.value))}
+                        placeholder="WhatsApp com DDD"
+                        inputMode="numeric"
+                        autoFocus
+                        className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-cream outline-none focus:border-gold/50"
+                      />
+                      {phoneError && <p className="mt-2 text-xs text-red-400">{phoneError}</p>}
+                      <button
+                        type="submit"
+                        disabled={loading}
+                        className="mt-3 w-full rounded-lg bg-gold px-3 py-2 text-xs font-bold text-dark disabled:opacity-50"
+                      >
+                        {loading ? 'Salvando...' : 'Salvar número'}
+                      </button>
+                    </form>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={startWhatsappEditing}
+                      className="mb-1 flex w-full items-center gap-3 rounded-md px-3 py-3 text-left text-cream/80 hover:bg-white/5 hover:text-cream"
+                    >
+                      <FiPhone className="text-gold" />
+                      <span className="flex-1">
+                        {user.whatsappPhone ? formatBrazilWhatsappDisplay(user.whatsappPhone) : 'Adicionar WhatsApp'}
+                      </span>
+                      <FiEdit2 className="text-cream/50" />
+                    </button>
+                  )}
                   <Link
                     to="/meus-agendamentos"
                     onClick={() => setOpen(false)}

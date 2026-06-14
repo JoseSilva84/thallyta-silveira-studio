@@ -22,6 +22,7 @@ model User {
   passwordHash String?
   role         Role      @default(CLIENT)
   googleId     String?   @unique
+  avatarUrl    String?
   whatsappPhone String?
   whatsappOptIn Boolean   @default(false)
   whatsappUpdatedAt DateTime?

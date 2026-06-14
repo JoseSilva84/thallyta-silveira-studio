@@ -39,6 +39,7 @@ export function AuthProvider({ children }) {
   const [loginOpen, setLoginOpen] = useState(false)
   const [googleBrowserWarningOpen, setGoogleBrowserWarningOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [authHydrated, setAuthHydrated] = useState(false)
 
   const fetchMe = useCallback(async (token = readToken()) => {
     if (!token) return null
@@ -67,14 +68,16 @@ export function AuthProvider({ children }) {
       const payload = parseToken(token)
       if (payload?.name) payload.name = decodeUtf8(payload.name)
       setUser(payload)
-      fetchMe(token)
+      fetchMe(token).finally(() => setAuthHydrated(true))
       toast.success(`Bem-vinda, ${payload?.name || 'cliente'}!`)
       window.history.replaceState({}, '', '/')
       return
     }
 
     if (readToken()) {
-      fetchMe()
+      fetchMe().finally(() => setAuthHydrated(true))
+    } else {
+      setAuthHydrated(true)
     }
   }, [fetchMe])
 
@@ -90,6 +93,7 @@ export function AuthProvider({ children }) {
       if (!res.ok) throw new Error(data.error || 'Erro ao criar conta.')
       localStorage.setItem('authToken', data.token)
       setUser(data.user)
+      setAuthHydrated(true)
       setLoginOpen(false)
       toast.success(`Conta criada! Bem-vinda, ${data.user.name}!`)
       return { ok: true }
@@ -118,6 +122,7 @@ export function AuthProvider({ children }) {
       if (!res.ok) throw new Error(data.error || 'Credenciais invalidas.')
       localStorage.setItem('authToken', data.token)
       setUser(data.user)
+      setAuthHydrated(true)
       setLoginOpen(false)
       toast.success(`Bem-vinda, ${data.user.name}!`)
       return { ok: true }
@@ -201,6 +206,7 @@ export function AuthProvider({ children }) {
       user,
       isAdmin,
       loading,
+      authHydrated,
       login,
       logout,
       register,
@@ -220,6 +226,7 @@ export function AuthProvider({ children }) {
       user,
       isAdmin,
       loading,
+      authHydrated,
       login,
       logout,
       register,

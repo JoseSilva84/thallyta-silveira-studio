@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { FiMail, FiLock, FiUser, FiEye, FiEyeOff, FiPhone } from 'react-icons/fi'
 import { FcGoogle } from 'react-icons/fc'
 import { useAuth } from '../context/AuthContext'
-import { formatBrazilWhatsappInput, normalizeBrazilWhatsapp } from '../utils/phone'
+import { formatBrazilWhatsappInput, normalizeBrazilWhatsapp, onlyDigits } from '../utils/phone'
 
 export default function RegisterPage() {
   const { register, loginWithGoogle, loading } = useAuth()
@@ -30,6 +30,10 @@ export default function RegisterPage() {
     }
     if (form.password.length < 6) {
       setError('A senha deve ter pelo menos 6 caracteres.')
+      return
+    }
+    if (onlyDigits(form.whatsappPhone).length < 10) {
+      setError('Informe um WhatsApp válido com DDD.')
       return
     }
 
@@ -114,6 +118,7 @@ export default function RegisterPage() {
                 value={form.whatsappPhone}
                 onChange={handleChange}
                 inputMode="numeric"
+                required
                 className="w-full rounded-xl border border-white/10 bg-white/5 py-3 pl-11 pr-4 text-sm text-cream placeholder-cream/30 outline-none focus:border-gold/50 focus:ring-1 focus:ring-gold/20 transition"
               />
             </div>

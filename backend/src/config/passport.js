@@ -25,6 +25,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
       async (_accessToken, _refreshToken, profile, done) => {
         try {
           const email = profile.emails?.[0]?.value;
+          const avatarUrl = profile.photos?.[0]?.value || null;
           if (!email) return done(new Error('Email nao disponivel no perfil Google'), null);
 
           let user = await prisma.user.findUnique({ where: { googleId: profile.id } });
@@ -34,7 +35,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
             if (existingByEmail) {
               user = await prisma.user.update({
                 where: { email },
-                data: { googleId: profile.id },
+                data: { googleId: profile.id, avatarUrl },
               });
             } else {
               user = await prisma.user.create({
@@ -42,10 +43,16 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
                   name: profile.displayName || email.split('@')[0],
                   email,
                   googleId: profile.id,
+                  avatarUrl,
                   role: 'CLIENT',
                 },
               });
             }
+          } else if (avatarUrl && user.avatarUrl !== avatarUrl) {
+            user = await prisma.user.update({
+              where: { id: user.id },
+              data: { avatarUrl },
+            });
           }
 
           return done(null, user);
