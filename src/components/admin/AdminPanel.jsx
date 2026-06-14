@@ -1225,7 +1225,7 @@ function LoyaltyAdminView({ clients, pendingBookings, onCompleteService, onUndoC
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-amber-100/70">Aguardando confirmacao</p>
             <h2 className="mt-1 text-2xl font-semibold text-amber-50">
-              {pendingBookings.length} {pendingBookings.length === 1 ? 'serviço pendente' : 'servicos pendentes'}
+              {pendingBookings.length} {pendingBookings.length === 1 ? 'serviço pendente' : 'serviços pendentes'}
             </h2>
           </div>
           <span className="text-sm text-amber-100/70">Confirme apenas quando a cliente realmente realizou o atendimento.</span>
