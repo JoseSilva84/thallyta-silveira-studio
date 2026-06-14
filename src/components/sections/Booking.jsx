@@ -66,7 +66,7 @@ export default function Booking() {
   useEffect(() => {
     let isActive = true
 
-    (async () => {
+    ;(async () => {
       const cal = await getCalApi()
       if (!isActive) return
 
