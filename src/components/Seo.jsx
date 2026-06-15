@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 
-const SITE_URL = 'https://thallytasilveira.com.br'
+const SITE_URL = 'https://www.thallytasilveira.com.br'
 const DEFAULT_TITLE = 'Studio de Beleza em Jaguaribe, CE | Thallyta Silveira'
 const DEFAULT_DESCRIPTION = 'Studio de beleza em Jaguaribe, Ceará, especializado em cabelos, alongamento de unhas, nail design, alisamento e botox capilar. Agende online.'
 const DEFAULT_IMAGE = `${SITE_URL}/img/studio-06.jpeg`

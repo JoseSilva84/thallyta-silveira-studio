@@ -14,10 +14,16 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173')
+const defaultAllowedOrigins = [
+  'https://www.thallytasilveira.com.br',
+  'https://thallytasilveira.com.br',
+  'http://localhost:5173',
+];
+const configuredOrigins = (process.env.FRONTEND_URL || '')
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
+const allowedOrigins = [...new Set([...defaultAllowedOrigins, ...configuredOrigins])];
 const sessionSecret = process.env.JWT_SECRET
   || process.env.SESSION_SECRET
   || (process.env.NODE_ENV !== 'production' ? 'dev-session-secret' : undefined);

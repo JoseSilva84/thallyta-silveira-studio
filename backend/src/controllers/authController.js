@@ -2,11 +2,22 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import prisma from '../config/prisma.js';
 
-const getFrontendUrl = () =>
-  (process.env.FRONTEND_URL || 'http://localhost:5173')
+const PRODUCTION_FRONTEND_URL = 'https://www.thallytasilveira.com.br';
+
+const getFrontendUrl = () => {
+  if (process.env.PUBLIC_FRONTEND_URL) {
+    return process.env.PUBLIC_FRONTEND_URL.replace(/\/$/, '');
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    return PRODUCTION_FRONTEND_URL;
+  }
+
+  return (process.env.FRONTEND_URL || 'http://localhost:5173')
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean)[0];
+};
 
 const generateToken = (user) => {
   return jwt.sign(
