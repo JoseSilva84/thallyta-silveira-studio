@@ -125,6 +125,7 @@ const buildBookingSummaryLines = (booking) => {
     `Valor: ${formatCurrency(booking.estimatedValue)}`,
     `Data/Horario: ${formatDateTime(booking.scheduledAt)}`,
     booking.endTime ? `Termina: ${formatDateTime(booking.endTime)}` : null,
+    '',
     `Local: ${booking.location || 'Presencial'}`,
   ].filter(Boolean);
 };
@@ -158,7 +159,7 @@ const buildClientReminderMessage = (booking) => {
     `Horário: ${formatTime(booking.scheduledAt)}`,
     `Serviço: ${booking.service || 'Não informado'}`,
     '',
-    'Até já, ${firstName}!',
+    `Até já, ${firstName}!`,
     '',
     'Studio Thallyta Silveira - Servindo beleza e bem-estar com carinho.',
   ].join('\n');
