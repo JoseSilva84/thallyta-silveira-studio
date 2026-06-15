@@ -69,7 +69,7 @@ export function AuthProvider({ children }) {
       if (payload?.name) payload.name = decodeUtf8(payload.name)
       setUser(payload)
       fetchMe(token).finally(() => setAuthHydrated(true))
-      toast.success(`Bem-vinda, ${payload?.name || 'cliente'}!`)
+      toast.success(`Bem-vindo(a), ${payload?.name || 'cliente'}!`)
       window.history.replaceState({}, '', '/')
       return
     }
