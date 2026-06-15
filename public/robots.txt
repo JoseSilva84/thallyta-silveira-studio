@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://thallytasilveira.com.br/sitemap.xml

@@ -1,0 +1,18 @@
+{
+  "name": "Studio de Beleza Thallyta Silveira",
+  "short_name": "Thallyta Silveira",
+  "description": "Studio de beleza em Jaguaribe, Ceará.",
+  "lang": "pt-BR",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0D0D0D",
+  "theme_color": "#0D0D0D",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "368x368",
+      "type": "image/png"
+    }
+  ]
+}

@@ -19,7 +19,8 @@ export default function Hero() {
     <section id="inicio" className="relative pt-24 pb-12 sm:pt-28 md:min-h-0 lg:min-h-[100dvh] md:pt-36 lg:pt-28">
       <div className="section-shell flex flex-col md:grid md:min-h-0 lg:min-h-[calc(100vh-7rem)] md:items-center gap-6 sm:gap-8 md:gap-10 pb-20 md:pb-14 md:grid-cols-[0.92fr_0.78fr]">
         <motion.div className="flex flex-col sm:items-center md:items-start" initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }}>
-          <p className="mb-2 text-xs font-bold uppercase tracking-[0.34em] text-gold-light sm:text-center md:text-left">Studio de Beleza</p>
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.34em] text-gold-light sm:text-center md:text-left">Studio de Beleza em Jaguaribe, CE</p>
+          <h1 className="sr-only">Studio de Beleza Thallyta Silveira em Jaguaribe, Ceará</h1>
           <div className="hero-logo-wrap w-[85%] max-w-[280px] sm:w-[90%] sm:max-w-[340px] md:w-[90%] md:max-w-[300px] lg:w-full lg:max-w-[400px]" aria-label="Thallyta Silveira Cabeleireira e Nail Designer">
             <img src="/logo.png" alt="Thallyta Silveira Cabeleireira e Nail Designer" className="hero-logo w-full" />
           </div>
@@ -48,7 +49,7 @@ export default function Hero() {
           </div>
 
           <p className="mt-4 max-w-xl text-base leading-8 text-cream/72 sm:text-center sm:mx-auto md:text-left md:text-lg md:mx-0">
-            Bem-vinda ao seu momento de cuidado, beleza e confiança.
+            Cabeleireira e nail designer em Jaguaribe, com atendimento especializado em cabelos, alongamento de unhas e cuidados de beleza.
           </p>
           <div className="mt-6 flex flex-col sm:justify-center gap-3 sm:flex-row md:justify-start">
             <a href="#agendamento" className="gold-button inline-flex items-center justify-center gap-2 rounded-md px-6 py-3 font-bold">

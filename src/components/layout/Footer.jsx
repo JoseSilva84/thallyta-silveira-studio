@@ -44,6 +44,7 @@ export default function Footer() {
         <div>
           <div className="mb-3 font-display text-3xl font-semibold text-gold-light">TS</div>
           <p className="text-sm text-cream/70">Realçando sua beleza com excelência!</p>
+          <p className="mt-2 text-xs text-cream/50">Studio de beleza em Jaguaribe, Ceará.</p>
         </div>
         <div className="grid grid-cols-2 gap-2 text-sm text-cream/65">
           {['Início', 'Sobre', 'Serviços', 'Galeria', 'Agendamento', 'Localização'].map((item) => (

@@ -27,7 +27,7 @@ export default function About() {
             <div className="relative">
               <div className="absolute -left-6 top-0 hidden h-full w-px bg-gradient-to-b from-gold-light/50 via-gold/20 to-transparent lg:block"></div>
               <p className="text-lg leading-relaxed text-cream/80 lg:text-xl lg:leading-loose">
-                <span className="mr-1 font-display text-3xl font-semibold text-gold-light">Thallyta Silveira</span> une técnica, delicadeza e atenção aos detalhes para criar resultados elegantes em cabelos e unhas. A missão do studio é valorizar a beleza real de cada cliente com um atendimento acolhedor, pontual e sofisticado.
+                <span className="mr-1 font-display text-3xl font-semibold text-gold-light">Thallyta Silveira</span> une técnica, delicadeza e atenção aos detalhes para criar resultados elegantes em cabelos e unhas em Jaguaribe, Ceará. A missão do studio é valorizar a beleza real de cada cliente com um atendimento acolhedor, pontual e sofisticado.
               </p>
             </div>
             <div className="mt-10 grid gap-4 sm:grid-cols-3">

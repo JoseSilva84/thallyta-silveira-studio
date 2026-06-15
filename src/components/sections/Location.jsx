@@ -2,8 +2,8 @@ import { FiClock, FiMapPin, FiNavigation, FiInstagram, FiPhone } from 'react-ico
 import Reveal from '../ui/Reveal.jsx'
 import SectionTitle from '../ui/SectionTitle.jsx'
 
-const mapUrl = 'https://www.google.com/maps?q=Rua%20Jos%C3%A9%20Firmino%20da%20Costa%2C%20Centro%2C%20481&output=embed'
-const directionsUrl = 'https://www.google.com/maps/search/?api=1&query=Rua%20Jos%C3%A9%20Firmino%20da%20Costa%2C%20Centro%2C%20481'
+const mapUrl = 'https://www.google.com/maps?q=Rua%20Jos%C3%A9%20Firmino%20da%20Costa%2C%20481%2C%20Centro%2C%20Jaguaribe%2C%20CE%2C%2063745-000&output=embed'
+const directionsUrl = 'https://www.google.com/maps/search/?api=1&query=Rua%20Jos%C3%A9%20Firmino%20da%20Costa%2C%20481%2C%20Centro%2C%20Jaguaribe%2C%20CE%2C%2063745-000'
 
 export default function Location() {
   return (
@@ -25,7 +25,11 @@ export default function Location() {
                   <FiMapPin />
                 </div>
                 <h3 className="font-display text-4xl leading-tight">Studio de Beleza<br/><span className="text-gold-light italic">Thallyta Silveira</span></h3>
-                <p className="mt-5 text-lg leading-relaxed text-cream/80">Rua José Firmino da Costa, Centro, 481 — Ao lado do Carmela Dutra</p>
+                <address className="mt-5 text-lg not-italic leading-relaxed text-cream/80">
+                  Rua José Firmino da Costa, 481, Centro<br />
+                  Jaguaribe - CE, CEP 63745-000<br />
+                  <span className="text-cream/60">Ao lado do Carmela Dutra</span>
+                </address>
                 
                 <div className="mt-8 flex gap-4 rounded-2xl border border-white/5 bg-white/5 p-5 backdrop-blur transition-all hover:border-gold/20 hover:bg-white/10">
                   <FiClock className="mt-1 text-xl text-gold-light drop-shadow-[0_0_8px_rgba(217,177,92,0.5)]" />
