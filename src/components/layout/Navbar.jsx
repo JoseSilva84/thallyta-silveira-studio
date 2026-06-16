@@ -138,19 +138,16 @@ export default function Navbar() {
             <a
               href="#inicio"
               className={`tap-gold flex items-center gap-3 rounded-full px-1 py-1 ${isActive('#inicio') ? 'brand-active' : ''}`}
-              aria-label="Studio de Beleza Thallyta Silveira"
+              aria-label={`Studio de Beleza Thallyta Silveira - ${studioStatus.label}`}
               aria-current={isActive('#inicio') ? 'page' : undefined}
+              title={`${studioStatus.label} - ${studioStatus.detail}`}
             >
-              <span className="silver-glow grid size-11 place-items-center rounded-full border border-gold/50 bg-black/20 font-display text-xl font-bold text-gold-light">TS</span>
+              <span className="silver-glow relative grid size-11 place-items-center rounded-full border border-gold/50 bg-black/20 font-display text-xl font-bold text-gold-light">
+                TS
+                <span className={`absolute -right-0.5 bottom-0 size-3 rounded-full border-2 border-[#332d22] ${statusDotClass}`} aria-hidden="true"></span>
+              </span>
               <span className="hidden font-display text-xl font-semibold text-cream sm:block">Thallyta Silveira</span>
             </a>
-
-            <div className="hidden min-w-28 rounded-full border border-white/10 bg-black/20 px-3 py-1.5 xl:block" title={studioStatus.detail}>
-              <span className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider">
-                <span className={`size-2 rounded-full ${statusDotClass}`} aria-hidden="true"></span>
-                <span className={statusTextClass}>{studioStatus.label}</span>
-              </span>
-            </div>
 
             <div className="hidden items-center gap-2 lg:flex">
               {links.map(([label, href]) => (
