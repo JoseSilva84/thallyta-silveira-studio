@@ -2205,8 +2205,9 @@ function ScheduleBlocksTab({ blocks, fetching, onRefresh, onCreate, onDelete }) 
                 min={todayLocal}
                 value={form.date}
                 onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
+                onClick={(e) => e.target.showPicker()}
                 required
-                className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-cream outline-none focus:border-gold/50 focus:ring-1 focus:ring-gold/20"
+                className="w-full cursor-pointer rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-cream outline-none focus:border-gold/50 focus:ring-1 focus:ring-gold/20"
               />
             </div>
 
