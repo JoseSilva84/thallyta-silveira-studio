@@ -8,6 +8,7 @@ import authRoutes from './routes/authRoutes.js';
 import webhookRoutes from './routes/webhookRoutes.js';
 import bookingRoutes from './routes/bookingRoutes.js';
 import testimonialRoutes from './routes/testimonialRoutes.js';
+import scheduleBlockRoutes from './routes/scheduleBlockRoutes.js';
 import { startBookingReminderService } from './services/bookingReminderService.js';
 
 dotenv.config();
@@ -55,6 +56,7 @@ app.use('/api/gallery', galleryRoutes);
 app.use('/api/webhooks', webhookRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/testimonials', testimonialRoutes);
+app.use('/api/schedule-blocks', scheduleBlockRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', timestamp: new Date() }));

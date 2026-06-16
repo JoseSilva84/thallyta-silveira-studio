@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 import {
   FiBarChart2,
+  FiAlertTriangle,
   FiAward,
   FiCalendar,
   FiCheckCircle,
@@ -20,6 +21,7 @@ import {
   FiSearch,
   FiStar,
   FiClock,
+  FiSlash,
   FiTrash2,
   FiTrendingUp,
   FiUploadCloud,
@@ -57,6 +59,10 @@ export default function AdminPanel() {
   const [fetchingBookings, setFetchingBookings] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
   const [clientSearch, setClientSearch] = useState('');
+
+  // ── Schedule Blocks ──────────────────────────────────────────────
+  const [scheduleBlocks, setScheduleBlocks] = useState([]);
+  const [fetchingBlocks, setFetchingBlocks] = useState(false);
 
   const [testimonials, setTestimonials] = useState([]);
   const [fetchingTestimonials, setFetchingTestimonials] = useState(true);
@@ -111,16 +117,65 @@ export default function AdminPanel() {
     }
   }, [getToken]);
 
+  const fetchScheduleBlocks = useCallback(async () => {
+    try {
+      setFetchingBlocks(true);
+      const res = await fetch(`${API}/schedule-blocks`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      if (!res.ok) throw new Error('Falha ao buscar bloqueios');
+      setScheduleBlocks(await res.json());
+    } catch (error) {
+      toast.error('Erro ao carregar bloqueios de agenda');
+      console.error(error);
+    } finally {
+      setFetchingBlocks(false);
+    }
+  }, [getToken]);
+
+  const handleCreateBlock = async (payload) => {
+    const res = await fetch(`${API}/schedule-blocks`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${getToken()}`,
+      },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erro ao criar bloqueio');
+    setScheduleBlocks((prev) => [data, ...prev]);
+    return data;
+  };
+
+  const handleDeleteBlock = async (uid) => {
+    const res = await fetch(`${API}/schedule-blocks/${uid}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Erro ao remover bloqueio');
+    setScheduleBlocks((prev) => prev.filter((b) => b.uid !== uid));
+  };
+
   useEffect(() => {
     fetchImages();
     fetchBookings();
     fetchTestimonials();
   }, [fetchBookings, fetchImages, fetchTestimonials]);
 
+  // Carrega bloqueios quando a aba é aberta pela primeira vez
+  useEffect(() => {
+    if (activeTab === 'blocks' && scheduleBlocks.length === 0 && !fetchingBlocks) {
+      fetchScheduleBlocks();
+    }
+  }, [activeTab, fetchScheduleBlocks, scheduleBlocks.length, fetchingBlocks]);
+
   const refreshAll = () => {
     fetchBookings();
     fetchImages();
     fetchTestimonials();
+    if (activeTab === 'blocks') fetchScheduleBlocks();
   };
 
   const handleUpload = async (e) => {
@@ -381,6 +436,7 @@ export default function AdminPanel() {
           <TabButton active={activeTab === 'clients'} icon={<FiUsers />} label="Clientes" count={clientProfiles.length} onClick={() => setActiveTab('clients')} />
           <TabButton active={activeTab === 'gallery'} icon={<FiImage />} label="Galeria" count={images.length} onClick={() => setActiveTab('gallery')} />
           <TabButton active={activeTab === 'testimonials'} icon={<FiMessageSquare />} label="Depoimentos" count={testimonials.length} onClick={() => setActiveTab('testimonials')} />
+          <TabButton active={activeTab === 'blocks'} icon={<FiSlash />} label="Bloqueios" count={scheduleBlocks.length || undefined} onClick={() => setActiveTab('blocks')} />
         </div>
 
         {activeTab === 'bookings' && (
@@ -501,6 +557,16 @@ export default function AdminPanel() {
             onEdit={setTestimonialForm}
             onDelete={handleDeleteTestimonial}
             onToggle={toggleTestimonial}
+          />
+        )}
+
+        {activeTab === 'blocks' && (
+          <ScheduleBlocksTab
+            blocks={scheduleBlocks}
+            fetching={fetchingBlocks}
+            onRefresh={fetchScheduleBlocks}
+            onCreate={handleCreateBlock}
+            onDelete={handleDeleteBlock}
           />
         )}
       </div>
@@ -2007,3 +2073,305 @@ function statusBadge(status) {
   const item = map[status] || { label: status || 'Status', classes: 'border-white/20 bg-white/5 text-cream/60' };
   return <span className={`inline-block rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wider ${item.classes}`}>{item.label}</span>;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ScheduleBlocksTab — Aba de Bloqueios de Agenda (integração Cal.com Out of Office)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const emptyBlockForm = {
+  date: '',
+  allDay: true,
+  startTime: '09:00',
+  endTime: '18:00',
+  reason: '',
+};
+
+function ScheduleBlocksTab({ blocks, fetching, onRefresh, onCreate, onDelete }) {
+  const [form, setForm] = useState(emptyBlockForm);
+  const [saving, setSaving] = useState(false);
+
+  // Data mínima = hoje no fuso local
+  const todayLocal = new Date().toLocaleDateString('en-CA'); // "YYYY-MM-DD"
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.date) {
+      toast.warning('Selecione uma data para o bloqueio.');
+      return;
+    }
+    if (!form.allDay && form.startTime >= form.endTime) {
+      toast.warning('O horário de início deve ser anterior ao horário de fim.');
+      return;
+    }
+    try {
+      setSaving(true);
+      await onCreate({
+        date: form.date,
+        allDay: form.allDay,
+        startTime: form.allDay ? undefined : form.startTime,
+        endTime: form.allDay ? undefined : form.endTime,
+        reason: form.reason.trim() || undefined,
+      });
+      toast.success('Bloqueio criado! O Cal.com já impedirá novos agendamentos nesse período.');
+      setForm(emptyBlockForm);
+    } catch (error) {
+      toast.error(error.message || 'Erro ao criar bloqueio.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = (uid) => {
+    showConfirmToast({
+      message: 'Remover este bloqueio? Os clientes poderão voltar a agendar nesse horário.',
+      confirmLabel: 'Remover',
+      tone: 'danger',
+      onConfirm: async () => {
+        try {
+          await onDelete(uid);
+          toast.success('Bloqueio removido.');
+        } catch (error) {
+          toast.error(error.message || 'Erro ao remover bloqueio.');
+        }
+      },
+    });
+  };
+
+  const formatBlockPeriod = (block) => {
+    const start = new Date(block.start);
+    const end = new Date(block.end);
+    const dateStr = start.toLocaleDateString('pt-BR', {
+      weekday: 'short',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      timeZone: 'America/Fortaleza',
+    });
+    const startTime = start.toLocaleTimeString('pt-BR', {
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'America/Fortaleza',
+    });
+    const endTime = end.toLocaleTimeString('pt-BR', {
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'America/Fortaleza',
+    });
+
+    const isAllDay =
+      startTime === '00:00' && (endTime === '23:59' || endTime === '00:00');
+
+    return {
+      date: dateStr,
+      time: isAllDay ? 'Dia inteiro' : `${startTime} – ${endTime}`,
+      isAllDay,
+    };
+  };
+
+  return (
+    <div className="space-y-8">
+      {/* Informativo */}
+      <div className="flex items-start gap-3 rounded-2xl border border-amber-300/20 bg-amber-300/5 p-5 text-amber-100">
+        <FiAlertTriangle className="mt-0.5 shrink-0 text-amber-400" size={18} />
+        <div>
+          <p className="text-sm font-semibold">Como funciona o bloqueio</p>
+          <p className="mt-1 text-xs text-amber-200/80 leading-relaxed">
+            Ao criar um bloqueio aqui, o Cal.com marca automaticamente esse período como{' '}
+            <strong>indisponível</strong>. Nenhum cliente conseguirá agendar nesses dias ou
+            horários. Os agendamentos já existentes <strong>não</strong> são cancelados
+            automaticamente.
+          </p>
+        </div>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Formulário de criação */}
+        <div className="rounded-2xl border border-gold/20 bg-black/40 p-6 backdrop-blur-md">
+          <h2 className="mb-5 flex items-center gap-2 text-lg font-semibold text-gold">
+            <FiSlash className="text-gold" /> Novo Bloqueio
+          </h2>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Data */}
+            <div>
+              <label htmlFor="block-date" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-cream/60">
+                Data
+              </label>
+              <input
+                type="date"
+                id="block-date"
+                min={todayLocal}
+                value={form.date}
+                onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
+                required
+                className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-cream outline-none focus:border-gold/50 focus:ring-1 focus:ring-gold/20"
+              />
+            </div>
+
+            {/* Tipo de bloqueio */}
+            <div>
+              <p className="mb-2 text-xs font-bold uppercase tracking-wider text-cream/60">
+                Tipo
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, allDay: true }))}
+                  className={`flex-1 rounded-xl border py-3 text-sm font-semibold transition-all ${
+                    form.allDay
+                      ? 'border-gold bg-gold/10 text-gold'
+                      : 'border-white/10 text-cream/50 hover:border-gold/30 hover:text-cream'
+                  }`}
+                >
+                  Dia inteiro
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, allDay: false }))}
+                  className={`flex-1 rounded-xl border py-3 text-sm font-semibold transition-all ${
+                    !form.allDay
+                      ? 'border-gold bg-gold/10 text-gold'
+                      : 'border-white/10 text-cream/50 hover:border-gold/30 hover:text-cream'
+                  }`}
+                >
+                  Horário específico
+                </button>
+              </div>
+            </div>
+
+            {/* Horários (apenas se parcial) */}
+            {!form.allDay && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="block-start-time" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-cream/60">
+                    Das
+                  </label>
+                  <input
+                    type="time"
+                    id="block-start-time"
+                    value={form.startTime}
+                    onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))}
+                    className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-cream outline-none focus:border-gold/50 focus:ring-1 focus:ring-gold/20"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="block-end-time" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-cream/60">
+                    Até
+                  </label>
+                  <input
+                    type="time"
+                    id="block-end-time"
+                    value={form.endTime}
+                    onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))}
+                    className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-cream outline-none focus:border-gold/50 focus:ring-1 focus:ring-gold/20"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Motivo */}
+            <div>
+              <label htmlFor="block-reason" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-cream/60">
+                Motivo <span className="font-normal normal-case text-cream/30">(opcional)</span>
+              </label>
+              <input
+                type="text"
+                id="block-reason"
+                placeholder="Ex: Compromisso pessoal, Férias, Evento..."
+                value={form.reason}
+                onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
+                maxLength={200}
+                className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-cream placeholder-cream/20 outline-none focus:border-gold/50 focus:ring-1 focus:ring-gold/20"
+              />
+            </div>
+
+            <button
+              type="submit"
+              id="block-submit"
+              disabled={saving}
+              className="gold-button w-full rounded-xl px-4 py-3.5 text-sm font-bold disabled:opacity-50"
+            >
+              {saving ? 'Criando bloqueio...' : 'Bloquear agenda no Cal.com'}
+            </button>
+          </form>
+        </div>
+
+        {/* Lista de bloqueios ativos */}
+        <div className="rounded-2xl border border-white/10 bg-black/30 backdrop-blur-md">
+          <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
+            <h2 className="text-lg font-semibold text-cream">
+              Bloqueios Ativos{' '}
+              {blocks.length > 0 && (
+                <span className="ml-1 rounded-full bg-red-500/20 px-2 py-0.5 text-xs font-bold text-red-300">
+                  {blocks.length}
+                </span>
+              )}
+            </h2>
+            <button
+              onClick={onRefresh}
+              disabled={fetching}
+              className="flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-1.5 text-xs text-cream/50 hover:border-gold/30 hover:text-gold disabled:opacity-50"
+            >
+              <FiRefreshCw className={fetching ? 'animate-spin' : ''} size={12} />
+              Atualizar
+            </button>
+          </div>
+
+          <div className="divide-y divide-white/5">
+            {fetching ? (
+              <div className="flex flex-col items-center gap-3 py-12 text-cream/30">
+                <FiRefreshCw className="animate-spin" size={24} />
+                <span className="text-sm">Buscando bloqueios no Cal.com...</span>
+              </div>
+            ) : blocks.length === 0 ? (
+              <div className="flex flex-col items-center gap-3 py-12 text-cream/30">
+                <FiCalendar size={32} className="opacity-30" />
+                <div className="text-center">
+                  <p className="text-sm font-semibold">Nenhum bloqueio ativo</p>
+                  <p className="mt-1 text-xs">A agenda está completamente aberta.</p>
+                </div>
+              </div>
+            ) : (
+              blocks.map((block) => {
+                const { date, time, isAllDay } = formatBlockPeriod(block);
+                return (
+                  <div
+                    key={block.uid}
+                    className="flex items-start justify-between gap-4 px-6 py-4 transition-colors hover:bg-white/[0.03]"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-semibold capitalize text-cream">{date}</span>
+                        <span
+                          className={`rounded-full border px-2.5 py-0.5 text-[0.65rem] font-bold uppercase tracking-wider ${
+                            isAllDay
+                              ? 'border-red-400/30 bg-red-400/10 text-red-300'
+                              : 'border-amber-400/30 bg-amber-400/10 text-amber-300'
+                          }`}
+                        >
+                          {isAllDay ? 'Dia inteiro' : time}
+                        </span>
+                      </div>
+                      {block.reason && (
+                        <p className="mt-1 truncate text-xs text-cream/50">{block.reason}</p>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => handleDelete(block.uid)}
+                      className="shrink-0 rounded-lg border border-red-500/20 bg-red-500/5 p-2 text-red-400 transition-colors hover:border-red-500/40 hover:bg-red-500/15"
+                      title="Remover bloqueio"
+                      aria-label="Remover bloqueio"
+                    >
+                      <FiTrash2 size={14} />
+                    </button>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
