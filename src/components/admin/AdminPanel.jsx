@@ -756,6 +756,7 @@ function CompletionAction({ booking, onCompleteService, onUndoCompleteService, o
 function CalendarView({ days, monthLabel, onPrev, onNext, statusBadge, formatTime }) {
   const todayKey = dateKey(new Date());
   const [selectedDay, setSelectedDay] = useState(null);
+  const [selectedBooking, setSelectedBooking] = useState(null);
 
   return (
     <div className="rounded-2xl border border-gold/20 bg-black/40 p-4 backdrop-blur-md md:p-6">
@@ -799,7 +800,7 @@ function CalendarView({ days, monthLabel, onPrev, onNext, statusBadge, formatTim
               </div>
               <div className="space-y-2">
                 {visibleBookings.map((booking) => (
-                  <CalendarBookingCard key={booking.id} booking={booking} formatTime={formatTime} />
+                  <CalendarBookingCard key={booking.id} booking={booking} formatTime={formatTime} onBookingClick={setSelectedBooking} />
                 ))}
                 {hiddenCount > 0 && (
                   <button
@@ -825,12 +826,20 @@ function CalendarView({ days, monthLabel, onPrev, onNext, statusBadge, formatTim
         onClose={() => setSelectedDay(null)}
         statusBadge={statusBadge}
         formatTime={formatTime}
+        onBookingClick={setSelectedBooking}
+      />
+
+      <BookingDetailModal
+        booking={selectedBooking}
+        onClose={() => setSelectedBooking(null)}
+        statusBadge={statusBadge}
+        formatTime={formatTime}
       />
     </div>
   );
 }
 
-function CalendarBookingCard({ booking, formatTime }) {
+function CalendarBookingCard({ booking, formatTime, onBookingClick }) {
   const client = booking.attendeeName || booking.user?.name || 'Cliente';
   const contact = booking.attendeeEmail || booking.user?.email || booking.attendeePhone || booking.user?.whatsappPhone || 'Contato nao informado';
   const isCompleted = Boolean(booking.serviceCompletedAt);
@@ -841,6 +850,7 @@ function CalendarBookingCard({ booking, formatTime }) {
     <div className="group relative">
       <button
         type="button"
+        onClick={() => onBookingClick && onBookingClick(booking)}
         className={`w-full cursor-pointer rounded-lg border p-2 text-left transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_30px_rgba(0,0,0,0.35)] ${
           isCancelled || isNoShow
             ? 'border-red-500/20 bg-red-500/[0.06]'
@@ -880,7 +890,7 @@ function CalendarBookingCard({ booking, formatTime }) {
   );
 }
 
-function DayAgendaModal({ day, onClose, statusBadge, formatTime }) {
+function DayAgendaModal({ day, onClose, statusBadge, formatTime, onBookingClick }) {
   if (!day) return null;
 
   const title = day.date.toLocaleDateString('pt-BR', {
@@ -922,7 +932,11 @@ function DayAgendaModal({ day, onClose, statusBadge, formatTime }) {
               const loyalty = ['cancelled', 'no_show'].includes(booking.status) ? 'Sem fidelidade' : booking.serviceCompletedAt ? 'Fidelidade liberada' : 'Fidelidade pendente';
 
               return (
-                <article key={booking.id} className="rounded-2xl border border-white/10 bg-white/[0.035] p-4 transition hover:border-gold/25 hover:bg-gold/[0.045]">
+                <article
+                  key={booking.id}
+                  onClick={() => onBookingClick && onBookingClick(booking)}
+                  className="cursor-pointer rounded-2xl border border-white/10 bg-white/[0.035] p-4 transition hover:-translate-y-0.5 hover:border-gold/25 hover:bg-gold/[0.045] hover:shadow-lg"
+                >
                   <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
@@ -950,6 +964,99 @@ function DayAgendaModal({ day, onClose, statusBadge, formatTime }) {
     </div>
   );
 }
+
+function BookingDetailModal({ booking, onClose, statusBadge, formatTime }) {
+  if (!booking) return null;
+
+  const client = booking.attendeeName || booking.user?.name || 'Cliente';
+  const contact = booking.attendeeEmail || booking.user?.email || booking.attendeePhone || booking.user?.whatsappPhone || 'Contato não informado';
+  const value = formatCurrency(booking.estimatedValue);
+  const loyalty = ['cancelled', 'no_show'].includes(booking.status) ? 'Sem fidelidade' : booking.serviceCompletedAt ? 'Fidelidade liberada' : 'Fidelidade pendente';
+
+  const dateStr = new Date(booking.scheduledAt).toLocaleDateString('pt-BR', {
+    weekday: 'long',
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  });
+
+  return (
+    <div className="fixed inset-0 z-[100] grid place-items-center bg-black/70 px-4 py-6 backdrop-blur-sm">
+      <div className="w-full max-w-md overflow-hidden rounded-3xl border border-gold/25 bg-[#100d0a] shadow-[0_28px_90px_rgba(0,0,0,0.75)]">
+        <div className="border-b border-gold/15 bg-gradient-to-r from-gold/15 via-white/[0.03] to-transparent p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-gold-light/70">Detalhes do Agendamento</p>
+              <h2 className="mt-1 font-display text-2xl font-semibold capitalize text-gold-light">
+                {dateStr}
+              </h2>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="grid size-10 place-items-center rounded-full border border-white/10 text-cream/60 transition hover:border-gold/30 hover:bg-gold/10 hover:text-gold"
+              aria-label="Fechar detalhes do agendamento"
+            >
+              <FiX />
+            </button>
+          </div>
+        </div>
+
+        <div className="p-6">
+          <div className="mb-6 flex flex-wrap items-center gap-2">
+            <span className="rounded-full border border-gold/25 bg-gold/10 px-3 py-1 text-sm font-bold text-gold-light">
+              {formatTime(booking.scheduledAt)}
+              {booking.endTime && ` - ${formatTime(booking.endTime)}`}
+            </span>
+            {statusBadge(booking.status)}
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <p className="text-[0.65rem] font-bold uppercase tracking-wider text-cream/40">Cliente</p>
+              <p className="text-base font-semibold text-cream">{client}</p>
+              <p className="text-sm text-cream/60">{contact}</p>
+            </div>
+
+            <div>
+              <p className="text-[0.65rem] font-bold uppercase tracking-wider text-cream/40">Serviço</p>
+              <p className="text-base font-medium text-cream">{booking.service || 'Serviço não informado'}</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-[0.65rem] font-bold uppercase tracking-wider text-cream/40">Valor Estimado</p>
+                <p className="text-base font-bold text-gold-light">{value}</p>
+              </div>
+              <div>
+                <p className="text-[0.65rem] font-bold uppercase tracking-wider text-cream/40">Status Fidelidade</p>
+                <p className="text-sm font-medium text-cream/80">{loyalty}</p>
+              </div>
+            </div>
+
+            {booking.notes && (
+              <div>
+                <p className="text-[0.65rem] font-bold uppercase tracking-wider text-cream/40">Observações do Cliente</p>
+                <p className="mt-1 rounded-xl border border-white/10 bg-black/25 p-3 text-sm text-cream/80">
+                  {booking.notes}
+                </p>
+              </div>
+            )}
+            {booking.adminNotes && (
+              <div>
+                <p className="text-[0.65rem] font-bold uppercase tracking-wider text-gold/60">Anotações Internas</p>
+                <p className="mt-1 rounded-xl border border-gold/10 bg-gold/5 p-3 text-sm text-gold-light">
+                  {booking.adminNotes}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 function AnalyticsView({ analytics }) {
   return (
