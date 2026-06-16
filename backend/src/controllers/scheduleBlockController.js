@@ -78,10 +78,10 @@ export async function listScheduleBlocks(req, res) {
 
     // Normaliza a resposta para o frontend
     const blocks = (data?.data ?? []).map((item) => ({
-      uid: item.uid ?? item.id,
+      uid: item.id, // DELETE precisa do ID numérico
       start: item.start,
       end: item.end,
-      reason: item.reason ?? item.notes ?? '',
+      reason: item.notes ?? item.reason ?? '',
       createdAt: item.createdAt,
     }));
 
@@ -122,9 +122,6 @@ export async function createScheduleBlock(req, res) {
   const payload = {
     start,
     end,
-    notes: reason || 'Bloqueio de agenda',
-    // reason é um enum no Cal.com — usamos "other" para manter genérico
-    reason: 'other',
   };
 
   try {
@@ -145,10 +142,10 @@ export async function createScheduleBlock(req, res) {
 
     const created = data?.data ?? data;
     return res.status(201).json({
-      uid: created.uid ?? created.id,
+      uid: created.id,
       start: created.start,
       end: created.end,
-      reason: created.notes ?? reason ?? '',
+      reason: created.notes ?? created.reason ?? reason ?? '',
       createdAt: created.createdAt,
     });
   } catch (error) {
