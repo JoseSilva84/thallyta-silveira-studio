@@ -22,5 +22,8 @@
     "react-toastify": "latest",
     "tailwindcss": "latest",
     "vite": "latest"
+  },
+  "devDependencies": {
+    "vite-plugin-pwa": "^1.3.0"
   }
 }

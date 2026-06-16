@@ -56,7 +56,7 @@ body::before {
   inset: -32px;
   z-index: -3;
   pointer-events: none;
-  background-image: url("/img/studio-04.jpeg");
+  background-image: url("/img/studio-06.jpeg");
   background-position: center;
   background-size: cover;
   filter: blur(16px) brightness(0.72) saturate(0.98);
