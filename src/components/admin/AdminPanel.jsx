@@ -733,21 +733,21 @@ function CompletionAction({ booking, onCompleteService, onUndoCompleteService, o
   }
 
   return (
-    <div className="flex flex-col gap-2 min-w-[150px]">
+    <div className="flex flex-col gap-2 w-max">
       <button
         onClick={() => onCompleteService(booking)}
-        className="group relative inline-flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-xs font-bold tracking-wider text-emerald-400 transition-all hover:bg-emerald-500/20 hover:text-emerald-300"
+        className="group relative inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-xs font-bold tracking-wider text-emerald-400 transition-all hover:bg-emerald-500/20 hover:text-emerald-300"
       >
         <FiCheckCircle className="size-4 shrink-0" />
-        <span>Confirmar ida</span>
+        <span className="whitespace-nowrap">Confirmar ida</span>
       </button>
       
       <button
         onClick={() => onMarkNoShow?.(booking)}
-        className="group relative inline-flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-2 text-[0.65rem] font-bold uppercase tracking-wider text-red-400/80 transition-all hover:bg-red-500/15 hover:text-red-300"
+        className="group relative inline-flex items-center justify-center gap-2 rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-2 text-[0.65rem] font-bold uppercase tracking-wider text-red-400/80 transition-all hover:bg-red-500/15 hover:text-red-300"
       >
         <FiX className="size-3.5 shrink-0" />
-        <span>Não compareceu</span>
+        <span className="whitespace-nowrap">Não compareceu</span>
       </button>
     </div>
   );
