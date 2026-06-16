@@ -493,6 +493,10 @@ export default function AdminPanel() {
                 onNext={() => moveMonth(1)}
                 statusBadge={statusBadge}
                 formatTime={formatTime}
+                onFilterClick={(status) => {
+                  setStatusFilter(status);
+                  setBookingView('table');
+                }}
               />
             ) : (
               <BookingsTable
@@ -761,7 +765,7 @@ function CompletionAction({ booking, onCompleteService, onUndoCompleteService, o
   );
 }
 
-function CalendarView({ days, monthLabel, onPrev, onNext, statusBadge, formatTime }) {
+function CalendarView({ days, monthLabel, onPrev, onNext, statusBadge, formatTime, onFilterClick }) {
   const todayKey = dateKey(new Date());
   const [selectedDay, setSelectedDay] = useState(null);
   const [selectedBooking, setSelectedBooking] = useState(null);
@@ -826,7 +830,14 @@ function CalendarView({ days, monthLabel, onPrev, onNext, statusBadge, formatTim
       </div>
 
       <div className="mt-5 flex flex-wrap gap-2">
-        {['confirmed', 'rescheduled', 'cancelled', 'no_show'].map((status) => <span key={status}>{statusBadge(status)}</span>)}
+        <button type="button" onClick={() => onFilterClick && onFilterClick('all')} className="cursor-pointer transition hover:scale-105 active:scale-95">
+          <span className="inline-block rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wider border-white/20 bg-white/5 text-cream/60">Todos</span>
+        </button>
+        {['confirmed', 'rescheduled', 'cancelled', 'no_show'].map((status) => (
+          <button key={status} type="button" onClick={() => onFilterClick && onFilterClick(status)} className="cursor-pointer transition hover:scale-105 active:scale-95">
+            {statusBadge(status)}
+          </button>
+        ))}
       </div>
 
       <DayAgendaModal
