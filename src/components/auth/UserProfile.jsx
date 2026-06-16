@@ -74,45 +74,47 @@ export default function UserProfile() {
       </button>
       {open && (
         <div className="gold-border absolute right-0 mt-3 w-72 rounded-lg bg-dark-card/95 p-2 shadow-xl">
-          {editingWhatsapp ? (
-            <form onSubmit={saveWhatsapp} className="mb-2 rounded-md border border-white/10 bg-white/5 p-3">
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <span className="text-xs font-semibold text-cream/70">Editar WhatsApp</span>
-                <button type="button" onClick={cancelWhatsappEditing} className="text-cream/50 hover:text-cream" aria-label="Cancelar edicao">
-                  <FiX />
+          {!isAdmin && (
+            editingWhatsapp ? (
+              <form onSubmit={saveWhatsapp} className="mb-2 rounded-md border border-white/10 bg-white/5 p-3">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <span className="text-xs font-semibold text-cream/70">Editar WhatsApp</span>
+                  <button type="button" onClick={cancelWhatsappEditing} className="text-cream/50 hover:text-cream" aria-label="Cancelar edicao">
+                    <FiX />
+                  </button>
+                </div>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(event) => setPhone(formatBrazilWhatsappInput(event.target.value))}
+                  placeholder="(DDD) numero"
+                  inputMode="numeric"
+                  autoFocus
+                  className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-cream outline-none focus:border-gold/50"
+                />
+                <p className="mt-2 text-[11px] leading-relaxed text-cream/45">
+                  Digite seu numero normalmente, com DDD e o nono digito quando houver.
+                </p>
+                {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="mt-3 w-full rounded-lg bg-gold px-3 py-2 text-xs font-bold text-dark disabled:opacity-50"
+                >
+                  {loading ? 'Salvando...' : 'Salvar numero'}
                 </button>
-              </div>
-              <input
-                type="tel"
-                value={phone}
-                onChange={(event) => setPhone(formatBrazilWhatsappInput(event.target.value))}
-                placeholder="(DDD) numero"
-                inputMode="numeric"
-                autoFocus
-                className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-cream outline-none focus:border-gold/50"
-              />
-              <p className="mt-2 text-[11px] leading-relaxed text-cream/45">
-                Digite seu numero normalmente, com DDD e o nono digito quando houver.
-              </p>
-              {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
+              </form>
+            ) : (
               <button
-                type="submit"
-                disabled={loading}
-                className="mt-3 w-full rounded-lg bg-gold px-3 py-2 text-xs font-bold text-dark disabled:opacity-50"
+                type="button"
+                onClick={startWhatsappEditing}
+                className="tap-gold mb-1 flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs text-cream/60 hover:bg-white/10"
               >
-                {loading ? 'Salvando...' : 'Salvar numero'}
+                <FiPhone className="text-gold" />
+                <span className="flex-1">{user.whatsappPhone ? formatBrazilWhatsappDisplay(user.whatsappPhone) : 'Adicionar WhatsApp'}</span>
+                <FiEdit2 />
               </button>
-            </form>
-          ) : (
-            <button
-              type="button"
-              onClick={startWhatsappEditing}
-              className="tap-gold mb-1 flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs text-cream/60 hover:bg-white/10"
-            >
-              <FiPhone className="text-gold" />
-              <span className="flex-1">{user.whatsappPhone ? formatBrazilWhatsappDisplay(user.whatsappPhone) : 'Adicionar WhatsApp'}</span>
-              <FiEdit2 />
-            </button>
+            )
           )}
           {isAdmin && (
             <Link

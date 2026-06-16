@@ -67,7 +67,7 @@ export default function Navbar() {
   const [editingWhatsapp, setEditingWhatsapp] = useState(false)
   const [phone, setPhone] = useState('')
   const [phoneError, setPhoneError] = useState('')
-  const { user, setLoginOpen, logout, loading, updateWhatsapp } = useAuth()
+  const { user, isAdmin, setLoginOpen, logout, loading, updateWhatsapp } = useAuth()
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -239,49 +239,60 @@ export default function Navbar() {
                       </p>
                     </div>
                   </div>
-                  {editingWhatsapp ? (
-                    <form onSubmit={saveWhatsapp} className="mb-2 rounded-xl border border-white/10 bg-white/5 p-3">
-                      <div className="mb-2 flex items-center justify-between">
-                        <span className="text-xs font-semibold text-cream/70">Editar WhatsApp</span>
+                  {!isAdmin && (
+                    editingWhatsapp ? (
+                      <form onSubmit={saveWhatsapp} className="mb-2 rounded-xl border border-white/10 bg-white/5 p-3">
+                        <div className="mb-2 flex items-center justify-between">
+                          <span className="text-xs font-semibold text-cream/70">Editar WhatsApp</span>
+                          <button
+                            type="button"
+                            onClick={() => setEditingWhatsapp(false)}
+                            className="text-cream/50 hover:text-cream"
+                            aria-label="Cancelar edição"
+                          >
+                            <FiX />
+                          </button>
+                        </div>
+                        <input
+                          type="tel"
+                          value={phone}
+                          onChange={(event) => setPhone(formatBrazilWhatsappInput(event.target.value))}
+                          placeholder="WhatsApp com DDD"
+                          inputMode="numeric"
+                          autoFocus
+                          className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-cream outline-none focus:border-gold/50"
+                        />
+                        {phoneError && <p className="mt-2 text-xs text-red-400">{phoneError}</p>}
                         <button
-                          type="button"
-                          onClick={() => setEditingWhatsapp(false)}
-                          className="text-cream/50 hover:text-cream"
-                          aria-label="Cancelar edição"
+                          type="submit"
+                          disabled={loading}
+                          className="mt-3 w-full rounded-lg bg-gold px-3 py-2 text-xs font-bold text-dark disabled:opacity-50"
                         >
-                          <FiX />
+                          {loading ? 'Salvando...' : 'Salvar número'}
                         </button>
-                      </div>
-                      <input
-                        type="tel"
-                        value={phone}
-                        onChange={(event) => setPhone(formatBrazilWhatsappInput(event.target.value))}
-                        placeholder="WhatsApp com DDD"
-                        inputMode="numeric"
-                        autoFocus
-                        className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-cream outline-none focus:border-gold/50"
-                      />
-                      {phoneError && <p className="mt-2 text-xs text-red-400">{phoneError}</p>}
+                      </form>
+                    ) : (
                       <button
-                        type="submit"
-                        disabled={loading}
-                        className="mt-3 w-full rounded-lg bg-gold px-3 py-2 text-xs font-bold text-dark disabled:opacity-50"
+                        type="button"
+                        onClick={startWhatsappEditing}
+                        className="mb-1 flex w-full items-center gap-3 rounded-md px-3 py-3 text-left text-cream/80 hover:bg-white/5 hover:text-cream"
                       >
-                        {loading ? 'Salvando...' : 'Salvar número'}
+                        <FiPhone className="text-gold" />
+                        <span className="flex-1">
+                          {user.whatsappPhone ? formatBrazilWhatsappDisplay(user.whatsappPhone) : 'Adicionar WhatsApp'}
+                        </span>
+                        <FiEdit2 className="text-cream/50" />
                       </button>
-                    </form>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={startWhatsappEditing}
-                      className="mb-1 flex w-full items-center gap-3 rounded-md px-3 py-3 text-left text-cream/80 hover:bg-white/5 hover:text-cream"
+                    )
+                  )}
+                  {isAdmin && (
+                    <Link
+                      to="/admin"
+                      onClick={() => setOpen(false)}
+                      className="flex w-full items-center gap-3 rounded-md px-3 py-3 font-semibold text-gold-light hover:bg-white/5"
                     >
-                      <FiPhone className="text-gold" />
-                      <span className="flex-1">
-                        {user.whatsappPhone ? formatBrazilWhatsappDisplay(user.whatsappPhone) : 'Adicionar WhatsApp'}
-                      </span>
-                      <FiEdit2 className="text-cream/50" />
-                    </button>
+                      <FiGrid className="text-gold" /> Painel administrativo
+                    </Link>
                   )}
                   <Link
                     to="/meus-agendamentos"
