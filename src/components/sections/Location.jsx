@@ -35,8 +35,8 @@ export default function Location() {
                   <FiClock className="mt-1 text-xl text-gold-light drop-shadow-[0_0_8px_rgba(217,177,92,0.5)]" />
                   <p className="text-sm font-medium leading-relaxed text-cream/90">
                     <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-gold-light/80">Horário de Funcionamento</span>
-                    Domingo a sexta: 09:00 às 18:00<br />
-                    <span className="text-cream/50">Sábado: fechado</span>
+                    Segunda a sexta: 09:00 às 18:00<br />
+                    <span className="text-cream/50">Sábado e Domingo: fechado</span>
                   </p>
                 </div>
                 
