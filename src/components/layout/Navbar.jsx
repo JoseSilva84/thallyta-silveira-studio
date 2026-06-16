@@ -104,6 +104,9 @@ export default function Navbar() {
   const isActive = (href) => activeSection === href.slice(1)
   const statusDotClass = studioStatus.isOpen ? 'bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.75)]' : 'bg-red-400 shadow-[0_0_10px_rgba(248,113,113,0.55)]'
   const statusTextClass = studioStatus.isOpen ? 'text-emerald-200' : 'text-red-200'
+  const statusChipClass = studioStatus.isOpen
+    ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_0_18px_rgba(52,211,153,0.12)]'
+    : 'border-red-300/25 bg-red-400/10 text-red-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_0_18px_rgba(248,113,113,0.10)]'
 
   const startWhatsappEditing = () => {
     setPhone(formatBrazilWhatsappDisplay(user?.whatsappPhone))
@@ -142,12 +145,20 @@ export default function Navbar() {
               aria-current={isActive('#inicio') ? 'page' : undefined}
               title={`${studioStatus.label} - ${studioStatus.detail}`}
             >
-              <span className="silver-glow relative grid size-11 place-items-center rounded-full border border-gold/50 bg-black/20 font-display text-xl font-bold text-gold-light">
-                TS
-                <span className={`absolute -right-0.5 bottom-0 size-3 rounded-full border-2 border-[#332d22] ${statusDotClass}`} aria-hidden="true"></span>
-              </span>
+              <span className="silver-glow grid size-11 place-items-center rounded-full border border-gold/50 bg-black/20 font-display text-xl font-bold text-gold-light">TS</span>
               <span className="hidden font-display text-xl font-semibold text-cream sm:block">Thallyta Silveira</span>
             </a>
+
+            <span
+              className={`hidden h-8 items-center gap-2 rounded-full border px-3 text-[0.68rem] font-bold uppercase tracking-wider backdrop-blur-xl lg:inline-flex ${statusChipClass}`}
+              title={studioStatus.detail}
+            >
+              <span className="relative flex size-2.5" aria-hidden="true">
+                {studioStatus.isOpen && <span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-25 ${statusDotClass}`}></span>}
+                <span className={`relative inline-flex size-2.5 rounded-full ring-2 ring-white/15 ${statusDotClass}`}></span>
+              </span>
+              {studioStatus.label}
+            </span>
 
             <div className="hidden items-center gap-2 lg:flex">
               {links.map(([label, href]) => (
