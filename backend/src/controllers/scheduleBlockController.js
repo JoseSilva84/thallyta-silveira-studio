@@ -5,9 +5,9 @@
  * A CAL_API_KEY fica exclusivamente no backend; o frontend nunca a vê.
  *
  * Endpoints do Cal.com utilizados:
- *   GET    https://api.cal.com/v2/ooo          — lista períodos de ausência
- *   POST   https://api.cal.com/v2/ooo          — cria um período de ausência
- *   DELETE https://api.cal.com/v2/ooo/:uid     — remove um período de ausência
+ *   GET    https://api.cal.com/v2/me/ooo          — lista períodos de ausência
+ *   POST   https://api.cal.com/v2/me/ooo          — cria um período de ausência
+ *   DELETE https://api.cal.com/v2/me/ooo/:uid     — remove um período de ausência
  */
 
 const CAL_BASE = 'https://api.cal.com/v2';
@@ -62,7 +62,7 @@ function toUtcIso(date, time = '00:00') {
  */
 export async function listScheduleBlocks(req, res) {
   try {
-    const response = await fetch(`${CAL_BASE}/ooo`, {
+    const response = await fetch(`${CAL_BASE}/me/ooo`, {
       method: 'GET',
       headers: calHeaders(),
     });
@@ -128,7 +128,7 @@ export async function createScheduleBlock(req, res) {
   };
 
   try {
-    const response = await fetch(`${CAL_BASE}/ooo`, {
+    const response = await fetch(`${CAL_BASE}/me/ooo`, {
       method: 'POST',
       headers: calHeaders(),
       body: JSON.stringify(payload),
@@ -169,7 +169,7 @@ export async function deleteScheduleBlock(req, res) {
   }
 
   try {
-    const response = await fetch(`${CAL_BASE}/ooo/${uid}`, {
+    const response = await fetch(`${CAL_BASE}/me/ooo/${uid}`, {
       method: 'DELETE',
       headers: calHeaders(),
     });
