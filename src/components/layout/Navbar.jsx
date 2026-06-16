@@ -31,16 +31,51 @@ const mobileLinks = [
 ]
 
 const sectionIds = links.map(([, href]) => href.slice(1))
+const STUDIO_TIME_ZONE = 'America/Fortaleza'
+
+const getStudioOpenStatus = () => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: STUDIO_TIME_ZONE,
+    weekday: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(new Date())
+
+  const value = (type) => parts.find((part) => part.type === type)?.value
+  const weekday = value('weekday')
+  const hour = Number(value('hour'))
+  const minute = Number(value('minute'))
+  const minutesNow = hour * 60 + minute
+  const isWeekday = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].includes(weekday)
+  const opensAt = 9 * 60
+  const closesAt = 18 * 60
+  const isOpen = isWeekday && minutesNow >= opensAt && minutesNow < closesAt
+
+  return {
+    isOpen,
+    label: isOpen ? 'Aberto' : 'Fechado',
+    detail: 'Seg. a sex. 09:00-18:00',
+  }
+}
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false)
   const [activeSection, setActiveSection] = useState('inicio')
   const [open, setOpen] = useState(false)
+  const [studioStatus, setStudioStatus] = useState(getStudioOpenStatus)
   const [editingWhatsapp, setEditingWhatsapp] = useState(false)
   const [phone, setPhone] = useState('')
   const [phoneError, setPhoneError] = useState('')
   const { user, setLoginOpen, logout, loading, updateWhatsapp } = useAuth()
   const navigate = useNavigate()
+
+  useEffect(() => {
+    const updateStatus = () => setStudioStatus(getStudioOpenStatus())
+    updateStatus()
+    const interval = window.setInterval(updateStatus, 60 * 1000)
+    return () => window.clearInterval(interval)
+  }, [])
 
   useEffect(() => {
     const onScroll = () => {
@@ -67,6 +102,8 @@ export default function Navbar() {
   }, [])
 
   const isActive = (href) => activeSection === href.slice(1)
+  const statusDotClass = studioStatus.isOpen ? 'bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.75)]' : 'bg-red-400 shadow-[0_0_10px_rgba(248,113,113,0.55)]'
+  const statusTextClass = studioStatus.isOpen ? 'text-emerald-200' : 'text-red-200'
 
   const startWhatsappEditing = () => {
     setPhone(formatBrazilWhatsappDisplay(user?.whatsappPhone))
@@ -108,6 +145,13 @@ export default function Navbar() {
               <span className="hidden font-display text-xl font-semibold text-cream sm:block">Thallyta Silveira</span>
             </a>
 
+            <div className="hidden min-w-28 rounded-full border border-white/10 bg-black/20 px-3 py-1.5 xl:block" title={studioStatus.detail}>
+              <span className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider">
+                <span className={`size-2 rounded-full ${statusDotClass}`} aria-hidden="true"></span>
+                <span className={statusTextClass}>{studioStatus.label}</span>
+              </span>
+            </div>
+
             <div className="hidden items-center gap-2 lg:flex">
               {links.map(([label, href]) => (
                 <a key={href} href={href} className={`nav-link px-3 py-2 text-sm ${isActive(href) ? 'active' : ''}`} aria-current={isActive(href) ? 'page' : undefined}>
@@ -141,7 +185,13 @@ export default function Navbar() {
         <div className="fixed inset-0 z-[70] bg-black/70 backdrop-blur-sm lg:hidden">
           <aside className="frosted-panel ml-auto h-full w-80 max-w-[86vw] p-6 shadow-2xl">
             <div className="mb-8 flex items-center justify-between">
-              <span className="font-display text-2xl text-gold-light">TS</span>
+              <div>
+                <span className="font-display text-2xl text-gold-light">TS</span>
+                <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-bold uppercase tracking-wider">
+                  <span className={`size-2 rounded-full ${statusDotClass}`} aria-hidden="true"></span>
+                  <span className={statusTextClass}>{studioStatus.label}</span>
+                </div>
+              </div>
               <button onClick={() => setOpen(false)} aria-label="Fechar menu" className="tap-gold rounded-md p-2 text-cream">
                 <FiX />
               </button>
