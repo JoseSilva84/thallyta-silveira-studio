@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import {
   FiBarChart2,
@@ -63,6 +63,7 @@ export default function AdminPanel() {
   // ── Schedule Blocks ──────────────────────────────────────────────
   const [scheduleBlocks, setScheduleBlocks] = useState([]);
   const [fetchingBlocks, setFetchingBlocks] = useState(false);
+  const blocksLoadedRef = useRef(false);
 
   const [testimonials, setTestimonials] = useState([]);
   const [fetchingTestimonials, setFetchingTestimonials] = useState(true);
@@ -129,6 +130,7 @@ export default function AdminPanel() {
       toast.error('Erro ao carregar bloqueios de agenda');
       console.error(error);
     } finally {
+      blocksLoadedRef.current = true;
       setFetchingBlocks(false);
     }
   }, [getToken]);
@@ -166,10 +168,10 @@ export default function AdminPanel() {
 
   // Carrega bloqueios quando a aba é aberta pela primeira vez
   useEffect(() => {
-    if (activeTab === 'blocks' && scheduleBlocks.length === 0 && !fetchingBlocks) {
+    if (activeTab === 'blocks' && !blocksLoadedRef.current && !fetchingBlocks) {
       fetchScheduleBlocks();
     }
-  }, [activeTab, fetchScheduleBlocks, scheduleBlocks.length, fetchingBlocks]);
+  }, [activeTab, fetchScheduleBlocks, fetchingBlocks]);
 
   const refreshAll = () => {
     fetchBookings();
