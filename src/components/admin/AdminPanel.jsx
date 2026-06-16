@@ -660,45 +660,52 @@ function BookingsTable({ bookings, fetching, statusFilter, statusBadge, onComple
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-white/10 text-xs font-bold uppercase tracking-wider text-gold-light/80">
-                <th className="px-5 py-4">Cliente</th>
-                <th className="px-5 py-4">WhatsApp</th>
-                <th className="px-5 py-4">Serviço(s)</th>
-                <th className="px-5 py-4">Valor</th>
-                <th className="px-5 py-4">Data</th>
-                <th className="px-5 py-4">Horário</th>
-                <th className="px-5 py-4">Status</th>
-                <th className="px-5 py-4">Fidelidade</th>
+              <tr className="border-b border-white/10 text-xs font-bold uppercase tracking-wider text-gold-light/80 whitespace-nowrap">
+                <th className="px-4 py-3">Cliente</th>
+                <th className="px-4 py-3">Serviço(s)</th>
+                <th className="px-4 py-3">Valor</th>
+                <th className="px-4 py-3">Data / Hora</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Ação</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {bookings.map((booking) => (
-                <tr key={booking.id} className="transition-colors hover:bg-white/5">
-                  <td className="px-5 py-4">
-                    <div className="font-semibold text-cream">{booking.attendeeName || booking.user?.name || '-'}</div>
-                    <div className="text-xs text-cream/40">{booking.attendeeEmail || booking.user?.email || ''}</div>
-                  </td>
-                  <td className="px-5 py-4 text-cream/70">{booking.attendeePhone || booking.user?.whatsappPhone || '-'}</td>
-                  <td className="max-w-[240px] px-5 py-4">
-                    <span className="block truncate text-cream/80" title={booking.service}>{booking.service}</span>
-                  </td>
-                  <td className="px-5 py-4 text-cream/70">{formatCurrency(booking.estimatedValue)}</td>
-                  <td className="px-5 py-4 text-cream/70">{formatDate(booking.scheduledAt)}</td>
-                  <td className="px-5 py-4 text-cream/70">
-                    {formatTime(booking.scheduledAt)}
-                    {booking.endTime && ` - ${formatTime(booking.endTime)}`}
-                  </td>
-                  <td className="px-5 py-4">{statusBadge(booking.status)}</td>
-                  <td className="px-5 py-4">
-                    <CompletionAction
-                      booking={booking}
-                      onCompleteService={onCompleteService}
-                      onUndoCompleteService={onUndoCompleteService}
-                      onMarkNoShow={onMarkNoShow}
-                    />
-                  </td>
-                </tr>
-              ))}
+              {bookings.map((booking) => {
+                const phone = booking.attendeePhone || booking.user?.whatsappPhone || '';
+                const email = booking.attendeeEmail || booking.user?.email || '';
+                return (
+                  <tr key={booking.id} className="transition-colors hover:bg-white/5">
+                    <td className="px-4 py-3">
+                      <div className="font-semibold text-cream">{booking.attendeeName || booking.user?.name || '-'}</div>
+                      <div className="text-[0.7rem] text-cream/50 mt-0.5">
+                        {phone}
+                        {phone && email ? <span className="mx-1.5 opacity-30">•</span> : ''}
+                        {email}
+                      </div>
+                    </td>
+                    <td className="max-w-[200px] px-4 py-3">
+                      <span className="block truncate text-sm text-cream/80" title={booking.service}>{booking.service}</span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-cream/70 whitespace-nowrap">{formatCurrency(booking.estimatedValue)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="font-medium text-sm text-cream/90">{formatDate(booking.scheduledAt)}</div>
+                      <div className="text-xs text-cream/50 mt-0.5">
+                        {formatTime(booking.scheduledAt)}
+                        {booking.endTime && ` - ${formatTime(booking.endTime)}`}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">{statusBadge(booking.status)}</td>
+                    <td className="px-4 py-3 align-middle">
+                      <CompletionAction
+                        booking={booking}
+                        onCompleteService={onCompleteService}
+                        onUndoCompleteService={onUndoCompleteService}
+                        onMarkNoShow={onMarkNoShow}
+                      />
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
