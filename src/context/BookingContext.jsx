@@ -15,17 +15,13 @@ export function BookingProvider({ children }) {
   const [isBookingDetailsStep, setIsBookingDetailsStep] = useState(false)
 
   const toggleService = useCallback((service) => {
-    setSelectedServices((current) =>
-      current.some((item) => item.id === service.id)
-        ? current.filter((item) => item.id !== service.id)
-        : [...current, service],
-    )
+    setSelectedServices((current) => (current.some((item) => item.id === service.id) ? [] : [service]))
   }, [])
 
   const addService = useCallback((service) => {
     setSelectedServices((current) => {
       if (current.some((item) => item.id === service.id)) return current
-      return [...current, service]
+      return [service]
     })
   }, [])
 

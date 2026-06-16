@@ -9,7 +9,6 @@ import Reveal from '../ui/Reveal.jsx'
 import SectionTitle from '../ui/SectionTitle.jsx'
 
 const CAL_USERNAME = import.meta.env.VITE_CAL_USERNAME || 'thallyta-silveira-hxfjrf'
-const CAL_EVENT_SLUG = import.meta.env.VITE_CAL_EVENT_SLUG || '30min'
 const CAL_THEME = {
   'cal-bg': '#3d3528',
   'cal-bg-emphasis': '#514735',
@@ -26,6 +25,11 @@ const CAL_THEME = {
   'cal-brand': '#D9B15C',
   'cal-brand-emphasis': '#F7E6A8',
   'cal-brand-text': '#15120F',
+}
+
+const getCalLinkFromUrl = (url) => {
+  if (!url) return `${CAL_USERNAME}/30min`
+  return url.replace(/^https?:\/\/(?:www\.)?cal\.com\//, '').replace(/^\/+/, '')
 }
 
 export default function Booking() {
@@ -163,6 +167,8 @@ export default function Booking() {
     () => selectedServices.map((s) => s.name).join(', '),
     [selectedServices],
   )
+  const selectedService = selectedServices[0] || null
+  const selectedCalLink = useMemo(() => getCalLinkFromUrl(selectedService?.calUrl), [selectedService?.calUrl])
 
   const handleProceed = useCallback(() => {
     if (!selectedServices.length) {
@@ -257,7 +263,7 @@ export default function Booking() {
                   {/* Detalhes do agendamento */}
                   <div className="mx-auto max-w-lg space-y-4 rounded-2xl border border-gold/20 bg-gradient-to-b from-dark-card/90 to-dark/95 p-6 text-left shadow-2xl backdrop-blur-md">
                     <div>
-                      <span className="block text-xs font-bold uppercase tracking-wider text-gold-light/80">Serviços</span>
+                      <span className="block text-xs font-bold uppercase tracking-wider text-gold-light/80">Serviço</span>
                       <span className="mt-1 block text-lg font-semibold text-cream">{confirmedSummary?.services || servicesParam}</span>
                     </div>
                     <div className="h-px bg-gradient-to-r from-transparent via-gold/20 to-transparent"></div>
@@ -301,8 +307,8 @@ export default function Booking() {
                 /* ─── PASSO 1: Seleção de Serviços ─── */
                 <div className="space-y-8">
                   <section aria-labelledby="booking-services">
-                    <h3 id="booking-services" className="mb-4 font-display text-3xl">1. Escolha seus serviços</h3>
-                    <p className="mb-6 text-cream/60 text-sm">Selecione um ou mais serviços que deseja agendar.</p>
+                    <h3 id="booking-services" className="mb-4 font-display text-3xl">1. Escolha seu serviço</h3>
+                    <p className="mb-6 text-cream/60 text-sm">Selecione um serviço por agendamento para abrir a agenda com a duração correta.</p>
                     <div className="grid min-w-0 gap-4 md:grid-cols-2">
                       {allServices.map((service) => {
                         const isSelected = selectedServices.some((item) => item.id === service.id)
@@ -328,6 +334,7 @@ export default function Booking() {
                                 {service.name}
                               </span>
                               <span className="block break-words text-sm font-medium text-cream/60">{service.price}</span>
+                              {service.duration && <span className="mt-1 block text-xs font-semibold uppercase tracking-[0.16em] text-cream/40">Duração: {service.duration}</span>}
                             </span>
                           </label>
                         )
@@ -340,11 +347,17 @@ export default function Booking() {
                     <h3 className="font-display text-2xl">Resumo</h3>
                     <div className="mt-4 space-y-3 rounded-xl border border-white/5 bg-white/5 p-5 text-sm">
                       <div>
-                        <span className="block text-xs font-bold uppercase tracking-wider text-gold-light/80">Serviços Selecionados</span>
+                        <span className="block text-xs font-bold uppercase tracking-wider text-gold-light/80">Serviço Selecionado</span>
                         <span className="mt-1 block font-medium text-cream">
                           {selectedServices.map((item) => item.name).join(', ') || 'Nenhum selecionado'}
                         </span>
                       </div>
+                      {selectedService?.duration && (
+                        <div>
+                          <span className="block text-xs font-bold uppercase tracking-wider text-gold-light/80">Duração</span>
+                          <span className="mt-1 block font-medium text-cream">{selectedService.duration}</span>
+                        </div>
+                      )}
                       {selectedServices.length > 0 && (
                         <div>
                           <span className="block text-xs font-bold uppercase tracking-wider text-gold-light/80">Estimativa de Valor</span>
@@ -380,7 +393,7 @@ export default function Booking() {
                     </button>
                   </div>
 
-                  {/* Serviços selecionados - chip bar */}
+                  {/* Serviço selecionado - chip bar */}
                   <div className="flex flex-wrap gap-2">
                     {selectedServices.map((s) => (
                       <span key={s.id} className="rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-xs font-semibold text-gold-light">
@@ -407,7 +420,7 @@ export default function Booking() {
                       </div>
                     )}
                     <Cal
-                      calLink={`${CAL_USERNAME}/${CAL_EVENT_SLUG}`}
+                      calLink={selectedCalLink}
                       style={{ width: '100%', height: '100%', overflow: 'scroll', minHeight: '500px' }}
                       config={{
                         layout: 'month_view',

@@ -6,6 +6,7 @@ export default function ServiceCard({ service, onAdd }) {
   const [selectedVariant, setSelectedVariant] = useState(hasVariants ? service.variants[0] : null)
 
   const displayPrice = hasVariants ? selectedVariant.price : service.price
+  const displayDuration = hasVariants ? selectedVariant.duration : service.duration
 
   const handleAdd = () => {
     if (hasVariants) {
@@ -13,6 +14,8 @@ export default function ServiceCard({ service, onAdd }) {
         id: `${service.id}-${selectedVariant.size.toLowerCase()}`,
         name: `${service.name} (${selectedVariant.size})`,
         price: selectedVariant.price,
+        duration: selectedVariant.duration,
+        calUrl: selectedVariant.calUrl,
         image: service.image,
       })
     } else {
@@ -62,6 +65,11 @@ export default function ServiceCard({ service, onAdd }) {
             </div>
           ) : (
             <p className="mt-3 font-display text-xl font-bold tracking-wide text-gold-light">{displayPrice}</p>
+          )}
+          {displayDuration && (
+            <p className="mt-2 text-xs font-semibold uppercase tracking-[0.18em] text-cream/45">
+              Duração: {displayDuration}
+            </p>
           )}
         </div>
 
