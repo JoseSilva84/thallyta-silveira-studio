@@ -145,20 +145,20 @@ export default function Navbar() {
               aria-current={isActive('#inicio') ? 'page' : undefined}
               title={`${studioStatus.label} - ${studioStatus.detail}`}
             >
-              <span className="silver-glow grid size-11 place-items-center rounded-full border border-gold/50 bg-black/20 font-display text-xl font-bold text-gold-light">TS</span>
-              <span className="hidden font-display text-xl font-semibold text-cream sm:block">Thallyta Silveira</span>
+              <div className="relative">
+                <span className="silver-glow grid size-11 place-items-center rounded-full border border-gold/50 bg-black/20 font-display text-xl font-bold text-gold-light">TS</span>
+                <span className="absolute -bottom-0.5 -right-0.5 flex size-3">
+                  {studioStatus.isOpen && <span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-40 ${statusDotClass}`}></span>}
+                  <span className={`relative inline-flex size-3 rounded-full border-[1.5px] border-[#1a1a1a] ${statusDotClass}`}></span>
+                </span>
+              </div>
+              <div className="hidden sm:flex flex-col justify-center">
+                <span className="font-display text-xl font-semibold text-cream leading-tight">Thallyta Silveira</span>
+                <span className={`mt-0.5 text-[0.6rem] font-bold tracking-[0.2em] uppercase ${statusTextClass} opacity-80`}>
+                  {studioStatus.label}
+                </span>
+              </div>
             </a>
-
-            <span
-              className={`hidden h-8 items-center gap-2 rounded-full border px-3 text-[0.68rem] font-bold uppercase tracking-wider backdrop-blur-xl lg:inline-flex ${statusChipClass}`}
-              title={studioStatus.detail}
-            >
-              <span className="relative flex size-2.5" aria-hidden="true">
-                {studioStatus.isOpen && <span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-25 ${statusDotClass}`}></span>}
-                <span className={`relative inline-flex size-2.5 rounded-full ring-2 ring-white/15 ${statusDotClass}`}></span>
-              </span>
-              {studioStatus.label}
-            </span>
 
             <div className="hidden items-center gap-2 lg:flex">
               {links.map(([label, href]) => (
