@@ -1616,6 +1616,21 @@ function ClientsView({ clients, search, setSearch, statusBadge, onCompleteServic
                   <p>Último agendamento: <strong className="text-cream">{selectedClient.lastBooking ? formatDate(selectedClient.lastBooking.scheduledAt) : '-'}</strong></p>
                   <p>Ticket médio: <strong className="text-cream">{formatCurrency(selectedClient.averageTicket)}</strong></p>
                   <p>Selos liberados: <strong className="text-cream">{selectedClient.completedStamps}</strong></p>
+                  
+                  <div className="mt-4 grid grid-cols-5 gap-1.5 pt-3 border-t border-white/5 sm:grid-cols-10 lg:grid-cols-5 xl:grid-cols-10">
+                    {Array.from({ length: 10 }).map((_, index) => (
+                      <span
+                        key={index}
+                        className={`grid aspect-square place-items-center rounded-full text-[0.6rem] font-bold ${
+                          index < Math.min(selectedClient.completedStamps, 10)
+                            ? 'bg-gradient-to-br from-gold to-gold-light text-dark'
+                            : 'border border-white/10 bg-black/40 text-cream/20'
+                        }`}
+                      >
+                        TS
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
