@@ -390,7 +390,7 @@ export default function AdminPanel() {
   const clientProfiles = useMemo(() => buildClientProfiles(bookings), [bookings]);
 
   const analytics = useMemo(() => buildAnalytics(bookings), [bookings]);
-  const calendarDays = useMemo(() => buildCalendarDays(monthCursor, bookings), [monthCursor, bookings]);
+  const calendarDays = useMemo(() => buildCalendarDays(monthCursor, filteredBookings), [monthCursor, filteredBookings]);
   const monthLabel = monthCursor.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
 
   const moveMonth = (amount) => {
