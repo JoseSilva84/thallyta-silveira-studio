@@ -1,19 +1,13 @@
 /**
  * scheduleBlockController.js
  *
- * Proxy seguro para a API v2 do Cal.com — Out of Office.
- * A CAL_API_KEY fica exclusivamente no backend; o frontend nunca a vê.
- *
- * Endpoints do Cal.com utilizados:
- *   GET    https://api.cal.com/v2/me/ooo          — lista períodos de ausência
- *   POST   https://api.cal.com/v2/me/ooo          — cria um período de ausência
- *   DELETE https://api.cal.com/v2/me/ooo/:uid     — remove um período de ausência
+ * Secure proxy for Cal.com API v2 Out of Office.
+ * CAL_API_KEY stays only in the backend.
  */
 
 const CAL_BASE = 'https://api.cal.com/v2';
-const STUDIO_TZ = 'America/Fortaleza'; // UTC-3
+const FORTALEZA_UTC_OFFSET_HOURS = 3;
 
-/** Monta os headers padrão para chamar a API do Cal.com */
 function calHeaders() {
   return {
     'Content-Type': 'application/json',
@@ -23,42 +17,36 @@ function calHeaders() {
 }
 
 /**
- * Converte uma data local (America/Fortaleza) + horário em string ISO 8601 UTC.
- * Exemplo: date="2026-06-20", time="13:00" → "2026-06-20T16:00:00.000Z"
+ * Converts a Fortaleza local date/time to UTC ISO.
+ * Example: date="2026-06-20", time="13:00" -> "2026-06-20T16:00:00.000Z"
  */
 function toUtcIso(date, time = '00:00') {
-  // Monta a data/hora como se fosse no fuso do studio e converte para UTC
-  const localStr = `${date}T${time}:00`;
-  // Usamos Intl para obter o offset do fuso em minutos
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: STUDIO_TZ,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  }).formatToParts(new Date(localStr));
+  const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  const timeMatch = /^(\d{2}):(\d{2})$/.exec(time);
 
-  const get = (type) => parts.find((p) => p.type === type)?.value;
+  if (!dateMatch || !timeMatch) {
+    throw new Error('Data ou horario invalido.');
+  }
 
-  // Reconstrói em ISO a partir das partes já no fuso correto
-  const reconstructed = new Date(
-    `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}:${get('second')}`,
-  );
+  const [, year, month, day] = dateMatch;
+  const [, hour, minute] = timeMatch;
 
-  // Calcula o offset do fuso (diferença entre UTC "bruto" e local)
-  const utcGuess = new Date(localStr);
-  const offsetMs = utcGuess - reconstructed;
-  const corrected = new Date(utcGuess.getTime() + offsetMs);
-
-  return corrected.toISOString();
+  return new Date(
+    Date.UTC(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      Number(hour) + FORTALEZA_UTC_OFFSET_HOURS,
+      Number(minute),
+      0,
+      0,
+    ),
+  ).toISOString();
 }
 
 /**
  * GET /api/schedule-blocks
- * Lista todos os períodos de Out of Office no Cal.com.
+ * Lists all Cal.com Out of Office periods.
  */
 export async function listScheduleBlocks(req, res) {
   try {
@@ -76,9 +64,8 @@ export async function listScheduleBlocks(req, res) {
       });
     }
 
-    // Normaliza a resposta para o frontend
     const blocks = (data?.data ?? []).map((item) => ({
-      uid: item.id, // DELETE precisa do ID numérico
+      uid: item.id,
       start: item.start,
       end: item.end,
       reason: item.notes ?? item.reason ?? '',
@@ -94,9 +81,8 @@ export async function listScheduleBlocks(req, res) {
 
 /**
  * POST /api/schedule-blocks
- * Cria um período de Out of Office no Cal.com.
  *
- * Body esperado:
+ * Expected body:
  *   { date: "2026-06-20", allDay: true, reason: "Compromisso pessoal" }
  *   { date: "2026-06-20", allDay: false, startTime: "13:00", endTime: "17:00", reason: "..." }
  */
@@ -104,25 +90,28 @@ export async function createScheduleBlock(req, res) {
   const { date, allDay, startTime, endTime, reason } = req.body;
 
   if (!date) {
-    return res.status(400).json({ error: 'Campo "date" é obrigatório.' });
+    return res.status(400).json({ error: 'Campo "date" e obrigatorio.' });
   }
 
   if (!allDay && (!startTime || !endTime)) {
     return res.status(400).json({ error: 'Para bloqueio parcial informe startTime e endTime.' });
   }
 
-  // Monta início e fim em UTC
-  const start = allDay ? toUtcIso(date, '00:00') : toUtcIso(date, startTime);
-  const end = allDay ? toUtcIso(date, '23:59') : toUtcIso(date, endTime);
+  let start;
+  let end;
 
-  if (new Date(start) >= new Date(end)) {
-    return res.status(400).json({ error: 'O horário de início deve ser anterior ao horário de fim.' });
+  try {
+    start = allDay ? toUtcIso(date, '00:00') : toUtcIso(date, startTime);
+    end = allDay ? toUtcIso(date, '23:59') : toUtcIso(date, endTime);
+  } catch (error) {
+    return res.status(400).json({ error: error.message });
   }
 
-  const payload = {
-    start,
-    end,
-  };
+  if (new Date(start) >= new Date(end)) {
+    return res.status(400).json({ error: 'O horario de inicio deve ser anterior ao horario de fim.' });
+  }
+
+  const payload = { start, end };
 
   try {
     const response = await fetch(`${CAL_BASE}/me/ooo`, {
@@ -156,13 +145,13 @@ export async function createScheduleBlock(req, res) {
 
 /**
  * DELETE /api/schedule-blocks/:uid
- * Remove um período de Out of Office do Cal.com.
+ * Removes a Cal.com Out of Office period.
  */
 export async function deleteScheduleBlock(req, res) {
   const { uid } = req.params;
 
   if (!uid) {
-    return res.status(400).json({ error: 'UID do bloqueio é obrigatório.' });
+    return res.status(400).json({ error: 'UID do bloqueio e obrigatorio.' });
   }
 
   try {
