@@ -44,6 +44,30 @@ function toUtcIso(date, time = '00:00') {
   ).toISOString();
 }
 
+function toUtcCalendarDayIso(date, time = '00:00') {
+  const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  const timeMatch = /^(\d{2}):(\d{2})$/.exec(time);
+
+  if (!dateMatch || !timeMatch) {
+    throw new Error('Data ou horario invalido.');
+  }
+
+  const [, year, month, day] = dateMatch;
+  const [, hour, minute] = timeMatch;
+
+  return new Date(
+    Date.UTC(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      Number(hour),
+      Number(minute),
+      0,
+      0,
+    ),
+  ).toISOString();
+}
+
 /**
  * GET /api/schedule-blocks
  * Lists all Cal.com Out of Office periods.
@@ -101,8 +125,8 @@ export async function createScheduleBlock(req, res) {
   let end;
 
   try {
-    start = allDay ? toUtcIso(date, '00:00') : toUtcIso(date, startTime);
-    end = allDay ? toUtcIso(date, '23:59') : toUtcIso(date, endTime);
+    start = allDay ? toUtcCalendarDayIso(date, '00:00') : toUtcIso(date, startTime);
+    end = allDay ? toUtcCalendarDayIso(date, '23:59') : toUtcIso(date, endTime);
   } catch (error) {
     return res.status(400).json({ error: error.message });
   }

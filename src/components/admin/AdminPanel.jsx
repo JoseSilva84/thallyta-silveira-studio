@@ -2142,12 +2142,16 @@ function ScheduleBlocksTab({ blocks, fetching, onRefresh, onCreate, onDelete }) 
   const formatBlockPeriod = (block) => {
     const start = new Date(block.start);
     const end = new Date(block.end);
+    const utcStartTime = start.toISOString().slice(11, 16);
+    const utcEndTime = end.toISOString().slice(11, 16);
+    const isUtcCalendarDay = utcStartTime === '00:00' && (utcEndTime === '23:59' || utcEndTime === '00:00');
+    const displayTimeZone = isUtcCalendarDay ? 'UTC' : 'America/Fortaleza';
     const dateStr = start.toLocaleDateString('pt-BR', {
       weekday: 'short',
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
-      timeZone: 'America/Fortaleza',
+      timeZone: displayTimeZone,
     });
     const startTime = start.toLocaleTimeString('pt-BR', {
       hour: '2-digit',
@@ -2161,7 +2165,7 @@ function ScheduleBlocksTab({ blocks, fetching, onRefresh, onCreate, onDelete }) 
     });
 
     const isAllDay =
-      startTime === '00:00' && (endTime === '23:59' || endTime === '00:00');
+      isUtcCalendarDay || (startTime === '00:00' && (endTime === '23:59' || endTime === '00:00'));
 
     return {
       date: dateStr,
@@ -2377,4 +2381,3 @@ function ScheduleBlocksTab({ blocks, fetching, onRefresh, onCreate, onDelete }) 
     </div>
   );
 }
-
