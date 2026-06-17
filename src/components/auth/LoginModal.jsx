@@ -55,7 +55,7 @@ export default function LoginModal() {
                 aria-label={showPass ? 'Ocultar senha' : 'Mostrar senha'}
                 aria-pressed={showPass}
                 onClick={() => setShowPass((value) => !value)}
-                className="tap-gold absolute right-4 top-1/2 -translate-y-1/2 text-cream/45 transition-colors hover:text-cream"
+                className="absolute inset-y-0 right-0 flex w-12 items-center justify-center rounded-r-md text-cream/45 transition-colors hover:text-cream"
               >
                 {showPass ? <FiEyeOff size={20} /> : <FiEye size={20} />}
               </button>
