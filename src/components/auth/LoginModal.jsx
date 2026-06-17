@@ -19,8 +19,14 @@ export default function LoginModal() {
   }
 
   return (
-    <div className="fixed inset-0 z-[80] grid place-items-center bg-black/70 px-4 backdrop-blur-sm">
-      <div className="gold-border relative w-full max-w-md rounded-lg bg-dark-card/85 p-6 pt-6 shadow-2xl">
+    <div
+      className="fixed inset-0 z-[80] grid place-items-center bg-black/70 px-4 backdrop-blur-sm"
+      onClick={() => setLoginOpen(false)}
+    >
+      <div
+        className="gold-border relative w-full max-w-md rounded-lg bg-dark-card/85 p-6 pt-6 shadow-2xl"
+        onClick={(event) => event.stopPropagation()}
+      >
         <button
           type="button"
           aria-label="Fechar login"
