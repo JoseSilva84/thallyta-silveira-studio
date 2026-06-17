@@ -190,8 +190,14 @@ export default function Navbar() {
       </header>
 
       {open && (
-        <div className="fixed inset-0 z-[70] bg-black/70 backdrop-blur-sm lg:hidden">
-          <aside className="frosted-panel ml-auto h-full w-80 max-w-[86vw] p-6 shadow-2xl">
+        <div
+          className="fixed inset-0 z-[70] bg-black/70 backdrop-blur-sm lg:hidden"
+          onClick={() => setOpen(false)}
+        >
+          <aside
+            className="frosted-panel ml-auto h-full w-80 max-w-[86vw] p-6 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
             <div className="mb-8 flex items-center justify-between gap-4">
               <div className="flex min-w-0 items-center gap-4">
                 <span className="shrink-0 font-display text-2xl leading-none text-gold-light">TS</span>
