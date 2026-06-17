@@ -545,6 +545,7 @@ export default function AdminPanel() {
             onCompleteService={handleCompleteService}
             onUndoCompleteService={handleUndoCompleteService}
             onMarkNoShow={handleMarkNoShow}
+            onMarkRemainingPaid={handleMarkRemainingPaid}
           />
         )}
 
@@ -1571,7 +1572,7 @@ function LoyaltyAdminView({ clients, pendingBookings, onCompleteService, onUndoC
   );
 }
 
-function ClientsView({ clients, search, setSearch, statusBadge, onCompleteService, onUndoCompleteService, onMarkNoShow }) {
+function ClientsView({ clients, search, setSearch, statusBadge, onCompleteService, onUndoCompleteService, onMarkNoShow, onMarkRemainingPaid }) {
   const [selectedKey, setSelectedKey] = useState(null);
   const normalizedSearch = search.trim().toLowerCase();
   const filteredClients = useMemo(() => (
@@ -1649,9 +1650,11 @@ function ClientsView({ clients, search, setSearch, statusBadge, onCompleteServic
                 <p className="mt-1 text-sm text-cream/50">{selectedClient.email || selectedClient.phone || 'Contato nao informado'}</p>
                 {selectedClient.email && selectedClient.phone && <p className="text-sm text-cream/40">{selectedClient.phone}</p>}
               </div>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:min-w-[420px]">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6 lg:min-w-[640px]">
                 <SmallStat label="Serviços" value={selectedClient.totalServices} />
                 <SmallStat label="Valor" value={formatCurrency(selectedClient.totalRevenue)} />
+                <SmallStat label="Pago" value={formatCurrency(selectedClient.totalPaid)} />
+                <SmallStat label="A receber" value={formatCurrency(selectedClient.totalRemaining)} />
                 <SmallStat label="Faltas" value={selectedClient.noShowCount} />
                 <SmallStat label="Cancelados" value={selectedClient.cancelledCount} />
               </div>
@@ -1714,12 +1717,24 @@ function ClientsView({ clients, search, setSearch, statusBadge, onCompleteServic
                         <h4 className="text-base font-semibold text-cream">{booking.service || 'Servico nao informado'}</h4>
                         <p className="mt-1 text-sm text-cream/45">{formatDate(booking.scheduledAt)} - {formatTime(booking.scheduledAt)}{booking.endTime && ` ate ${formatTime(booking.endTime)}`}</p>
                         <p className="mt-1 text-sm text-cream/45">Valor: <strong className="text-gold-light">{formatCurrency(booking.estimatedValue)}</strong></p>
+                        {(() => {
+                          const payment = getBookingPaymentSummary(booking);
+                          return (
+                            <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold">
+                              <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-emerald-300">Pago: {formatCurrency(payment.paid)}</span>
+                              <span className={`rounded-full border px-3 py-1 ${payment.remaining > 0 ? 'border-amber-300/25 bg-amber-300/10 text-amber-100' : 'border-white/10 bg-white/5 text-cream/45'}`}>
+                                A receber: {formatCurrency(payment.remaining)}
+                              </span>
+                            </div>
+                          );
+                        })()}
                       </div>
                       <CompletionAction
                         booking={booking}
                         onCompleteService={onCompleteService}
                         onUndoCompleteService={onUndoCompleteService}
                         onMarkNoShow={onMarkNoShow}
+                        onMarkRemainingPaid={onMarkRemainingPaid}
                       />
                     </div>
                   </article>
@@ -2145,6 +2160,8 @@ function buildClientProfiles(bookings) {
         bookings: [],
         serviceCounts: new Map(),
         totalRevenue: 0,
+        totalPaid: 0,
+        totalRemaining: 0,
         paidBookings: 0,
         totalServices: 0,
         completedCount: 0,
@@ -2160,6 +2177,7 @@ function buildClientProfiles(bookings) {
     const serviceList = services.length ? services : ['Servico nao informado'];
     const stampCount = Math.max(1, serviceList.length);
     const value = Number(booking.estimatedValue);
+    const isChargeable = !['cancelled', 'no_show'].includes(booking.status);
 
     client.bookings.push(booking);
     client.totalServices += stampCount;
@@ -2168,9 +2186,15 @@ function buildClientProfiles(bookings) {
       client.serviceCounts.set(service, (client.serviceCounts.get(service) || 0) + 1);
     });
 
-    if (Number.isFinite(value) && value > 0 && !['cancelled', 'no_show'].includes(booking.status)) {
+    if (Number.isFinite(value) && value > 0 && isChargeable) {
       client.totalRevenue += value;
       client.paidBookings += 1;
+    }
+
+    if (isChargeable) {
+      const payment = getBookingPaymentSummary(booking);
+      client.totalPaid += payment.paid;
+      client.totalRemaining += payment.remaining;
     }
 
     if (booking.status === 'cancelled') {
