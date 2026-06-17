@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { FiCheck, FiCalendar, FiCheckCircle, FiLoader } from 'react-icons/fi'
+import { FiCheck, FiCalendar, FiCheckCircle, FiCreditCard, FiLoader } from 'react-icons/fi'
 import { toast } from 'react-toastify'
 import Cal, { getCalApi } from '@calcom/embed-react'
 import { allServices } from '../../data/services.js'
@@ -9,6 +9,7 @@ import Reveal from '../ui/Reveal.jsx'
 import SectionTitle from '../ui/SectionTitle.jsx'
 
 const CAL_USERNAME = import.meta.env.VITE_CAL_USERNAME || 'thallyta-silveira-hxfjrf'
+const API = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
 const CAL_THEME = {
   'cal-bg': '#3d3528',
   'cal-bg-emphasis': '#514735',
@@ -36,6 +37,7 @@ export default function Booking() {
   const { user, setLoginOpen, getToken } = useAuth()
   const {
     selectedServices,
+    addService,
     toggleService,
     clearServices,
     fetchBookings,
@@ -46,6 +48,10 @@ export default function Booking() {
   const [bookingConfirmed, setBookingConfirmed] = useState(false)
   const [confirmedSummary, setConfirmedSummary] = useState(null)
   const [isCalFrameLoaded, setIsCalFrameLoaded] = useState(false)
+  const [paymentType, setPaymentType] = useState('deposit')
+  const [bookingPayment, setBookingPayment] = useState(null)
+  const [creatingPayment, setCreatingPayment] = useState(false)
+  const [confirmingPayment, setConfirmingPayment] = useState(false)
   const sectionRef = useRef(null)
   const calFrameWrapRef = useRef(null)
   const lastScheduleRequest = useRef(scheduleRequestId)
@@ -111,6 +117,7 @@ export default function Booking() {
           setBookingConfirmed(true)
           setIsBookingDetailsStep(false)
           clearServices()
+          setBookingPayment(null)
           toast.success('🎉 Agendamento confirmado com sucesso!')
           // Atualiza os bookings no contexto (para os selos de fidelidade)
           const token = getToken()
@@ -170,7 +177,7 @@ export default function Booking() {
   const selectedService = selectedServices[0] || null
   const selectedCalLink = useMemo(() => getCalLinkFromUrl(selectedService?.calUrl), [selectedService?.calUrl])
 
-  const handleProceed = useCallback(() => {
+  const handleProceed = useCallback(async () => {
     if (!selectedServices.length) {
       return toast.warn('Escolha pelo menos um serviço.')
     }
@@ -178,14 +185,37 @@ export default function Booking() {
       setLoginOpen(true)
       return toast.info('Entre na sua conta para agendar.')
     }
-    setIsCalFrameLoaded(false)
-    isCalReadyRef.current = false
-    setIsBookingDetailsStep(false)
-    setShowCal(true)
-    setBookingConfirmed(false)
-    setConfirmedSummary(null)
-    focusBookingSection()
-  }, [focusBookingSection, selectedServices.length, setIsBookingDetailsStep, setLoginOpen, user])
+    if (!selectedService) return toast.warn('Escolha um servico para continuar.')
+
+    const token = getToken()
+    if (!token) {
+      setLoginOpen(true)
+      return toast.info('Entre na sua conta para agendar.')
+    }
+
+    setCreatingPayment(true)
+    try {
+      const res = await fetch(`${API}/payments/booking-preference`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          serviceId: selectedService.id,
+          paymentType,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Erro ao iniciar pagamento.')
+
+      window.location.href = data.initPoint || data.sandboxInitPoint
+    } catch (error) {
+      toast.error(error.message)
+    } finally {
+      setCreatingPayment(false)
+    }
+  }, [getToken, paymentType, selectedService, selectedServices.length, setLoginOpen, user])
 
   useEffect(() => {
     if (scheduleRequestId === lastScheduleRequest.current) return
@@ -193,12 +223,71 @@ export default function Booking() {
     handleProceed()
   }, [handleProceed, scheduleRequestId])
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const bookingPaymentId = params.get('bookingPaymentId')
+    if (!bookingPaymentId || !user) return
+
+    const paymentId = params.get('payment_id') || params.get('collection_id')
+    const mpStatus = params.get('mpStatus') || params.get('status') || params.get('collection_status')
+    const token = getToken()
+
+    if (!token) return
+
+    const cleanPaymentParams = () => {
+      window.history.replaceState(null, '', `${window.location.pathname}#agendamento`)
+    }
+
+    const confirmPayment = async () => {
+      setConfirmingPayment(true)
+      focusBookingSection()
+      try {
+        const query = paymentId ? `?payment_id=${encodeURIComponent(paymentId)}` : ''
+        const res = await fetch(`${API}/payments/booking/${bookingPaymentId}/confirm${query}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) throw new Error(data.error || 'Erro ao confirmar pagamento.')
+
+        if (!data.canSchedule) {
+          if (mpStatus === 'failure') {
+            toast.error('Pagamento nao aprovado. O agendamento ainda nao foi liberado.')
+          } else {
+            toast.info('Pagamento pendente. Assim que for aprovado, volte para escolher o horario.')
+          }
+          cleanPaymentParams()
+          return
+        }
+
+        const paidService = allServices.find((service) => service.id === data.payment.service.id) || data.payment.service
+        addService(paidService)
+        setBookingPayment(data.payment)
+        setPaymentType(data.payment.paymentType || 'deposit')
+        setIsCalFrameLoaded(false)
+        isCalReadyRef.current = false
+        setIsBookingDetailsStep(false)
+        setShowCal(true)
+        setBookingConfirmed(false)
+        setConfirmedSummary(null)
+        toast.success('Pagamento aprovado. Agora escolha a data e o horario.')
+        cleanPaymentParams()
+      } catch (error) {
+        toast.error(error.message)
+      } finally {
+        setConfirmingPayment(false)
+      }
+    }
+
+    confirmPayment()
+  }, [addService, focusBookingSection, getToken, setIsBookingDetailsStep, user])
+
   const handleNewBooking = () => {
     isCalReadyRef.current = false
     setIsBookingDetailsStep(false)
     setShowCal(false)
     setBookingConfirmed(false)
     setConfirmedSummary(null)
+    setBookingPayment(null)
   }
 
   // Calcula o preço total estimado (pega o primeiro valor numérico de cada preço)
@@ -366,13 +455,34 @@ export default function Booking() {
                           </span>
                         </div>
                       )}
+                      {selectedServices.length > 0 && totalEstimado > 0 && (
+                        <div>
+                          <span className="block text-xs font-bold uppercase tracking-wider text-gold-light/80">Pagamento para liberar agenda</span>
+                          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                            <label className={`cursor-pointer rounded-xl border p-4 transition-colors ${paymentType === 'deposit' ? 'border-gold bg-gold/10 text-gold-light' : 'border-white/10 bg-black/20 text-cream/70 hover:border-gold/30'}`}>
+                              <input type="radio" name="paymentType" value="deposit" checked={paymentType === 'deposit'} onChange={() => setPaymentType('deposit')} className="sr-only" />
+                              <span className="block text-xs font-bold uppercase tracking-wider">Entrada 30%</span>
+                              <span className="mt-1 block font-display text-xl">R$ {(totalEstimado * 0.3).toFixed(2).replace('.', ',')}</span>
+                            </label>
+                            <label className={`cursor-pointer rounded-xl border p-4 transition-colors ${paymentType === 'full' ? 'border-gold bg-gold/10 text-gold-light' : 'border-white/10 bg-black/20 text-cream/70 hover:border-gold/30'}`}>
+                              <input type="radio" name="paymentType" value="full" checked={paymentType === 'full'} onChange={() => setPaymentType('full')} className="sr-only" />
+                              <span className="block text-xs font-bold uppercase tracking-wider">Pagar tudo</span>
+                              <span className="mt-1 block font-display text-xl">R$ {totalEstimado.toFixed(2).replace('.', ',')}</span>
+                            </label>
+                          </div>
+                          <p className="mt-3 text-xs leading-5 text-cream/50">
+                            O horario so sera liberado apos o Mercado Pago confirmar pelo menos 30% do valor do servico.
+                          </p>
+                        </div>
+                      )}
                     </div>
                     <button
                       onClick={handleProceed}
-                      className="gold-button mt-6 flex w-full items-center justify-center gap-2 rounded-xl px-5 py-4 text-sm font-bold uppercase tracking-wider shadow-[0_0_20px_rgba(0,0,0,0.3)] transition-all hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(217,177,92,0.25)]"
+                      disabled={creatingPayment || confirmingPayment}
+                      className="gold-button mt-6 flex w-full items-center justify-center gap-2 rounded-xl px-5 py-4 text-sm font-bold uppercase tracking-wider shadow-[0_0_20px_rgba(0,0,0,0.3)] transition-all hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(217,177,92,0.25)] disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      <FiCalendar className="text-lg" />
-                      Escolher Data e Horário
+                      {creatingPayment || confirmingPayment ? <FiLoader className="text-lg animate-spin" /> : <FiCreditCard className="text-lg" />}
+                      {creatingPayment ? 'Abrindo Mercado Pago...' : confirmingPayment ? 'Confirmando pagamento...' : 'Pagar e Liberar Agenda'}
                     </button>
                   </div>
                 </div>
@@ -401,6 +511,12 @@ export default function Booking() {
                       </span>
                     ))}
                   </div>
+
+                  {bookingPayment && (
+                    <div className="rounded-xl border border-emerald-300/20 bg-emerald-400/10 p-4 text-sm text-emerald-100">
+                      Pagamento aprovado: {bookingPayment.paymentType === 'full' ? 'valor total' : 'entrada de 30%'} de R$ {bookingPayment.amount.toFixed(2).replace('.', ',')}. Agora escolha seu horario.
+                    </div>
+                  )}
 
                   {/* Aviso de rolagem */}
                   <div className="flex items-center gap-2 rounded-lg bg-gold/10 p-3 text-sm text-gold-light">
@@ -436,6 +552,9 @@ export default function Booking() {
                         'metadata[servicePrices]': selectedServices.map((s) => `${s.name}: ${s.price}`).join(' | '),
                         'metadata[estimatedValue]': totalEstimado.toFixed(2),
                         'metadata[attendeeWhatsapp]': user?.whatsappPhone || '',
+                        'metadata[bookingPaymentId]': bookingPayment?.id || '',
+                        'metadata[paymentType]': bookingPayment?.paymentType || '',
+                        'metadata[paidAmount]': bookingPayment?.amount?.toFixed(2) || '',
                       }}
                     />
                   </div>

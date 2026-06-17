@@ -7,6 +7,7 @@ import galleryRoutes from './routes/galleryRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import webhookRoutes from './routes/webhookRoutes.js';
 import bookingRoutes from './routes/bookingRoutes.js';
+import paymentRoutes from './routes/paymentRoutes.js';
 import testimonialRoutes from './routes/testimonialRoutes.js';
 import scheduleBlockRoutes from './routes/scheduleBlockRoutes.js';
 import { startBookingReminderService } from './services/bookingReminderService.js';
@@ -55,6 +56,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/gallery', galleryRoutes);
 app.use('/api/webhooks', webhookRoutes);
 app.use('/api/bookings', bookingRoutes);
+app.use('/api/payments', paymentRoutes);
 app.use('/api/testimonials', testimonialRoutes);
 app.use('/api/schedule-blocks', scheduleBlockRoutes);
 

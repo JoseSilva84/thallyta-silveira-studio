@@ -1,0 +1,27 @@
+export const services = [
+  { id: 'gel', name: 'Alongamento em gel', price: 150 },
+  { id: 'manutencao', name: 'Manutencao', price: 130 },
+  { id: 'banho-gel', name: 'Banho em gel', price: 100 },
+  { id: 'blindagem', name: 'Blindagem + esmaltacao em gel', price: 70 },
+  { id: 'postica', name: 'Postica realista', price: 70 },
+  { id: 'remocao', name: 'Remocao', price: 40 },
+  { id: 'pedicure', name: 'Pedicure em gel', price: 60 },
+  { id: 'alisamento-p', name: 'Alisamento (P)', price: 200 },
+  { id: 'alisamento-m', name: 'Alisamento (M)', price: 250 },
+  { id: 'alisamento-g', name: 'Alisamento (G)', price: 300 },
+  { id: 'alisamento-gg', name: 'Alisamento (GG)', price: 400 },
+  { id: 'botox-p', name: 'Botox Capilar (P)', price: 170 },
+  { id: 'botox-m', name: 'Botox Capilar (M)', price: 200 },
+  { id: 'botox-g', name: 'Botox Capilar (G)', price: 250 },
+  { id: 'reducao-p', name: 'Reducao de Cachos (P)', price: 200 },
+  { id: 'reducao-m', name: 'Reducao de Cachos (M)', price: 250 },
+  { id: 'reducao-g', name: 'Reducao de Cachos (G)', price: 280 },
+  { id: 'lavar-escovar', name: 'Lavar e escovar', price: 50 },
+  { id: 'tratamento', name: 'Tratamento + escova', price: 70 },
+  { id: 'condicionar', name: 'Lavar e condicionar', price: 30 },
+  { id: 'pranchar', name: 'So pranchar', price: 30 },
+  { id: 'lavar-pranchar', name: 'Lavar + pranchar', price: 50 },
+  { id: 'corte', name: 'Corte (Incluso lavagem)', price: 50 },
+];
+
+export const findServiceById = (serviceId) => services.find((service) => service.id === serviceId);

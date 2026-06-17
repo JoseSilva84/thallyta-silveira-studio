@@ -1,6 +1,29 @@
 import prisma from '../config/prisma.js';
 import { notifyBookingCreated } from '../services/whatsappService.js';
 
+const cancelUnauthorizedCalBooking = async (calEventId) => {
+  const apiKey = process.env.CAL_API_KEY;
+  if (!apiKey || !calEventId) return;
+
+  const response = await fetch(`https://api.cal.com/v2/bookings/${calEventId}/cancel`, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      'cal-api-version': process.env.CAL_API_VERSION || '2026-02-25',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      cancellationReason: 'Agendamento cancelado automaticamente: pagamento minimo nao aprovado.',
+    }),
+  });
+
+  if (!response.ok) {
+    const details = await response.text();
+    console.error('Erro ao cancelar booking sem pagamento aprovado no Cal.com:', details);
+  }
+};
+
 /**
  * Webhook handler para eventos do Cal.com.
  * Recebe BOOKING_CREATED, BOOKING_RESCHEDULED e BOOKING_CANCELLED.
@@ -58,6 +81,22 @@ async function handleBookingCreated(payload) {
     return;
   }
 
+  const bookingPaymentId = payload.metadata?.bookingPaymentId;
+  let bookingPayment = null;
+
+  if (bookingPaymentId) {
+    bookingPayment = await prisma.bookingPayment.findUnique({ where: { id: bookingPaymentId } });
+  }
+
+  if (!bookingPayment || bookingPayment.status !== 'approved' || bookingPayment.amount < bookingPayment.minimumAmount) {
+    console.error('Booking recebido sem pagamento minimo aprovado. Cancelando/ignorando.', {
+      uid,
+      bookingPaymentId,
+    });
+    await cancelUnauthorizedCalBooking(uid);
+    return;
+  }
+
   // Extrai dados dos attendees
   const attendee = payload.attendees?.[0] || {};
   const attendeeName = attendee.name || payload.responses?.name?.value || null;
@@ -96,6 +135,7 @@ async function handleBookingCreated(payload) {
       attendeePhone,
       location: payload.location || payload.meetingUrl || 'Presencial',
       calPayload: payload,
+      paymentId: bookingPayment.id,
     },
     include: {
       user: {
