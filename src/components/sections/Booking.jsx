@@ -53,12 +53,13 @@ export default function Booking() {
     fetchBookings,
     scheduleRequestId,
     setIsBookingDetailsStep,
+    paymentType,
+    setPaymentType,
   } = useBooking()
   const [showCal, setShowCal] = useState(false)
   const [bookingConfirmed, setBookingConfirmed] = useState(false)
   const [confirmedSummary, setConfirmedSummary] = useState(null)
   const [isCalFrameLoaded, setIsCalFrameLoaded] = useState(false)
-  const [paymentType, setPaymentType] = useState('deposit')
   const [bookingPayment, setBookingPayment] = useState(null)
   const [creatingPayment, setCreatingPayment] = useState(false)
   const [confirmingPayment, setConfirmingPayment] = useState(false)

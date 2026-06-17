@@ -13,6 +13,7 @@ export function BookingProvider({ children }) {
   const [loadingBookings, setLoadingBookings] = useState(false)
   const [scheduleRequestId, setScheduleRequestId] = useState(0)
   const [isBookingDetailsStep, setIsBookingDetailsStep] = useState(false)
+  const [paymentType, setPaymentType] = useState('deposit')
 
   const toggleService = useCallback((service) => {
     setSelectedServices((current) => (current.some((item) => item.id === service.id) ? [] : [service]))
@@ -93,6 +94,8 @@ export function BookingProvider({ children }) {
       scheduleRequestId,
       isBookingDetailsStep,
       setIsBookingDetailsStep,
+      paymentType,
+      setPaymentType,
       fetchBookings,
       cancelBooking,
     }),
@@ -106,6 +109,7 @@ export function BookingProvider({ children }) {
       requestSchedule,
       scheduleRequestId,
       isBookingDetailsStep,
+      paymentType,
       fetchBookings,
       cancelBooking,
     ],

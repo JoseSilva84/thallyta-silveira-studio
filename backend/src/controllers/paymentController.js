@@ -173,6 +173,11 @@ export const createBookingPreference = async (req, res) => {
           failure: `${returnUrl}&mpStatus=failure`,
         },
         auto_return: 'approved',
+        payment_methods: {
+          excluded_payment_types: [
+            { id: 'ticket' },
+          ],
+        },
         notification_url: backendUrl ? `${backendUrl}/api/payments/mercado-pago/webhook` : undefined,
         statement_descriptor: 'THALLYTA STUDIO',
       }),
