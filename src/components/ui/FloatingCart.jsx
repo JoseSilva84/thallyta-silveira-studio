@@ -10,6 +10,7 @@ export default function FloatingCart() {
     isBookingDetailsStep,
     paymentType,
     setPaymentType,
+    isPaymentUnlocked,
   } = useBooking()
   const [isVisible, setIsVisible] = useState(false)
 
@@ -21,7 +22,7 @@ export default function FloatingCart() {
     }
   }, [selectedServices.length])
 
-  if (!isVisible || isBookingDetailsStep) return null
+  if (!isVisible || isBookingDetailsStep || isPaymentUnlocked) return null
 
   // Calcula o total estimado
   const totalEstimado = selectedServices.reduce((sum, s) => {

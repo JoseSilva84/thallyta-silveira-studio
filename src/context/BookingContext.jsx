@@ -14,6 +14,7 @@ export function BookingProvider({ children }) {
   const [scheduleRequestId, setScheduleRequestId] = useState(0)
   const [isBookingDetailsStep, setIsBookingDetailsStep] = useState(false)
   const [paymentType, setPaymentType] = useState('deposit')
+  const [isPaymentUnlocked, setIsPaymentUnlocked] = useState(false)
 
   const toggleService = useCallback((service) => {
     setSelectedServices((current) => (current.some((item) => item.id === service.id) ? [] : [service]))
@@ -26,7 +27,11 @@ export function BookingProvider({ children }) {
     })
   }, [])
 
-  const clearServices = useCallback(() => setSelectedServices([]), [])
+  const clearServices = useCallback(() => {
+    setSelectedServices([])
+    setIsPaymentUnlocked(false)
+    setPaymentType('deposit')
+  }, [])
   const requestSchedule = useCallback(() => setScheduleRequestId((current) => current + 1), [])
 
   // Busca os agendamentos do usuário logado (ou todos, se admin) a partir da API
@@ -96,6 +101,8 @@ export function BookingProvider({ children }) {
       setIsBookingDetailsStep,
       paymentType,
       setPaymentType,
+      isPaymentUnlocked,
+      setIsPaymentUnlocked,
       fetchBookings,
       cancelBooking,
     }),
@@ -110,6 +117,7 @@ export function BookingProvider({ children }) {
       scheduleRequestId,
       isBookingDetailsStep,
       paymentType,
+      isPaymentUnlocked,
       fetchBookings,
       cancelBooking,
     ],

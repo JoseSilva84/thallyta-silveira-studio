@@ -55,6 +55,7 @@ export default function Booking() {
     setIsBookingDetailsStep,
     paymentType,
     setPaymentType,
+    setIsPaymentUnlocked,
   } = useBooking()
   const [showCal, setShowCal] = useState(false)
   const [bookingConfirmed, setBookingConfirmed] = useState(false)
@@ -129,6 +130,7 @@ export default function Booking() {
           setIsBookingDetailsStep(false)
           clearServices()
           setBookingPayment(null)
+          setIsPaymentUnlocked(false)
           toast.success('🎉 Agendamento confirmado com sucesso!')
           // Atualiza os bookings no contexto (para os selos de fidelidade)
           const token = getToken()
@@ -279,6 +281,7 @@ export default function Booking() {
         const paidService = allServices.find((service) => service.id === data.payment.service.id) || data.payment.service
         addService(paidService)
         setBookingPayment(data.payment)
+        setIsPaymentUnlocked(true)
         setPaymentType(data.payment.paymentType || 'deposit')
         setIsCalFrameLoaded(false)
         isCalReadyRef.current = false
@@ -305,6 +308,7 @@ export default function Booking() {
     setBookingConfirmed(false)
     setConfirmedSummary(null)
     setBookingPayment(null)
+    setIsPaymentUnlocked(false)
   }
 
   // Calcula o preço total estimado (pega o primeiro valor numérico de cada preço)
