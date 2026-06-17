@@ -8,6 +8,7 @@ export default function FloatingCart() {
     clearServices,
     requestSchedule,
     isBookingDetailsStep,
+    isScheduleStepOpen,
     paymentType,
     setPaymentType,
     isPaymentUnlocked,
@@ -22,7 +23,7 @@ export default function FloatingCart() {
     }
   }, [selectedServices.length])
 
-  if (!isVisible || isBookingDetailsStep || isPaymentUnlocked) return null
+  if (!isVisible || isBookingDetailsStep || isScheduleStepOpen || isPaymentUnlocked) return null
 
   // Calcula o total estimado
   const totalEstimado = selectedServices.reduce((sum, s) => {

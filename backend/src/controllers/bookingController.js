@@ -1,5 +1,12 @@
 import prisma from '../config/prisma.js';
 
+const bookingInclude = {
+  user: {
+    select: { id: true, name: true, email: true, whatsappPhone: true },
+  },
+  payment: true,
+};
+
 /**
  * GET /api/bookings
  * Admin: retorna todos os agendamentos.
@@ -20,11 +27,7 @@ export const getBookings = async (req, res) => {
     const bookings = await prisma.booking.findMany({
       where,
       orderBy: { scheduledAt: 'desc' },
-      include: {
-        user: {
-          select: { id: true, name: true, email: true, whatsappPhone: true },
-        },
-      },
+      include: bookingInclude,
     });
 
     res.json(bookings);
@@ -44,11 +47,7 @@ export const getBookingById = async (req, res) => {
   try {
     const booking = await prisma.booking.findUnique({
       where: { id: req.params.id },
-      include: {
-        user: {
-          select: { id: true, name: true, email: true, whatsappPhone: true },
-        },
-      },
+      include: bookingInclude,
     });
 
     if (!booking) {
@@ -137,11 +136,7 @@ export const cancelBooking = async (req, res) => {
         status: 'cancelled',
         notes: [booking.notes, 'Cancelado pelo cliente no site.'].filter(Boolean).join('\n'),
       },
-      include: {
-        user: {
-          select: { id: true, name: true, email: true, whatsappPhone: true },
-        },
-      },
+      include: bookingInclude,
     });
 
     res.json(updated);
@@ -178,11 +173,7 @@ export const completeBookingService = async (req, res) => {
         serviceCompletedAt: new Date(),
         serviceCompletedBy: req.user.id,
       },
-      include: {
-        user: {
-          select: { id: true, name: true, email: true, whatsappPhone: true },
-        },
-      },
+      include: bookingInclude,
     });
 
     res.json(updated);
@@ -216,11 +207,7 @@ export const markBookingNoShow = async (req, res) => {
         serviceCompletedBy: null,
         notes: [booking.notes, 'Faltou ao agendamento.'].filter(Boolean).join('\n'),
       },
-      include: {
-        user: {
-          select: { id: true, name: true, email: true, whatsappPhone: true },
-        },
-      },
+      include: bookingInclude,
     });
 
     res.json(updated);
@@ -242,11 +229,7 @@ export const undoBookingServiceCompletion = async (req, res) => {
         serviceCompletedAt: null,
         serviceCompletedBy: null,
       },
-      include: {
-        user: {
-          select: { id: true, name: true, email: true, whatsappPhone: true },
-        },
-      },
+      include: bookingInclude,
     });
 
     res.json(updated);
@@ -256,5 +239,44 @@ export const undoBookingServiceCompletion = async (req, res) => {
     }
     console.error('Erro ao desfazer confirmacao do servico:', error);
     res.status(500).json({ error: 'Erro ao desfazer confirmacao do servico.' });
+  }
+};
+
+export const markRemainingPaymentPaid = async (req, res) => {
+  try {
+    if (req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Acesso negado. Apenas administradores.' });
+    }
+
+    const booking = await prisma.booking.findUnique({
+      where: { id: req.params.id },
+      include: { payment: true },
+    });
+
+    if (!booking) {
+      return res.status(404).json({ error: 'Agendamento nao encontrado.' });
+    }
+
+    if (!booking.paymentId || !booking.payment) {
+      return res.status(400).json({ error: 'Este agendamento nao possui pagamento vinculado.' });
+    }
+
+    await prisma.bookingPayment.update({
+      where: { id: booking.paymentId },
+      data: {
+        remainingPaidAt: new Date(),
+        remainingPaidBy: req.user.id,
+      },
+    });
+
+    const updated = await prisma.booking.findUnique({
+      where: { id: booking.id },
+      include: bookingInclude,
+    });
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Erro ao dar baixa no restante:', error);
+    res.status(500).json({ error: 'Erro ao dar baixa no restante.' });
   }
 };

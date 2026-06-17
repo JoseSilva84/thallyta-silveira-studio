@@ -297,6 +297,27 @@ export default function AdminPanel() {
     });
   };
 
+  const handleMarkRemainingPaid = async (booking) => {
+    showConfirmToast({
+      message: 'Confirmar que o restante deste servico foi pago no atendimento?',
+      confirmLabel: 'Dar baixa',
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`${API}/bookings/${booking.id}/mark-remaining-paid`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${getToken()}` },
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.error || 'Erro ao dar baixa no restante');
+          updateBookingInList(data);
+          toast.success('Restante marcado como pago.');
+        } catch (error) {
+          toast.error(error.message);
+        }
+      },
+    });
+  };
+
   const handleSaveTestimonial = async (e) => {
     e.preventDefault();
     const name = testimonialForm.name.trim();
@@ -507,6 +528,7 @@ export default function AdminPanel() {
                 onCompleteService={handleCompleteService}
                 onUndoCompleteService={handleUndoCompleteService}
                 onMarkNoShow={handleMarkNoShow}
+                onMarkRemainingPaid={handleMarkRemainingPaid}
               />
             )}
           </div>
@@ -652,7 +674,7 @@ function showConfirmToast({ message, confirmLabel = 'Confirmar', cancelLabel = '
   });
 }
 
-function BookingsTable({ bookings, fetching, statusFilter, statusBadge, onCompleteService, onUndoCompleteService, onMarkNoShow }) {
+function BookingsTable({ bookings, fetching, statusFilter, statusBadge, onCompleteService, onUndoCompleteService, onMarkNoShow, onMarkRemainingPaid }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-gold/20 bg-black/40 backdrop-blur-md">
       {fetching ? (
@@ -678,6 +700,7 @@ function BookingsTable({ bookings, fetching, statusFilter, statusBadge, onComple
               {bookings.map((booking) => {
                 const phone = booking.attendeePhone || booking.user?.whatsappPhone || '';
                 const email = booking.attendeeEmail || booking.user?.email || '';
+                const payment = getBookingPaymentSummary(booking);
                 return (
                   <tr key={booking.id} className="transition-colors hover:bg-white/5">
                     <td className="px-4 py-3">
@@ -691,7 +714,13 @@ function BookingsTable({ bookings, fetching, statusFilter, statusBadge, onComple
                     <td className="max-w-[200px] px-4 py-3">
                       <span className="block truncate text-sm text-cream/80" title={booking.service}>{booking.service}</span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-cream/70 whitespace-nowrap">{formatCurrency(booking.estimatedValue)}</td>
+                    <td className="px-4 py-3 text-sm text-cream/70 whitespace-nowrap">
+                      <div className="font-semibold text-cream/80">{formatCurrency(payment.total)}</div>
+                      <div className="mt-1 text-xs text-emerald-300">Pago: {formatCurrency(payment.paid)}</div>
+                      <div className={`text-xs ${payment.remaining > 0 ? 'text-amber-300' : 'text-cream/40'}`}>
+                        Restante: {formatCurrency(payment.remaining)}
+                      </div>
+                    </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="font-medium text-sm text-cream/90">{formatDate(booking.scheduledAt)}</div>
                       <div className="text-xs text-cream/50 mt-0.5">
@@ -706,6 +735,7 @@ function BookingsTable({ bookings, fetching, statusFilter, statusBadge, onComple
                         onCompleteService={onCompleteService}
                         onUndoCompleteService={onUndoCompleteService}
                         onMarkNoShow={onMarkNoShow}
+                        onMarkRemainingPaid={onMarkRemainingPaid}
                       />
                     </td>
                   </tr>
@@ -719,7 +749,10 @@ function BookingsTable({ bookings, fetching, statusFilter, statusBadge, onComple
   );
 }
 
-function CompletionAction({ booking, onCompleteService, onUndoCompleteService, onMarkNoShow }) {
+function CompletionAction({ booking, onCompleteService, onUndoCompleteService, onMarkNoShow, onMarkRemainingPaid }) {
+  const payment = getBookingPaymentSummary(booking);
+  const hasRemaining = payment.remaining > 0;
+
   if (booking.status === 'cancelled') {
     return <span className="text-xs font-semibold uppercase tracking-wider text-cream/35">Sem fidelidade</span>;
   }
@@ -746,6 +779,15 @@ function CompletionAction({ booking, onCompleteService, onUndoCompleteService, o
 
   return (
     <div className="flex flex-col gap-2 w-max">
+      {hasRemaining && (
+        <button
+          onClick={() => onMarkRemainingPaid?.(booking)}
+          className="group relative inline-flex items-center justify-center gap-2 rounded-xl border border-gold/30 bg-gold/10 px-4 py-2 text-[0.65rem] font-bold uppercase tracking-wider text-gold-light transition-all hover:bg-gold/20"
+        >
+          <FiDollarSign className="size-3.5 shrink-0" />
+          <span className="whitespace-nowrap">Baixar restante</span>
+        </button>
+      )}
       <button
         onClick={() => onCompleteService(booking)}
         className="group relative inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-xs font-bold tracking-wider text-emerald-400 transition-all hover:bg-emerald-500/20 hover:text-emerald-300"
@@ -990,7 +1032,8 @@ function BookingDetailModal({ booking, onClose, statusBadge, formatTime }) {
 
   const client = booking.attendeeName || booking.user?.name || 'Cliente';
   const contact = booking.attendeeEmail || booking.user?.email || booking.attendeePhone || booking.user?.whatsappPhone || 'Contato não informado';
-  const value = formatCurrency(booking.estimatedValue);
+  const payment = getBookingPaymentSummary(booking);
+  const value = formatCurrency(payment.total);
   const loyalty = ['cancelled', 'no_show'].includes(booking.status) ? 'Sem fidelidade' : booking.serviceCompletedAt ? 'Fidelidade liberada' : 'Fidelidade pendente';
 
   const dateStr = new Date(booking.scheduledAt).toLocaleDateString('pt-BR', {
@@ -1047,6 +1090,14 @@ function BookingDetailModal({ booking, onClose, statusBadge, formatTime }) {
               <div>
                 <p className="text-[0.65rem] font-bold uppercase tracking-wider text-cream/40">Valor Estimado</p>
                 <p className="text-base font-bold text-gold-light">{value}</p>
+              </div>
+              <div>
+                <p className="text-[0.65rem] font-bold uppercase tracking-wider text-cream/40">Pago</p>
+                <p className="text-base font-bold text-emerald-300">{formatCurrency(payment.paid)}</p>
+              </div>
+              <div>
+                <p className="text-[0.65rem] font-bold uppercase tracking-wider text-cream/40">Restante</p>
+                <p className="text-base font-bold text-amber-300">{formatCurrency(payment.remaining)}</p>
               </div>
               <div>
                 <p className="text-[0.65rem] font-bold uppercase tracking-wider text-cream/40">Status Fidelidade</p>
@@ -2206,6 +2257,20 @@ function formatTime(dateStr) {
 function formatCurrency(value) {
   if (typeof value !== 'number' || !Number.isFinite(value)) return '-';
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+}
+
+function getBookingPaymentSummary(booking) {
+  const total = Number(booking.payment?.servicePrice ?? booking.estimatedValue);
+  const initialPaid = Number(booking.payment?.amount);
+  const paid = Number.isFinite(initialPaid) && initialPaid > 0 ? initialPaid : 0;
+  const remainingBeforeBaixa = Number.isFinite(total) ? Math.max(0, total - paid) : 0;
+  const remaining = booking.payment?.remainingPaidAt ? 0 : remainingBeforeBaixa;
+
+  return {
+    total: Number.isFinite(total) ? total : 0,
+    paid: booking.payment?.remainingPaidAt ? (Number.isFinite(total) ? total : paid) : paid,
+    remaining,
+  };
 }
 
 function statusBadge(status) {

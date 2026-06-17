@@ -78,6 +78,20 @@ const formatCurrency = (value) => {
   }).format(value);
 };
 
+const getPaymentSummary = (booking) => {
+  const serviceValue = Number(booking.payment?.servicePrice ?? booking.estimatedValue);
+  const paidValue = Number(booking.payment?.amount);
+  const hasPaidValue = Number.isFinite(paidValue) && paidValue > 0;
+  const remainingValue = Number.isFinite(serviceValue) && hasPaidValue
+    ? Math.max(0, serviceValue - paidValue)
+    : null;
+
+  return {
+    paid: hasPaidValue ? paidValue : null,
+    remaining: booking.payment?.remainingPaidAt ? 0 : remainingValue,
+  };
+};
+
 const sendText = async ({ chatId, text }) => {
   if (!enabled()) return { skipped: true, reason: 'WHATSAPP_ENABLED=false' };
 
@@ -116,6 +130,7 @@ const getBookingWhatsapp = (booking) => booking.user?.whatsappPhone || booking.a
 
 const buildBookingSummaryLines = (booking) => {
   const whatsapp = booking.user?.whatsappPhone || booking.attendeePhone;
+  const payment = getPaymentSummary(booking);
 
   return [
     `Cliente: ${booking.attendeeName || booking.user?.name || 'Nao informado'}`,
@@ -123,10 +138,9 @@ const buildBookingSummaryLines = (booking) => {
     whatsapp ? `WhatsApp: ${whatsapp}` : null,
     `Servico: ${booking.service || 'Nao informado'}`,
     `Valor: ${formatCurrency(booking.estimatedValue)}`,
+    payment.paid !== null ? `Pago: ${formatCurrency(payment.paid)}` : null,
+    payment.remaining !== null ? `Restante: ${formatCurrency(payment.remaining)}` : null,
     `Data/Horario: ${formatDateTime(booking.scheduledAt)}`,
-    booking.endTime ? `Termina: ${formatDateTime(booking.endTime)}` : null,
-    '',
-    `Local: ${booking.location || 'Presencial'}`,
   ].filter(Boolean);
 };
 

@@ -141,6 +141,7 @@ async function handleBookingCreated(payload) {
       user: {
         select: { id: true, name: true, email: true, whatsappPhone: true },
       },
+      payment: true,
     },
   });
 

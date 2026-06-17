@@ -4,6 +4,7 @@ import {
   completeBookingService,
   getBookings,
   getBookingById,
+  markRemainingPaymentPaid,
   markBookingNoShow,
   undoBookingServiceCompletion,
 } from '../controllers/bookingController.js';
@@ -16,6 +17,7 @@ router.get('/', verifyToken, getBookings);
 router.get('/:id', verifyToken, getBookingById);
 router.post('/:id/cancel', verifyToken, cancelBooking);
 router.post('/:id/complete-service', verifyToken, verifyAdmin, completeBookingService);
+router.post('/:id/mark-remaining-paid', verifyToken, verifyAdmin, markRemainingPaymentPaid);
 router.post('/:id/no-show', verifyToken, verifyAdmin, markBookingNoShow);
 router.post('/:id/undo-complete-service', verifyToken, verifyAdmin, undoBookingServiceCompletion);
 

@@ -53,6 +53,7 @@ export default function Booking() {
     fetchBookings,
     scheduleRequestId,
     setIsBookingDetailsStep,
+    setIsScheduleStepOpen,
     paymentType,
     setPaymentType,
     setIsPaymentUnlocked,
@@ -149,8 +150,13 @@ export default function Booking() {
       isActive = false
       isCalReadyRef.current = false
       setIsBookingDetailsStep(false)
+      setIsScheduleStepOpen(false)
     }
-  }, [clearServices, getToken, fetchBookings, setIsBookingDetailsStep])
+  }, [clearServices, getToken, fetchBookings, setIsBookingDetailsStep, setIsScheduleStepOpen])
+
+  useEffect(() => {
+    setIsScheduleStepOpen(showCal && !bookingConfirmed)
+  }, [bookingConfirmed, setIsScheduleStepOpen, showCal])
 
   useEffect(() => {
     if (!showCal) return undefined
@@ -305,6 +311,7 @@ export default function Booking() {
     isCalReadyRef.current = false
     setIsBookingDetailsStep(false)
     setShowCal(false)
+    setIsScheduleStepOpen(false)
     setBookingConfirmed(false)
     setConfirmedSummary(null)
     setBookingPayment(null)

@@ -13,6 +13,7 @@ export function BookingProvider({ children }) {
   const [loadingBookings, setLoadingBookings] = useState(false)
   const [scheduleRequestId, setScheduleRequestId] = useState(0)
   const [isBookingDetailsStep, setIsBookingDetailsStep] = useState(false)
+  const [isScheduleStepOpen, setIsScheduleStepOpen] = useState(false)
   const [paymentType, setPaymentType] = useState('deposit')
   const [isPaymentUnlocked, setIsPaymentUnlocked] = useState(false)
 
@@ -30,6 +31,7 @@ export function BookingProvider({ children }) {
   const clearServices = useCallback(() => {
     setSelectedServices([])
     setIsPaymentUnlocked(false)
+    setIsScheduleStepOpen(false)
     setPaymentType('deposit')
   }, [])
   const requestSchedule = useCallback(() => setScheduleRequestId((current) => current + 1), [])
@@ -99,6 +101,8 @@ export function BookingProvider({ children }) {
       scheduleRequestId,
       isBookingDetailsStep,
       setIsBookingDetailsStep,
+      isScheduleStepOpen,
+      setIsScheduleStepOpen,
       paymentType,
       setPaymentType,
       isPaymentUnlocked,
@@ -116,6 +120,7 @@ export function BookingProvider({ children }) {
       requestSchedule,
       scheduleRequestId,
       isBookingDetailsStep,
+      isScheduleStepOpen,
       paymentType,
       isPaymentUnlocked,
       fetchBookings,
