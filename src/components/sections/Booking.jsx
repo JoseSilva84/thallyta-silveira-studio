@@ -33,6 +33,16 @@ const getCalLinkFromUrl = (url) => {
   return url.replace(/^https?:\/\/(?:www\.)?cal\.com\//, '').replace(/^\/+/, '')
 }
 
+const getValidParam = (params, ...names) => {
+  for (const name of names) {
+    const value = params.get(name)
+    if (value && !['null', 'undefined', ''].includes(value.trim().toLowerCase())) {
+      return value
+    }
+  }
+  return null
+}
+
 export default function Booking() {
   const { user, setLoginOpen, getToken } = useAuth()
   const {
@@ -228,8 +238,8 @@ export default function Booking() {
     const bookingPaymentId = params.get('bookingPaymentId')
     if (!bookingPaymentId || !user) return
 
-    const paymentId = params.get('payment_id') || params.get('collection_id')
-    const mpStatus = params.get('mpStatus') || params.get('status') || params.get('collection_status')
+    const paymentId = getValidParam(params, 'payment_id', 'collection_id')
+    const mpStatus = getValidParam(params, 'mpStatus', 'status', 'collection_status')
     const token = getToken()
 
     if (!token) return
@@ -242,6 +252,12 @@ export default function Booking() {
       setConfirmingPayment(true)
       focusBookingSection()
       try {
+        if (mpStatus === 'failure' && !paymentId) {
+          toast.info('Pagamento cancelado. Seu horario ainda nao foi reservado. Escolha a forma de pagamento para tentar novamente.')
+          cleanPaymentParams()
+          return
+        }
+
         const query = paymentId ? `?payment_id=${encodeURIComponent(paymentId)}` : ''
         const res = await fetch(`${API}/payments/booking/${bookingPaymentId}/confirm${query}`, {
           headers: { Authorization: `Bearer ${token}` },
@@ -272,7 +288,7 @@ export default function Booking() {
         toast.success('Pagamento aprovado. Agora escolha a data e o horario.')
         cleanPaymentParams()
       } catch (error) {
-        toast.error(error.message)
+        toast.error('Nao foi possivel confirmar o pagamento. Tente novamente ou escolha outra forma de pagamento.')
       } finally {
         setConfirmingPayment(false)
       }

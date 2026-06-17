@@ -23,6 +23,13 @@ const getBackendUrl = () => {
 
 const roundMoney = (value) => Math.round(value * 100) / 100;
 
+const getValidId = (value) => {
+  if (!value) return null;
+  const normalized = String(value).trim();
+  if (!normalized || ['null', 'undefined'].includes(normalized.toLowerCase())) return null;
+  return normalized;
+};
+
 const getAccessToken = () => {
   const token = process.env.MP_ACCESS_TOKEN;
   if (!token) {
@@ -201,7 +208,7 @@ export const confirmBookingPayment = async (req, res) => {
     }
 
     let updated = bookingPayment;
-    const mercadoPagoPaymentId = req.query.payment_id || req.query.collection_id;
+    const mercadoPagoPaymentId = getValidId(req.query.payment_id || req.query.collection_id);
 
     if (mercadoPagoPaymentId) {
       const mercadoPagoPayment = await mercadoPagoRequest(`/v1/payments/${mercadoPagoPaymentId}`);
@@ -220,7 +227,7 @@ export const confirmBookingPayment = async (req, res) => {
 
 export const handleMercadoPagoWebhook = async (req, res) => {
   try {
-    const paymentId = req.query.id || req.body?.data?.id || req.body?.id;
+    const paymentId = getValidId(req.query.id || req.body?.data?.id || req.body?.id);
     const type = req.query.type || req.body?.type || req.body?.topic;
 
     if (!paymentId || (type && type !== 'payment')) {
