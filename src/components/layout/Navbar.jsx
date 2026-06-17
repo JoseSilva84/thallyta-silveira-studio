@@ -192,10 +192,10 @@ export default function Navbar() {
       {open && (
         <div className="fixed inset-0 z-[70] bg-black/70 backdrop-blur-sm lg:hidden">
           <aside className="frosted-panel ml-auto h-full w-80 max-w-[86vw] p-6 shadow-2xl">
-            <div className="mb-8 flex items-center justify-between">
-              <div>
-                <span className="font-display text-2xl text-gold-light">TS</span>
-                <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-bold uppercase tracking-wider">
+            <div className="mb-8 flex items-center justify-between gap-4">
+              <div className="flex min-w-0 items-center gap-4">
+                <span className="shrink-0 font-display text-2xl leading-none text-gold-light">TS</span>
+                <div className="inline-flex shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-bold uppercase tracking-wider">
                   <span className={`size-2 rounded-full ${statusDotClass}`} aria-hidden="true"></span>
                   <span className={statusTextClass}>{studioStatus.label}</span>
                 </div>
