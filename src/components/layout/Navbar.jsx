@@ -149,7 +149,7 @@ export default function Navbar() {
                 <span className="silver-glow grid size-11 place-items-center rounded-full border border-gold/50 bg-black/20 font-display text-xl font-bold text-gold-light">TS</span>
                 <span className="absolute -bottom-0.5 -right-0.5 flex size-3">
                   {studioStatus.isOpen && <span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-40 ${statusDotClass}`}></span>}
-                  <span className={`relative inline-flex size-3 rounded-full border-[1.5px] border-[#1a1a1a] ${statusDotClass}`}></span>
+                  <span className={`relative inline-flex size-3 rounded-full ${statusDotClass}`}></span>
                 </span>
               </div>
               <div className="hidden sm:flex flex-col justify-center">
