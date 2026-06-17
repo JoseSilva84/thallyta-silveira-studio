@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { FiX } from 'react-icons/fi'
+import { FiEye, FiEyeOff, FiX } from 'react-icons/fi'
 import { FcGoogle } from 'react-icons/fc'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext.jsx'
@@ -7,6 +8,7 @@ import { useAuth } from '../../context/AuthContext.jsx'
 export default function LoginModal() {
   const { loginOpen, setLoginOpen, login, loginWithGoogle, loading } = useAuth()
   const { register, handleSubmit } = useForm({ defaultValues: { email: '', password: '' } })
+  const [showPass, setShowPass] = useState(false)
   const navigate = useNavigate()
 
   if (!loginOpen) return null
@@ -41,12 +43,23 @@ export default function LoginModal() {
           </label>
           <label className="block text-sm text-cream/80">
             Senha
-            <input
-              className="mt-2 w-full rounded-md border border-dark-border bg-black/35 px-4 py-3 text-cream"
-              type="password"
-              placeholder="••••••••"
-              {...register('password', { required: true })}
-            />
+            <span className="relative mt-2 block">
+              <input
+                className="w-full rounded-md border border-dark-border bg-black/35 px-4 py-3 pr-12 text-cream"
+                type={showPass ? 'text' : 'password'}
+                placeholder="••••••••"
+                {...register('password', { required: true })}
+              />
+              <button
+                type="button"
+                aria-label={showPass ? 'Ocultar senha' : 'Mostrar senha'}
+                aria-pressed={showPass}
+                onClick={() => setShowPass((value) => !value)}
+                className="tap-gold absolute right-4 top-1/2 -translate-y-1/2 text-cream/45 transition-colors hover:text-cream"
+              >
+                {showPass ? <FiEyeOff size={20} /> : <FiEye size={20} />}
+              </button>
+            </span>
           </label>
           <button type="submit" disabled={loading} className="gold-button w-full rounded-md px-5 py-3 text-sm font-bold disabled:opacity-50">
             {loading ? 'Entrando...' : 'Entrar'}
