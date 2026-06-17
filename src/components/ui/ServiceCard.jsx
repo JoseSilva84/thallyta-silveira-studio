@@ -7,6 +7,7 @@ export default function ServiceCard({ service, onAdd }) {
 
   const displayPrice = hasVariants ? selectedVariant.price : service.price
   const displayDuration = hasVariants ? selectedVariant.duration : service.duration
+  const headlinePrice = hasVariants ? `A partir de ${displayPrice}` : displayPrice
 
   const handleAdd = () => {
     if (hasVariants) {
@@ -42,7 +43,7 @@ export default function ServiceCard({ service, onAdd }) {
           {hasVariants ? (
             <div className="mt-3 space-y-2">
               {/* Price shown dynamically */}
-              <p className="font-display text-xl font-bold tracking-wide text-gold-light">{displayPrice}</p>
+              <p className="font-display text-xl font-bold tracking-wide text-gold-light">{headlinePrice}</p>
 
               {/* Size selector */}
               <div className="relative">
@@ -64,7 +65,7 @@ export default function ServiceCard({ service, onAdd }) {
               </div>
             </div>
           ) : (
-            <p className="mt-3 font-display text-xl font-bold tracking-wide text-gold-light">{displayPrice}</p>
+            <p className="mt-3 font-display text-xl font-bold tracking-wide text-gold-light">{headlinePrice}</p>
           )}
           {displayDuration && (
             <p className="mt-2 text-xs font-semibold uppercase tracking-[0.18em] text-cream/45">
