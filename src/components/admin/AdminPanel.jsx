@@ -642,6 +642,7 @@ export default function AdminPanel() {
             setForm={setExpenseForm}
             onAddExpense={handleAddExpense}
             onDeleteExpense={handleDeleteExpense}
+            onMarkRemainingPaid={handleMarkRemainingPaid}
           />
         )}
 
@@ -1146,7 +1147,7 @@ function DayAgendaModal({ day, onClose, statusBadge, formatTime, onBookingClick 
   );
 }
 
-function BookingDetailModal({ booking, onClose, statusBadge, formatTime }) {
+function BookingDetailModal({ booking, onClose, statusBadge, formatTime, onMarkRemainingPaid }) {
   if (!booking) return null;
 
   const client = booking.attendeeName || booking.user?.name || 'Cliente';
@@ -1154,6 +1155,7 @@ function BookingDetailModal({ booking, onClose, statusBadge, formatTime }) {
   const payment = getBookingPaymentSummary(booking);
   const value = formatCurrency(payment.total);
   const loyalty = ['cancelled', 'no_show'].includes(booking.status) ? 'Sem fidelidade' : booking.serviceCompletedAt ? 'Fidelidade liberada' : 'Fidelidade pendente';
+  const canMarkRemainingPaid = payment.remaining > 0 && typeof onMarkRemainingPaid === 'function';
 
   const dateStr = new Date(booking.scheduledAt).toLocaleDateString('pt-BR', {
     weekday: 'long',
@@ -1231,6 +1233,15 @@ function BookingDetailModal({ booking, onClose, statusBadge, formatTime }) {
                   {booking.notes}
                 </p>
               </div>
+            )}
+            {canMarkRemainingPaid && (
+              <button
+                type="button"
+                onClick={() => onMarkRemainingPaid(booking)}
+                className="mt-2 flex w-full items-center justify-center gap-2 rounded-full border border-gold/30 bg-gold/10 px-4 py-3 text-sm font-bold uppercase tracking-wider text-gold-light transition hover:bg-gold/20"
+              >
+                <FiDollarSign /> Dar baixa no pagamento
+              </button>
             )}
             {booking.adminNotes && (
               <div>
@@ -1366,7 +1377,8 @@ function AnalyticsView({ analytics }) {
   );
 }
 
-function FinanceView({ summary, expenses, fetching, saving, form, setForm, onAddExpense, onDeleteExpense }) {
+function FinanceView({ summary, expenses, fetching, saving, form, setForm, onAddExpense, onDeleteExpense, onMarkRemainingPaid }) {
+  const [selectedPendingPayment, setSelectedPendingPayment] = useState(null);
   const profitTone = summary.netProfit >= 0 ? 'text-emerald-300' : 'text-red-300';
 
   return (
@@ -1435,7 +1447,12 @@ function FinanceView({ summary, expenses, fetching, saving, form, setForm, onAdd
                 <p className="text-sm text-cream/45">Nenhum valor pendente no momento.</p>
               ) : (
                 summary.pendingPayments.map((item) => (
-                  <div key={item.id} className="rounded-lg border border-amber-300/15 bg-amber-300/10 p-3">
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setSelectedPendingPayment(item)}
+                    className="w-full rounded-lg border border-amber-300/15 bg-amber-300/10 p-3 text-left transition hover:border-gold/40 hover:bg-amber-300/15 focus:outline-none focus:ring-1 focus:ring-gold/50"
+                  >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold text-cream">{item.client}</p>
@@ -1444,7 +1461,7 @@ function FinanceView({ summary, expenses, fetching, saving, form, setForm, onAdd
                       <span className="shrink-0 text-sm font-bold text-amber-200">{formatCurrency(item.remaining)}</span>
                     </div>
                     <p className="mt-1 text-xs text-cream/40">{formatDate(item.scheduledAt)}</p>
-                  </div>
+                  </button>
                 ))
               )}
             </div>
@@ -1559,6 +1576,17 @@ function FinanceView({ summary, expenses, fetching, saving, form, setForm, onAdd
           )}
         </section>
       </div>
+
+      <BookingDetailModal
+        booking={selectedPendingPayment?.booking || null}
+        onClose={() => setSelectedPendingPayment(null)}
+        statusBadge={statusBadge}
+        formatTime={formatTime}
+        onMarkRemainingPaid={(booking) => {
+          onMarkRemainingPaid?.(booking);
+          setSelectedPendingPayment(null);
+        }}
+      />
     </div>
   );
 }
@@ -2290,6 +2318,7 @@ function buildFinanceSummary(bookings, expenses) {
         service: booking.service || 'Servico nao informado',
         scheduledAt: booking.scheduledAt,
         remaining: payment.remaining,
+        booking,
       });
     }
   });
