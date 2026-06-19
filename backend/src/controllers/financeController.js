@@ -8,7 +8,7 @@ const normalizeExpensePayload = (body) => {
   const notes = String(body.notes || '').trim();
 
   if (!description) {
-    return { error: 'Descricao da despesa e obrigatoria.' };
+    return { error: 'Descrição da despesa e obrigatoria.' };
   }
 
   if (!Number.isFinite(amount) || amount <= 0) {

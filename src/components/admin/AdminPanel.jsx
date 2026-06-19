@@ -861,6 +861,7 @@ function BookingsTable({ bookings, fetching, statusFilter, statusBadge, onComple
 function CompletionAction({ booking, onCompleteService, onUndoCompleteService, onMarkNoShow, onMarkRemainingPaid }) {
   const payment = getBookingPaymentSummary(booking);
   const hasRemaining = payment.remaining > 0;
+  const canMarkRemainingPaid = hasRemaining && typeof onMarkRemainingPaid === 'function';
 
   if (booking.status === 'cancelled') {
     return <span className="text-xs font-semibold uppercase tracking-wider text-cream/35">Sem fidelidade</span>;
@@ -872,7 +873,16 @@ function CompletionAction({ booking, onCompleteService, onUndoCompleteService, o
 
   if (booking.serviceCompletedAt) {
     return (
-      <div className="flex flex-col gap-2">
+      <div className="flex w-max flex-col gap-2">
+        {canMarkRemainingPaid && (
+          <button
+            onClick={() => onMarkRemainingPaid(booking)}
+            className="group relative inline-flex items-center justify-center gap-2 rounded-xl border border-gold/30 bg-gold/10 px-4 py-2 text-[0.65rem] font-bold uppercase tracking-wider text-gold-light transition-all hover:bg-gold/20"
+          >
+            <FiDollarSign className="size-3.5 shrink-0" />
+            <span className="whitespace-nowrap">Dar baixa</span>
+          </button>
+        )}
         <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-emerald-400">
           <FiCheckCircle /> Liberada
         </span>
@@ -888,13 +898,13 @@ function CompletionAction({ booking, onCompleteService, onUndoCompleteService, o
 
   return (
     <div className="flex flex-col gap-2 w-max">
-      {hasRemaining && (
+      {canMarkRemainingPaid && (
         <button
-          onClick={() => onMarkRemainingPaid?.(booking)}
+          onClick={() => onMarkRemainingPaid(booking)}
           className="group relative inline-flex items-center justify-center gap-2 rounded-xl border border-gold/30 bg-gold/10 px-4 py-2 text-[0.65rem] font-bold uppercase tracking-wider text-gold-light transition-all hover:bg-gold/20"
         >
           <FiDollarSign className="size-3.5 shrink-0" />
-          <span className="whitespace-nowrap">Baixar restante</span>
+          <span className="whitespace-nowrap">Dar baixa</span>
         </button>
       )}
       <button
@@ -1371,12 +1381,12 @@ function FinanceView({ summary, expenses, fetching, saving, form, setForm, onAdd
       <section className="rounded-2xl border border-gold/20 bg-black/40 p-5">
         <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-gold-light/60">Contabilidade dos servicos</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-gold-light/60">Contabilidade dos serviços</p>
             <h2 className="mt-1 text-2xl font-semibold text-gold-light">Financeiro</h2>
           </div>
           <div className="grid gap-3 text-sm sm:grid-cols-3">
-            <FinanceInlineStat label="Valor em servicos" value={formatCurrency(summary.totalRevenue)} />
-            <FinanceInlineStat label="Ticket medio" value={formatCurrency(summary.averageTicket)} />
+            <FinanceInlineStat label="Valor em serviços" value={formatCurrency(summary.totalRevenue)} />
+            <FinanceInlineStat label="Ticket médio" value={formatCurrency(summary.averageTicket)} />
             <FinanceInlineStat label="Lucro atual" value={formatCurrency(summary.netProfit)} valueClassName={profitTone} />
           </div>
         </div>
@@ -1447,7 +1457,7 @@ function FinanceView({ summary, expenses, fetching, saving, form, setForm, onAdd
           <h2 className="text-xl font-semibold text-gold-light">Nova despesa</h2>
           <form onSubmit={onAddExpense} className="mt-4 space-y-4">
             <div>
-              <label className="mb-1 block text-sm text-cream/70">Descricao</label>
+              <label className="mb-1 block text-sm text-cream/70">Descrição</label>
               <input
                 value={form.description}
                 onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
@@ -1489,7 +1499,7 @@ function FinanceView({ summary, expenses, fetching, saving, form, setForm, onAdd
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm text-cream/70">Observacoes</label>
+              <label className="mb-1 block text-sm text-cream/70">Observações</label>
               <textarea
                 value={form.notes}
                 onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))}
@@ -1506,7 +1516,7 @@ function FinanceView({ summary, expenses, fetching, saving, form, setForm, onAdd
         <section className="rounded-2xl border border-gold/20 bg-black/40 p-5">
           <div className="mb-4 flex items-end justify-between gap-3">
             <div>
-              <h2 className="text-xl font-semibold text-gold-light">Despesas do salao</h2>
+              <h2 className="text-xl font-semibold text-gold-light">Despesas do salão</h2>
               <p className="mt-1 text-sm text-cream/45">Lancamentos salvos neste painel administrativo.</p>
             </div>
             <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-sm font-semibold text-cream/65">
