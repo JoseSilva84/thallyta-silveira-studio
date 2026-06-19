@@ -30,6 +30,7 @@ model User {
   updatedAt    DateTime  @updatedAt
   bookings     Booking[]
   bookingPayments BookingPayment[]
+  financeExpenses FinanceExpense[]
 }
 
 model Booking {
@@ -101,4 +102,20 @@ model Testimonial {
   published Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model FinanceExpense {
+  id          String   @id @default(uuid())
+  description String
+  category    String   @default("Salao")
+  amount      Float
+  date        DateTime
+  notes       String?
+  createdById String?
+  createdBy   User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([date])
+  @@index([category])
 }

@@ -22,6 +22,7 @@ import {
   FiSearch,
   FiStar,
   FiClock,
+  FiPlus,
   FiSlash,
   FiTrash2,
   FiTrendingUp,
@@ -40,6 +41,14 @@ const emptyTestimonial = {
   text: '',
   rating: 5,
   published: true,
+};
+
+const emptyExpenseForm = {
+  description: '',
+  category: 'Salao',
+  amount: '',
+  date: new Date().toISOString().slice(0, 10),
+  notes: '',
 };
 
 export default function AdminPanel() {
@@ -70,6 +79,10 @@ export default function AdminPanel() {
   const [fetchingTestimonials, setFetchingTestimonials] = useState(true);
   const [testimonialSaving, setTestimonialSaving] = useState(false);
   const [testimonialForm, setTestimonialForm] = useState(emptyTestimonial);
+  const [financeExpenses, setFinanceExpenses] = useState([]);
+  const [fetchingFinanceExpenses, setFetchingFinanceExpenses] = useState(true);
+  const [expenseSaving, setExpenseSaving] = useState(false);
+  const [expenseForm, setExpenseForm] = useState(emptyExpenseForm);
 
   const categories = ['Unhas', 'Cabelo', 'Estudio'];
 
@@ -119,6 +132,23 @@ export default function AdminPanel() {
     }
   }, [getToken]);
 
+  const fetchFinanceExpenses = useCallback(async () => {
+    try {
+      setFetchingFinanceExpenses(true);
+      const res = await fetch(`${API}/finance/expenses`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      const data = await res.json().catch(() => []);
+      if (!res.ok) throw new Error(data.error || 'Falha ao buscar despesas');
+      setFinanceExpenses(data);
+    } catch (error) {
+      toast.error('Erro ao carregar financeiro');
+      console.error(error);
+    } finally {
+      setFetchingFinanceExpenses(false);
+    }
+  }, [getToken]);
+
   const fetchScheduleBlocks = useCallback(async () => {
     try {
       setFetchingBlocks(true);
@@ -165,7 +195,8 @@ export default function AdminPanel() {
     fetchImages();
     fetchBookings();
     fetchTestimonials();
-  }, [fetchBookings, fetchImages, fetchTestimonials]);
+    fetchFinanceExpenses();
+  }, [fetchBookings, fetchFinanceExpenses, fetchImages, fetchTestimonials]);
 
   // Carrega bloqueios quando a aba é aberta pela primeira vez
   useEffect(() => {
@@ -178,6 +209,7 @@ export default function AdminPanel() {
     fetchBookings();
     fetchImages();
     fetchTestimonials();
+    fetchFinanceExpenses();
     if (activeTab === 'blocks') fetchScheduleBlocks();
   };
 
@@ -383,6 +415,66 @@ export default function AdminPanel() {
     });
   };
 
+  const handleAddExpense = async (event) => {
+    event.preventDefault();
+    const description = expenseForm.description.trim();
+    const amount = Number(String(expenseForm.amount).replace(',', '.'));
+
+    if (!description) {
+      toast.warning('Informe a descricao da despesa');
+      return;
+    }
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      toast.warning('Informe um valor valido para a despesa');
+      return;
+    }
+
+    try {
+      setExpenseSaving(true);
+      const res = await fetch(`${API}/finance/expenses`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getToken()}`,
+        },
+        body: JSON.stringify({
+          description,
+          category: expenseForm.category || 'Salao',
+          amount,
+          date: expenseForm.date || new Date().toISOString().slice(0, 10),
+          notes: expenseForm.notes.trim(),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Erro ao registrar despesa');
+
+      setFinanceExpenses((current) => [data, ...current]);
+      setExpenseForm(emptyExpenseForm);
+      toast.success('Despesa registrada no financeiro.');
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setExpenseSaving(false);
+    }
+  };
+
+  const handleDeleteExpense = async (id) => {
+    try {
+      const res = await fetch(`${API}/finance/expenses/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Erro ao remover despesa');
+
+      setFinanceExpenses((current) => current.filter((expense) => expense.id !== id));
+      toast.info('Despesa removida.');
+    } catch (error) {
+      toast.error(error.message);
+    }
+  };
+
   const toggleTestimonial = async (testimonial) => {
     try {
       const res = await fetch(`${API}/testimonials/${testimonial.id}`, {
@@ -411,6 +503,7 @@ export default function AdminPanel() {
   const clientProfiles = useMemo(() => buildClientProfiles(bookings), [bookings]);
 
   const analytics = useMemo(() => buildAnalytics(bookings), [bookings]);
+  const financeSummary = useMemo(() => buildFinanceSummary(bookings, financeExpenses), [bookings, financeExpenses]);
   const calendarDays = useMemo(() => buildCalendarDays(monthCursor, filteredBookings), [monthCursor, filteredBookings]);
   const monthLabel = monthCursor.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
 
@@ -456,6 +549,7 @@ export default function AdminPanel() {
         <div className="mb-6 flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-black/30 p-1 backdrop-blur-md">
           <TabButton active={activeTab === 'bookings'} icon={<FiCalendar />} label="Agenda" count={bookings.length} onClick={() => setActiveTab('bookings')} />
           <TabButton active={activeTab === 'analytics'} icon={<FiBarChart2 />} label="Análises" onClick={() => setActiveTab('analytics')} />
+          <TabButton active={activeTab === 'finance'} icon={<FiDollarSign />} label="Financeiro" count={financeExpenses.length || undefined} onClick={() => setActiveTab('finance')} />
           <TabButton active={activeTab === 'loyalty'} icon={<FiAward />} label="Fidelidade" count={pendingCompletionBookings.length} onClick={() => setActiveTab('loyalty')} />
           <TabButton active={activeTab === 'clients'} icon={<FiUsers />} label="Clientes" count={clientProfiles.length} onClick={() => setActiveTab('clients')} />
           <TabButton active={activeTab === 'gallery'} icon={<FiImage />} label="Galeria" count={images.length} onClick={() => setActiveTab('gallery')} />
@@ -538,6 +632,19 @@ export default function AdminPanel() {
           <AnalyticsView analytics={analytics} />
         )}
 
+        {activeTab === 'finance' && (
+          <FinanceView
+            summary={financeSummary}
+            expenses={financeExpenses}
+            fetching={fetchingFinanceExpenses}
+            saving={expenseSaving}
+            form={expenseForm}
+            setForm={setExpenseForm}
+            onAddExpense={handleAddExpense}
+            onDeleteExpense={handleDeleteExpense}
+          />
+        )}
+
         {activeTab === 'loyalty' && (
           <LoyaltyAdminView
             clients={loyaltyClients}
@@ -558,6 +665,7 @@ export default function AdminPanel() {
             onCompleteService={handleCompleteService}
             onUndoCompleteService={handleUndoCompleteService}
             onMarkNoShow={handleMarkNoShow}
+            onMarkRemainingPaid={handleMarkRemainingPaid}
           />
         )}
 
@@ -1248,6 +1356,212 @@ function AnalyticsView({ analytics }) {
   );
 }
 
+function FinanceView({ summary, expenses, fetching, saving, form, setForm, onAddExpense, onDeleteExpense }) {
+  const profitTone = summary.netProfit >= 0 ? 'text-emerald-300' : 'text-red-300';
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <MetricCard icon={<FiDollarSign />} label="Recebido" value={formatCurrency(summary.totalPaid)} hint={`${summary.paidBookings} pagamento(s) com entrada`} />
+        <MetricCard icon={<FiTrendingUp />} label="A receber" value={formatCurrency(summary.totalRemaining)} hint={`${summary.pendingPayments.length} atendimento(s) pendente(s)`} />
+        <MetricCard icon={<FiTrash2 />} label="Despesas" value={formatCurrency(summary.totalExpenses)} hint={`${expenses.length} lancamento(s) no salao`} />
+        <MetricCard icon={<FiBarChart2 />} label="Lucro atual" value={formatCurrency(summary.netProfit)} hint={`Projetado: ${formatCurrency(summary.projectedProfit)}`} />
+      </div>
+
+      <section className="rounded-2xl border border-gold/20 bg-black/40 p-5">
+        <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider text-gold-light/60">Contabilidade dos servicos</p>
+            <h2 className="mt-1 text-2xl font-semibold text-gold-light">Financeiro</h2>
+          </div>
+          <div className="grid gap-3 text-sm sm:grid-cols-3">
+            <FinanceInlineStat label="Valor em servicos" value={formatCurrency(summary.totalRevenue)} />
+            <FinanceInlineStat label="Ticket medio" value={formatCurrency(summary.averageTicket)} />
+            <FinanceInlineStat label="Lucro atual" value={formatCurrency(summary.netProfit)} valueClassName={profitTone} />
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-4 lg:grid-cols-3">
+          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+            <p className="text-xs font-bold uppercase tracking-wider text-cream/40">Receita por mes</p>
+            <div className="mt-4 space-y-3">
+              {summary.monthStats.every((item) => item.value === 0) ? (
+                <p className="text-sm text-cream/45">Ainda nao ha valores suficientes para analisar.</p>
+              ) : (
+                <ColumnChart
+                  items={summary.monthStats}
+                  valueKey="value"
+                  valueFormatter={formatCurrency}
+                  emptyText="Ainda nao ha valores suficientes para analisar."
+                />
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+            <p className="text-xs font-bold uppercase tracking-wider text-cream/40">Despesas por categoria</p>
+            <div className="mt-4 space-y-3">
+              {fetching ? (
+                <p className="text-sm text-cream/45">Carregando despesas...</p>
+              ) : summary.expenseCategories.length === 0 ? (
+                <p className="text-sm text-cream/45">Nenhuma despesa registrada.</p>
+              ) : (
+                summary.expenseCategories.map((item) => (
+                  <BarRow
+                    key={item.label}
+                    label={item.label}
+                    value={formatCurrency(item.value)}
+                    width={summary.totalExpenses ? (item.value / summary.totalExpenses) * 100 : 0}
+                  />
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+            <p className="text-xs font-bold uppercase tracking-wider text-cream/40">Pagamentos pendentes</p>
+            <div className="mt-4 max-h-72 space-y-3 overflow-y-auto pr-1">
+              {summary.pendingPayments.length === 0 ? (
+                <p className="text-sm text-cream/45">Nenhum valor pendente no momento.</p>
+              ) : (
+                summary.pendingPayments.map((item) => (
+                  <div key={item.id} className="rounded-lg border border-amber-300/15 bg-amber-300/10 p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-cream">{item.client}</p>
+                        <p className="truncate text-xs text-cream/45">{item.service}</p>
+                      </div>
+                      <span className="shrink-0 text-sm font-bold text-amber-200">{formatCurrency(item.remaining)}</span>
+                    </div>
+                    <p className="mt-1 text-xs text-cream/40">{formatDate(item.scheduledAt)}</p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
+        <section className="rounded-2xl border border-gold/20 bg-black/40 p-5">
+          <h2 className="text-xl font-semibold text-gold-light">Nova despesa</h2>
+          <form onSubmit={onAddExpense} className="mt-4 space-y-4">
+            <div>
+              <label className="mb-1 block text-sm text-cream/70">Descricao</label>
+              <input
+                value={form.description}
+                onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
+                placeholder="Aluguel, produto, manutencao..."
+                className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-cream outline-none placeholder:text-cream/30 focus:border-gold"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-sm text-cream/70">Valor</label>
+                <input
+                  value={form.amount}
+                  onChange={(event) => setForm((current) => ({ ...current, amount: event.target.value }))}
+                  inputMode="decimal"
+                  placeholder="0,00"
+                  className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-cream outline-none placeholder:text-cream/30 focus:border-gold"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm text-cream/70">Data</label>
+                <input
+                  type="date"
+                  value={form.date}
+                  onChange={(event) => setForm((current) => ({ ...current, date: event.target.value }))}
+                  className="w-full rounded-lg border border-white/10 bg-dark px-3 py-2 text-sm text-cream outline-none focus:border-gold"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-cream/70">Categoria</label>
+              <select
+                value={form.category}
+                onChange={(event) => setForm((current) => ({ ...current, category: event.target.value }))}
+                className="w-full rounded-lg border border-white/10 bg-dark px-3 py-2 text-sm text-cream outline-none focus:border-gold"
+              >
+                {['Salao', 'Produtos', 'Aluguel', 'Marketing', 'Equipamentos', 'Impostos', 'Outros'].map((category) => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-cream/70">Observacoes</label>
+              <textarea
+                value={form.notes}
+                onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))}
+                rows={3}
+                className="w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-cream outline-none placeholder:text-cream/30 focus:border-gold"
+              />
+            </div>
+            <button type="submit" disabled={saving} className="flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-gold to-gold-light py-3 font-bold text-dark transition-all hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60">
+              <FiPlus /> {saving ? 'Registrando...' : 'Registrar despesa'}
+            </button>
+          </form>
+        </section>
+
+        <section className="rounded-2xl border border-gold/20 bg-black/40 p-5">
+          <div className="mb-4 flex items-end justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold text-gold-light">Despesas do salao</h2>
+              <p className="mt-1 text-sm text-cream/45">Lancamentos salvos neste painel administrativo.</p>
+            </div>
+            <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-sm font-semibold text-cream/65">
+              {formatCurrency(summary.totalExpenses)}
+            </span>
+          </div>
+
+          {fetching ? (
+            <p className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-cream/50">Carregando despesas...</p>
+          ) : expenses.length === 0 ? (
+            <p className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-cream/50">Nenhuma despesa cadastrada ainda.</p>
+          ) : (
+            <div className="space-y-3">
+              {expenses.map((expense) => (
+                <article key={expense.id} className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="truncate font-semibold text-cream">{expense.description}</h3>
+                        <span className="rounded-full border border-gold/15 bg-gold/10 px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wider text-gold-light">{expense.category}</span>
+                      </div>
+                      <p className="mt-1 text-sm text-cream/45">{formatDate(expense.date)}</p>
+                      {expense.notes && <p className="mt-2 text-sm text-cream/60">{expense.notes}</p>}
+                    </div>
+                    <div className="flex shrink-0 items-center justify-between gap-3 sm:justify-end">
+                      <span className="text-lg font-bold text-red-200">{formatCurrency(expense.amount)}</span>
+                      <button
+                        type="button"
+                        onClick={() => onDeleteExpense(expense.id)}
+                        className="rounded-full border border-red-500/20 p-2 text-red-300 hover:bg-red-500/10"
+                        aria-label="Remover despesa"
+                      >
+                        <FiTrash2 />
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function FinanceInlineStat({ label, value, valueClassName = 'text-cream' }) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
+      <p className="text-[0.65rem] font-bold uppercase tracking-wider text-cream/40">{label}</p>
+      <p className={`mt-1 text-base font-bold ${valueClassName}`}>{value}</p>
+    </div>
+  );
+}
+
 function MetricCard({ icon, label, value, hint }) {
   return (
     <div className="rounded-2xl border border-gold/20 bg-black/40 p-5">
@@ -1456,16 +1770,26 @@ function BarRow({ label, value, width }) {
   );
 }
 
-function SmallStat({ label, value }) {
+function SmallStat({ label, value, tone = 'default' }) {
+  const toneClasses = {
+    default: 'text-cream',
+    gold: 'text-gold-light',
+    success: 'text-emerald-300',
+    warning: 'text-amber-200',
+    danger: 'text-red-200',
+  };
+
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-      <p className="text-xs font-bold uppercase tracking-wider text-cream/40">{label}</p>
-      <p className="mt-2 text-2xl font-bold text-cream">{value}</p>
+    <div className="min-w-0 rounded-xl border border-white/10 bg-white/[0.03] p-4">
+      <p className="truncate text-[0.68rem] font-bold uppercase tracking-wider text-cream/40">{label}</p>
+      <p className={`mt-2 max-w-full break-words text-[clamp(1.15rem,2vw,1.6rem)] font-bold leading-tight ${toneClasses[tone] || toneClasses.default}`}>
+        {value}
+      </p>
     </div>
   );
 }
 
-function LoyaltyAdminView({ clients, pendingBookings, onCompleteService, onUndoCompleteService, onMarkNoShow }) {
+function LoyaltyAdminView({ clients, pendingBookings, onCompleteService, onUndoCompleteService, onMarkNoShow, onMarkRemainingPaid }) {
   return (
     <div className="space-y-6">
       <section className="rounded-2xl border border-amber-300/20 bg-amber-300/10 p-5">
@@ -1559,7 +1883,13 @@ function LoyaltyAdminView({ clients, pendingBookings, onCompleteService, onUndoC
                         <p className="truncate text-sm font-semibold text-cream/80">{booking.service}</p>
                         <p className="text-xs text-cream/40">{formatDate(booking.scheduledAt)} - {formatTime(booking.scheduledAt)}</p>
                       </div>
-                      <CompletionAction booking={booking} onCompleteService={onCompleteService} onUndoCompleteService={onUndoCompleteService} onMarkNoShow={onMarkNoShow} />
+                      <CompletionAction
+                        booking={booking}
+                        onCompleteService={onCompleteService}
+                        onUndoCompleteService={onUndoCompleteService}
+                        onMarkNoShow={onMarkNoShow}
+                        onMarkRemainingPaid={onMarkRemainingPaid}
+                      />
                     </div>
                   ))}
                 </div>
@@ -1643,20 +1973,20 @@ function ClientsView({ clients, search, setSearch, statusBadge, onCompleteServic
           <p className="text-sm text-cream/50">Selecione um cliente para ver detalhes.</p>
         ) : (
           <div className="space-y-6">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex flex-col gap-5">
               <div className="min-w-0">
                 <p className="text-xs font-bold uppercase tracking-wider text-gold-light/60">Detalhes do cliente</p>
                 <h2 className="mt-1 truncate text-2xl font-bold text-cream">{selectedClient.name}</h2>
                 <p className="mt-1 text-sm text-cream/50">{selectedClient.email || selectedClient.phone || 'Contato nao informado'}</p>
                 {selectedClient.email && selectedClient.phone && <p className="text-sm text-cream/40">{selectedClient.phone}</p>}
               </div>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6 lg:min-w-[640px]">
-                <SmallStat label="Serviços" value={selectedClient.totalServices} />
-                <SmallStat label="Valor" value={formatCurrency(selectedClient.totalRevenue)} />
-                <SmallStat label="Pago" value={formatCurrency(selectedClient.totalPaid)} />
-                <SmallStat label="A receber" value={formatCurrency(selectedClient.totalRemaining)} />
-                <SmallStat label="Faltas" value={selectedClient.noShowCount} />
-                <SmallStat label="Cancelados" value={selectedClient.cancelledCount} />
+              <div className="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3 2xl:grid-cols-6">
+                <SmallStat label="Serviços" value={selectedClient.totalServices} tone="gold" />
+                <SmallStat label="Valor" value={formatCurrency(selectedClient.totalRevenue)} tone="gold" />
+                <SmallStat label="Pago" value={formatCurrency(selectedClient.totalPaid)} tone="success" />
+                <SmallStat label="A receber" value={formatCurrency(selectedClient.totalRemaining)} tone="warning" />
+                <SmallStat label="Faltas" value={selectedClient.noShowCount} tone={selectedClient.noShowCount ? 'danger' : 'default'} />
+                <SmallStat label="Cancelados" value={selectedClient.cancelledCount} tone={selectedClient.cancelledCount ? 'danger' : 'default'} />
               </div>
             </div>
 
@@ -1907,6 +2237,77 @@ function TestimonialsAdmin({ form, setForm, saving, onSave, testimonials, fetchi
       </div>
     </div>
   );
+}
+
+function buildFinanceSummary(bookings, expenses) {
+  const monthMap = new Map();
+  const categoryMap = new Map();
+  let totalRevenue = 0;
+  let totalPaid = 0;
+  let totalRemaining = 0;
+  let paidBookings = 0;
+  let chargeableBookings = 0;
+
+  const monthSeeds = Array.from({ length: 6 }).map((_, index) => {
+    const date = new Date();
+    date.setMonth(date.getMonth() - (5 - index), 1);
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    const label = date.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+    monthMap.set(key, { key, label, value: 0 });
+    return key;
+  });
+
+  const pendingPayments = [];
+
+  bookings.forEach((booking) => {
+    if (['cancelled', 'no_show'].includes(booking.status)) return;
+
+    chargeableBookings += 1;
+    const payment = getBookingPaymentSummary(booking);
+    totalRevenue += payment.total;
+    totalPaid += payment.paid;
+    totalRemaining += payment.remaining;
+    if (payment.paid > 0) paidBookings += 1;
+
+    const date = new Date(booking.scheduledAt);
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    if (monthMap.has(key)) monthMap.get(key).value += payment.paid;
+
+    if (payment.remaining > 0) {
+      pendingPayments.push({
+        id: booking.id,
+        client: booking.attendeeName || booking.user?.name || 'Cliente',
+        service: booking.service || 'Servico nao informado',
+        scheduledAt: booking.scheduledAt,
+        remaining: payment.remaining,
+      });
+    }
+  });
+
+  const totalExpenses = expenses.reduce((sum, expense) => {
+    const amount = Number(expense.amount);
+    if (!Number.isFinite(amount) || amount <= 0) return sum;
+    categoryMap.set(expense.category || 'Outros', (categoryMap.get(expense.category || 'Outros') || 0) + amount);
+    return sum + amount;
+  }, 0);
+
+  return {
+    totalRevenue,
+    totalPaid,
+    totalRemaining,
+    totalExpenses,
+    netProfit: totalPaid - totalExpenses,
+    projectedProfit: totalRevenue - totalExpenses,
+    averageTicket: chargeableBookings ? totalRevenue / chargeableBookings : 0,
+    paidBookings,
+    monthStats: monthSeeds.map((key) => monthMap.get(key)),
+    pendingPayments: pendingPayments
+      .sort((a, b) => b.remaining - a.remaining)
+      .slice(0, 8),
+    expenseCategories: Array.from(categoryMap.entries())
+      .map(([label, value]) => ({ label, value }))
+      .sort((a, b) => b.value - a.value),
+  };
 }
 
 function buildAnalytics(bookings) {
