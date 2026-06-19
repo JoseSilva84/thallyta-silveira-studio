@@ -53,6 +53,8 @@ model Booking {
   payment       BookingPayment? @relation(fields: [paymentId], references: [id])
   serviceCompletedAt DateTime?
   serviceCompletedBy String?
+  remainingPaidAt DateTime?
+  remainingPaidBy String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }

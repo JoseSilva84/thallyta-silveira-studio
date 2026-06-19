@@ -2699,11 +2699,12 @@ function getBookingPaymentSummary(booking) {
   const initialPaid = Number(booking.payment?.amount);
   const paid = Number.isFinite(initialPaid) && initialPaid > 0 ? initialPaid : 0;
   const remainingBeforeBaixa = Number.isFinite(total) ? Math.max(0, total - paid) : 0;
-  const remaining = booking.payment?.remainingPaidAt ? 0 : remainingBeforeBaixa;
+  const isRemainingPaid = Boolean(booking.payment?.remainingPaidAt || booking.remainingPaidAt);
+  const remaining = isRemainingPaid ? 0 : remainingBeforeBaixa;
 
   return {
     total: Number.isFinite(total) ? total : 0,
-    paid: booking.payment?.remainingPaidAt ? (Number.isFinite(total) ? total : paid) : paid,
+    paid: isRemainingPaid ? (Number.isFinite(total) ? total : paid) : paid,
     remaining,
   };
 }

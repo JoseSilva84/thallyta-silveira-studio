@@ -257,17 +257,31 @@ export const markRemainingPaymentPaid = async (req, res) => {
       return res.status(404).json({ error: 'Agendamento nao encontrado.' });
     }
 
-    if (!booking.paymentId || !booking.payment) {
-      return res.status(400).json({ error: 'Este agendamento nao possui pagamento vinculado.' });
-    }
+    const paidAt = new Date();
 
-    await prisma.bookingPayment.update({
-      where: { id: booking.paymentId },
-      data: {
-        remainingPaidAt: new Date(),
-        remainingPaidBy: req.user.id,
-      },
-    });
+    if (booking.paymentId && booking.payment) {
+      await prisma.bookingPayment.update({
+        where: { id: booking.paymentId },
+        data: {
+          remainingPaidAt: paidAt,
+          remainingPaidBy: req.user.id,
+        },
+      });
+    } else {
+      const total = Number(booking.estimatedValue);
+
+      if (!Number.isFinite(total) || total <= 0) {
+        return res.status(400).json({ error: 'Este agendamento nao possui valor a receber.' });
+      }
+
+      await prisma.booking.update({
+        where: { id: booking.id },
+        data: {
+          remainingPaidAt: paidAt,
+          remainingPaidBy: req.user.id,
+        },
+      });
+    }
 
     const updated = await prisma.booking.findUnique({
       where: { id: booking.id },
