@@ -15,11 +15,11 @@ import {
 
 const links = [
   ['Início', '#inicio'],
-  ['Sobre', '#sobre'],
   ['Serviços', '#servicos'],
   ['Galeria', '#galeria'],
   ['Agendamento', '#agendamento'],
   ['Fidelidade', '#fidelidade'],
+  ['Dúvidas', '#duvidas'],
   ['Localização', '#localizacao'],
 ]
 

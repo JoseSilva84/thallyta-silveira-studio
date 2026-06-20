@@ -11,6 +11,7 @@ import Testimonials from './components/sections/Testimonials.jsx'
 import Booking from './components/sections/Booking.jsx'
 import Loyalty from './components/sections/Loyalty.jsx'
 import Location from './components/sections/Location.jsx'
+import Duvidas from './components/sections/Duvidas.jsx'
 import AdminPanel from './components/admin/AdminPanel.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import RegisterPage from './pages/RegisterPage.jsx'
@@ -59,6 +60,7 @@ function Home() {
         <Testimonials />
         <Booking />
         <Loyalty />
+        <Duvidas />
         <Location />
       </main>
       <Footer />
