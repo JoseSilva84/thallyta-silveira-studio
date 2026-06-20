@@ -52,7 +52,7 @@ export default function Duvidas() {
   return (
     <section id="duvidas" className="py-20 bg-dark/20">
       <div className="section-shell max-w-4xl mx-auto">
-        <SectionTitle eyebrow="Dúvidas" title="Perguntas Frequentes" text="Confira as principais dúvidas sobre os nossos serviços e veja vídeos tutoriais sobre como usar o nosso site." />
+        <SectionTitle eyebrow="Dúvidas" title="Perguntas Frequentes" text="Confira as principais dúvidas sobre os nossos serviços e veja vídeos tutoriais." />
         
         <div className="mt-12 space-y-4">
           {faqs.map((faq, index) => {
