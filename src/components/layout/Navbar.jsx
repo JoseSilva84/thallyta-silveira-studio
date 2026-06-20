@@ -195,7 +195,7 @@ export default function Navbar() {
           onClick={() => setOpen(false)}
         >
           <aside
-            className="frosted-panel ml-auto h-full w-80 max-w-[86vw] p-6 shadow-2xl"
+            className="frosted-panel overflow-y-auto ml-auto h-full w-80 max-w-[86vw] p-6 shadow-2xl"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mb-8 flex items-center justify-between gap-4">
