@@ -2,6 +2,7 @@ import express from 'express';
 import {
   cancelBooking,
   completeBookingService,
+  createAdminBooking,
   getBookings,
   getBookingById,
   markRemainingPaymentPaid,
@@ -14,6 +15,7 @@ const router = express.Router();
 
 // Ambas as rotas exigem autenticação — a lógica de admin/client está no controller
 router.get('/', verifyToken, getBookings);
+router.post('/admin-create', verifyToken, verifyAdmin, createAdminBooking);
 router.get('/:id', verifyToken, getBookingById);
 router.post('/:id/cancel', verifyToken, cancelBooking);
 router.post('/:id/complete-service', verifyToken, verifyAdmin, completeBookingService);

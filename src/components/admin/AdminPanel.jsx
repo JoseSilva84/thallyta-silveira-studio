@@ -32,6 +32,8 @@ import {
 } from 'react-icons/fi';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { allServices } from '../../data/services.js';
+import { timeSlots } from '../../data/timeSlots.js';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
@@ -83,6 +85,20 @@ export default function AdminPanel() {
   const [fetchingFinanceExpenses, setFetchingFinanceExpenses] = useState(true);
   const [expenseSaving, setExpenseSaving] = useState(false);
   const [expenseForm, setExpenseForm] = useState(emptyExpenseForm);
+
+  // ── Admin Booking Modal ────────────────────────────────────────
+  const [showAdminBookingModal, setShowAdminBookingModal] = useState(false);
+  const [adminBookingSaving, setAdminBookingSaving] = useState(false);
+  const [adminBookingForm, setAdminBookingForm] = useState({
+    attendeeName: '',
+    attendeePhone: '',
+    attendeeEmail: '',
+    serviceId: '',
+    date: '',
+    time: '',
+    notes: '',
+    amountPaid: '',
+  });
 
   const categories = ['Unhas', 'Cabelo', 'Estudio'];
 
@@ -269,6 +285,57 @@ export default function AdminPanel() {
 
   const updateBookingInList = (updatedBooking) => {
     setBookings((current) => current.map((booking) => (booking.id === updatedBooking.id ? updatedBooking : booking)));
+  };
+
+  // ── Admin Booking Submit ───────────────────────────────────────
+  const handleAdminBookingSubmit = async (e) => {
+    e.preventDefault();
+    if (adminBookingSaving) return;
+
+    const { attendeeName, attendeePhone, serviceId, date, time } = adminBookingForm;
+    if (!attendeeName.trim() || !attendeePhone.trim() || !serviceId || !date || !time) {
+      toast.error('Preencha todos os campos obrigatórios.');
+      return;
+    }
+
+    setAdminBookingSaving(true);
+    try {
+      const token = getToken();
+      const res = await fetch(`${API}/bookings/admin-create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          ...adminBookingForm,
+          amountPaid: adminBookingForm.amountPaid ? parseFloat(adminBookingForm.amountPaid.replace(',', '.')) : 0,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Erro ao criar agendamento.');
+      }
+
+      toast.success('Agendamento criado com sucesso!');
+      setShowAdminBookingModal(false);
+      setAdminBookingForm({
+        attendeeName: '',
+        attendeePhone: '',
+        attendeeEmail: '',
+        serviceId: '',
+        date: '',
+        time: '',
+        notes: '',
+        amountPaid: '',
+      });
+      fetchBookings();
+    } catch (error) {
+      toast.error(error.message || 'Erro ao criar agendamento.');
+    } finally {
+      setAdminBookingSaving(false);
+    }
   };
 
   const handleCompleteService = async (booking) => {
@@ -578,6 +645,16 @@ export default function AdminPanel() {
               </div>
             )}
 
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold text-white">Agenda</h2>
+              <button
+                onClick={() => setShowAdminBookingModal(true)}
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-pink-500/25 transition-all hover:shadow-xl hover:shadow-pink-500/30 hover:brightness-110"
+              >
+                <FiPlus /> Novo Agendamento
+              </button>
+            </div>
+
             <div className="flex flex-wrap items-center gap-2">
               <SegmentedButton active={bookingView === 'table'} onClick={() => setBookingView('table')}>Lista</SegmentedButton>
               <SegmentedButton active={bookingView === 'calendar'} onClick={() => setBookingView('calendar')}>Calendário</SegmentedButton>
@@ -707,6 +784,139 @@ export default function AdminPanel() {
             onCreate={handleCreateBlock}
             onDelete={handleDeleteBlock}
           />
+        )}
+
+        {showAdminBookingModal && createPortal(
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+            <div className="relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl border border-white/10 bg-[#1a1a2e] p-6 shadow-2xl">
+              <button onClick={() => setShowAdminBookingModal(false)} className="absolute right-4 top-4 text-white/50 hover:text-white"><FiX size={20} /></button>
+              <h2 className="mb-6 text-xl font-bold text-white">Novo Agendamento</h2>
+              <form onSubmit={handleAdminBookingSubmit} className="space-y-4">
+                {/* Nome */}
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-white/70">Nome da cliente *</label>
+                  <input
+                    type="text" required placeholder="Nome completo"
+                    value={adminBookingForm.attendeeName}
+                    onChange={(e) => setAdminBookingForm((f) => ({ ...f, attendeeName: e.target.value }))}
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder-white/30 outline-none focus:border-pink-500/50 focus:ring-1 focus:ring-pink-500/30"
+                  />
+                </div>
+                {/* WhatsApp */}
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-white/70">WhatsApp *</label>
+                  <input
+                    type="tel" required placeholder="(85) 99999-9999"
+                    value={adminBookingForm.attendeePhone}
+                    onChange={(e) => {
+                      let v = e.target.value.replace(/\D/g, '').slice(0, 11);
+                      if (v.length > 6) v = `(${v.slice(0,2)}) ${v.slice(2,7)}-${v.slice(7)}`;
+                      else if (v.length > 2) v = `(${v.slice(0,2)}) ${v.slice(2)}`;
+                      setAdminBookingForm((f) => ({ ...f, attendeePhone: v }));
+                    }}
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder-white/30 outline-none focus:border-pink-500/50 focus:ring-1 focus:ring-pink-500/30"
+                  />
+                </div>
+                {/* Email */}
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-white/70">Email <span className="text-white/30">(opcional)</span></label>
+                  <input
+                    type="email" placeholder="email@exemplo.com"
+                    value={adminBookingForm.attendeeEmail}
+                    onChange={(e) => setAdminBookingForm((f) => ({ ...f, attendeeEmail: e.target.value }))}
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder-white/30 outline-none focus:border-pink-500/50 focus:ring-1 focus:ring-pink-500/30"
+                  />
+                </div>
+                {/* Serviço */}
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-white/70">Serviço *</label>
+                  <select
+                    required
+                    value={adminBookingForm.serviceId}
+                    onChange={(e) => setAdminBookingForm((f) => ({ ...f, serviceId: e.target.value }))}
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-pink-500/50 focus:ring-1 focus:ring-pink-500/30 [&>option]:bg-[#1a1a2e]"
+                  >
+                    <option value="">Selecione o serviço</option>
+                    {allServices.map((s) => (
+                      <option key={s.id} value={s.id}>{s.name} — {s.price}</option>
+                    ))}
+                  </select>
+                </div>
+                {/* Valor do serviço (read-only info) */}
+                {adminBookingForm.serviceId && (() => {
+                  const svc = allServices.find((s) => s.id === adminBookingForm.serviceId);
+                  return svc ? (
+                    <div className="rounded-xl border border-white/5 bg-white/5 px-4 py-3">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-white/50">Valor do serviço</span>
+                        <span className="font-semibold text-emerald-400">{svc.price}</span>
+                      </div>
+                      <div className="flex justify-between text-sm mt-1">
+                        <span className="text-white/50">Duração</span>
+                        <span className="text-white/70">{svc.duration}</span>
+                      </div>
+                    </div>
+                  ) : null;
+                })()}
+                {/* Data e Horário */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-white/70">Data *</label>
+                    <input
+                      type="date" required
+                      min={new Date().toISOString().slice(0, 10)}
+                      value={adminBookingForm.date}
+                      onChange={(e) => setAdminBookingForm((f) => ({ ...f, date: e.target.value }))}
+                      className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-pink-500/50 focus:ring-1 focus:ring-pink-500/30 [color-scheme:dark]"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-white/70">Horário *</label>
+                    <select
+                      required
+                      value={adminBookingForm.time}
+                      onChange={(e) => setAdminBookingForm((f) => ({ ...f, time: e.target.value }))}
+                      className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-pink-500/50 focus:ring-1 focus:ring-pink-500/30 [&>option]:bg-[#1a1a2e]"
+                    >
+                      <option value="">Horário</option>
+                      {timeSlots.map((t) => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                {/* Sinal pago */}
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-white/70">Valor do sinal pago <span className="text-white/30">(R$)</span></label>
+                  <input
+                    type="text" inputMode="decimal" placeholder="0,00"
+                    value={adminBookingForm.amountPaid}
+                    onChange={(e) => setAdminBookingForm((f) => ({ ...f, amountPaid: e.target.value.replace(/[^0-9,.]/g, '') }))}
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder-white/30 outline-none focus:border-pink-500/50 focus:ring-1 focus:ring-pink-500/30"
+                  />
+                </div>
+                {/* Observações */}
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-white/70">Observações <span className="text-white/30">(opcional)</span></label>
+                  <textarea
+                    rows={2} placeholder="Alguma observação..."
+                    value={adminBookingForm.notes}
+                    onChange={(e) => setAdminBookingForm((f) => ({ ...f, notes: e.target.value }))}
+                    className="w-full resize-none rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder-white/30 outline-none focus:border-pink-500/50 focus:ring-1 focus:ring-pink-500/30"
+                  />
+                </div>
+                {/* Submit */}
+                <button
+                  type="submit"
+                  disabled={adminBookingSaving}
+                  className="w-full rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-pink-500/25 transition-all hover:shadow-xl hover:shadow-pink-500/30 hover:brightness-110 disabled:opacity-50"
+                >
+                  {adminBookingSaving ? 'Criando agendamento...' : 'Agendar'}
+                </button>
+              </form>
+            </div>
+          </div>,
+          document.body,
         )}
       </div>
     </div>

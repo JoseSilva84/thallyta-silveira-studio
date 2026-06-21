@@ -1,4 +1,8 @@
 import prisma from '../config/prisma.js';
+import { createCalBooking } from '../services/calService.js';
+import { findServiceById } from '../data/services.js';
+import { notifyBookingCreated } from '../services/whatsappService.js';
+import { randomUUID } from 'node:crypto';
 
 const bookingInclude = {
   user: {
@@ -292,5 +296,143 @@ export const markRemainingPaymentPaid = async (req, res) => {
   } catch (error) {
     console.error('Erro ao dar baixa no restante:', error);
     res.status(500).json({ error: 'Erro ao dar baixa no restante.' });
+  }
+};
+
+/**
+ * POST /api/bookings/admin-create
+ * Admin only: creates a booking manually.
+ * Creates on Cal.com + saves to DB + sends WhatsApp notification.
+ */
+export const createAdminBooking = async (req, res) => {
+  try {
+    if (req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Acesso negado. Apenas administradores.' });
+    }
+
+    const { attendeeName, attendeePhone, attendeeEmail, serviceId, date, time, notes, amountPaid } = req.body;
+
+    if (!attendeeName?.trim() || !attendeePhone?.trim() || !serviceId || !date || !time) {
+      return res.status(400).json({ error: 'Preencha todos os campos obrigatorios (nome, whatsapp, servico, data, horario).' });
+    }
+
+    const service = findServiceById(serviceId);
+    if (!service) {
+      return res.status(400).json({ error: 'Servico nao encontrado no catalogo.' });
+    }
+
+    // ── Convert Fortaleza local time to UTC ────────────────────────
+    const FORTALEZA_UTC_OFFSET_HOURS = 3;
+    const [year, month, day] = date.split('-').map(Number);
+    const [hour, minute] = time.split(':').map(Number);
+    const scheduledAt = new Date(
+      Date.UTC(year, month - 1, day, hour + FORTALEZA_UTC_OFFSET_HOURS, minute, 0, 0),
+    );
+
+    const durationMs = (service.durationMin || 60) * 60 * 1000;
+    const endTime = new Date(scheduledAt.getTime() + durationMs);
+
+    // ── Build notes for Cal.com (shows on calendar) ───────────────
+    const calNotes = [
+      `Servico: ${service.name}`,
+      `Valor: R$ ${service.price.toFixed(2)}`,
+      `WhatsApp: ${attendeePhone}`,
+      notes ? `Obs: ${notes}` : null,
+      '(Agendamento manual pela admin)',
+    ].filter(Boolean).join('\n');
+
+    // ── Create on Cal.com ─────────────────────────────────────────
+    let calBooking;
+    try {
+      calBooking = await createCalBooking({
+        eventTypeSlug: service.calSlug || 'servicos-gerais',
+        start: scheduledAt.toISOString(),
+        attendeeName,
+        attendeeEmail,
+        notes: calNotes,
+        metadata: {
+          serviceId: service.id,
+          serviceName: service.name,
+          estimatedValue: service.price.toFixed(2),
+          attendeeWhatsapp: attendeePhone.trim(),
+          createdBy: req.user.id,
+        },
+      });
+    } catch (calError) {
+      console.error('Erro ao criar booking no Cal.com:', calError);
+      return res.status(502).json({
+        error: `Nao foi possivel criar o agendamento no Cal.com: ${calError.message}`,
+      });
+    }
+
+    // ── Try to link to existing user ──────────────────────────────
+    let userId = null;
+    if (attendeeEmail) {
+      const user = await prisma.user.findUnique({ where: { email: attendeeEmail } });
+      if (user) userId = user.id;
+    }
+
+    // ── Create BookingPayment if sinal was paid ───────────────────
+    let paymentId = null;
+    const sinalAmount = Number.parseFloat(String(amountPaid || '0').replace(',', '.'));
+    if (Number.isFinite(sinalAmount) && sinalAmount > 0) {
+      const payment = await prisma.bookingPayment.create({
+        data: {
+          userId: userId || req.user.id,
+          serviceId: service.id,
+          serviceName: service.name,
+          servicePrice: service.price,
+          paymentType: 'admin_manual',
+          amount: sinalAmount,
+          minimumAmount: 0,
+          status: 'approved',
+          externalReference: `admin-${randomUUID()}`,
+          approvedAt: new Date(),
+        },
+      });
+      paymentId = payment.id;
+    }
+
+    // ── Save booking to database ──────────────────────────────────
+    const bookingData = {
+      userId,
+      service: service.name,
+      estimatedValue: service.price,
+      scheduledAt,
+      endTime,
+      status: 'confirmed',
+      notes: notes || null,
+      attendeeName: attendeeName.trim(),
+      attendeeEmail: attendeeEmail?.trim() || null,
+      attendeePhone: attendeePhone.trim(),
+      location: 'Presencial',
+      calPayload: { adminCreated: true, createdBy: req.user.id, calBooking },
+      paymentId,
+    };
+
+    const booking = await prisma.booking.upsert({
+      where: { calEventId: calBooking.uid },
+      update: bookingData,
+      create: {
+        calEventId: calBooking.uid,
+        ...bookingData,
+      },
+      include: bookingInclude,
+    });
+
+    console.log(`✅ Admin booking criado: ${booking.id} (Cal UID: ${calBooking.uid}) para ${attendeeName}`);
+
+    // ── Send WhatsApp notifications ───────────────────────────────
+    try {
+      await notifyBookingCreated(prisma, booking);
+    } catch (whatsappError) {
+      console.error('Erro ao enviar WhatsApp (admin booking):', whatsappError);
+      // Don't fail the request — booking is already created
+    }
+
+    res.status(201).json(booking);
+  } catch (error) {
+    console.error('Erro ao criar agendamento manual:', error);
+    res.status(500).json({ error: error.message || 'Erro interno ao criar agendamento.' });
   }
 };

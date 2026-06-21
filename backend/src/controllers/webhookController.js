@@ -24,6 +24,45 @@ const cancelUnauthorizedCalBooking = async (calEventId) => {
   }
 };
 
+const isTruthyMetadata = (value) => value === true || value === 'true' || value === 1 || value === '1';
+
+const extractBookingDataFromPayload = (payload, uid, paymentId = null) => {
+  const metadata = payload.metadata || {};
+  const attendee = payload.attendees?.[0] || {};
+  const attendeeName = attendee.name || payload.responses?.name?.value || metadata.attendeeName || null;
+  const attendeeEmail = attendee.email || payload.responses?.email?.value || metadata.attendeeEmail || null;
+  const attendeePhone = attendee.phone || payload.responses?.phone?.value || metadata.attendeeWhatsapp || null;
+  const estimatedValue = Number.parseFloat(String(metadata.estimatedValue || '').replace(',', '.'));
+  const services = metadata.serviceName
+    || metadata.serviceNames
+    || metadata.services
+    || payload.responses?.notes?.value
+    || payload.description
+    || 'Servico nao especificado';
+
+  return {
+    calEventId: uid,
+    service: typeof services === 'string' ? services : JSON.stringify(services),
+    estimatedValue: Number.isFinite(estimatedValue) ? estimatedValue : null,
+    scheduledAt: new Date(payload.startTime || payload.start),
+    endTime: payload.endTime || payload.end ? new Date(payload.endTime || payload.end) : null,
+    status: 'confirmed',
+    notes: payload.responses?.notes?.value || payload.additionalNotes || metadata.notes || null,
+    attendeeName,
+    attendeeEmail,
+    attendeePhone,
+    location: payload.location || payload.meetingUrl || 'Presencial',
+    calPayload: payload,
+    paymentId,
+  };
+};
+
+const findUserIdByEmail = async (email) => {
+  if (!email) return null;
+  const user = await prisma.user.findUnique({ where: { email } });
+  return user?.id || null;
+};
+
 /**
  * Webhook handler para eventos do Cal.com.
  * Recebe BOOKING_CREATED, BOOKING_RESCHEDULED e BOOKING_CANCELLED.
@@ -78,6 +117,34 @@ async function handleBookingCreated(payload) {
   const existing = await prisma.booking.findUnique({ where: { calEventId: uid } });
   if (existing) {
     console.log(`ℹ️ Booking ${uid} já existe. Ignorando duplicata.`);
+    return;
+  }
+
+  if (isTruthyMetadata(payload.metadata?.adminCreated)) {
+    const bookingData = extractBookingDataFromPayload(payload, uid);
+    const userId = await findUserIdByEmail(bookingData.attendeeEmail);
+
+    const booking = await prisma.booking.create({
+      data: {
+        ...bookingData,
+        userId,
+      },
+      include: {
+        user: {
+          select: { id: true, name: true, email: true, whatsappPhone: true },
+        },
+        payment: true,
+      },
+    });
+
+    console.log(`Booking admin criado via webhook: ${booking.id} (Cal UID: ${uid}) para ${booking.attendeeName || booking.attendeeEmail || 'visitante'}`);
+
+    try {
+      await notifyBookingCreated(prisma, booking);
+    } catch (error) {
+      console.error('Erro ao enviar WhatsApp do agendamento admin:', error);
+    }
+
     return;
   }
 
