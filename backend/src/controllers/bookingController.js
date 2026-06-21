@@ -41,6 +41,49 @@ export const getBookings = async (req, res) => {
   }
 };
 
+export const getPublicAgenda = async (req, res) => {
+  try {
+    const days = Math.min(Math.max(Number(req.query.days) || 30, 1), 90);
+    const now = new Date();
+    const until = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+
+    const bookings = await prisma.booking.findMany({
+      where: {
+        scheduledAt: {
+          gte: now,
+          lte: until,
+        },
+        status: {
+          notIn: ['cancelled', 'no_show'],
+        },
+      },
+      orderBy: { scheduledAt: 'asc' },
+      select: {
+        id: true,
+        service: true,
+        scheduledAt: true,
+        endTime: true,
+        status: true,
+      },
+    });
+
+    res.json({
+      generatedAt: now.toISOString(),
+      days,
+      bookings: bookings.map((booking) => ({
+        id: booking.id,
+        service: booking.service,
+        scheduledAt: booking.scheduledAt,
+        endTime: booking.endTime,
+        status: booking.status,
+      })),
+    });
+  } catch (error) {
+    console.error('Erro ao buscar agenda publica:', error);
+    res.status(500).json({ error: 'Erro ao buscar agenda.' });
+  }
+};
+
 /**
  * GET /api/bookings/:id
  * Detalhes de um booking específico.

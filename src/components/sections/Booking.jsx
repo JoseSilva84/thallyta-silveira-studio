@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { FiCheck, FiCalendar, FiCheckCircle, FiCreditCard, FiLoader } from 'react-icons/fi'
+import { FiAlertTriangle, FiCheck, FiCalendar, FiCheckCircle, FiClock, FiCreditCard, FiLoader, FiRefreshCw } from 'react-icons/fi'
 import { toast } from 'react-toastify'
 import Cal, { getCalApi } from '@calcom/embed-react'
 import { allServices } from '../../data/services.js'
@@ -10,6 +10,7 @@ import SectionTitle from '../ui/SectionTitle.jsx'
 
 const CAL_USERNAME = import.meta.env.VITE_CAL_USERNAME || 'thallyta-silveira-hxfjrf'
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
+const PENDING_PAYMENT_STORAGE_KEY = 'thallytaPendingBookingPaymentId'
 const CAL_THEME = {
   'cal-bg': '#3d3528',
   'cal-bg-emphasis': '#514735',
@@ -65,11 +66,15 @@ export default function Booking() {
   const [bookingPayment, setBookingPayment] = useState(null)
   const [creatingPayment, setCreatingPayment] = useState(false)
   const [confirmingPayment, setConfirmingPayment] = useState(false)
+  const [publicAgenda, setPublicAgenda] = useState([])
+  const [loadingPublicAgenda, setLoadingPublicAgenda] = useState(false)
+  const [publicAgendaError, setPublicAgendaError] = useState('')
   const sectionRef = useRef(null)
   const calFrameWrapRef = useRef(null)
   const lastScheduleRequest = useRef(scheduleRequestId)
   const lastBookingSuccessAt = useRef(0)
   const isCalReadyRef = useRef(false)
+  const pendingPaymentChecked = useRef(false)
   const bookingSnapshotRef = useRef({
     services: '',
     total: 0,
@@ -132,6 +137,7 @@ export default function Booking() {
           clearServices()
           setBookingPayment(null)
           setIsPaymentUnlocked(false)
+          window.localStorage?.removeItem(PENDING_PAYMENT_STORAGE_KEY)
           toast.success('🎉 Agendamento confirmado com sucesso!')
           // Atualiza os bookings no contexto (para os selos de fidelidade)
           const token = getToken()
@@ -188,6 +194,25 @@ export default function Booking() {
     }
   }, [showCal])
 
+  const fetchPublicAgenda = useCallback(async () => {
+    setLoadingPublicAgenda(true)
+    setPublicAgendaError('')
+    try {
+      const res = await fetch(`${API}/bookings/public-agenda?days=30`)
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Erro ao carregar agenda.')
+      setPublicAgenda(Array.isArray(data.bookings) ? data.bookings : [])
+    } catch (error) {
+      setPublicAgendaError(error.message || 'Erro ao carregar agenda.')
+    } finally {
+      setLoadingPublicAgenda(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchPublicAgenda()
+  }, [fetchPublicAgenda])
+
   // Monta a string de serviços selecionados para enviar como metadata ao Cal.com
   const servicesParam = useMemo(
     () => selectedServices.map((s) => s.name).join(', '),
@@ -195,6 +220,30 @@ export default function Booking() {
   )
   const selectedService = selectedServices[0] || null
   const selectedCalLink = useMemo(() => getCalLinkFromUrl(selectedService?.calUrl), [selectedService?.calUrl])
+
+  const openScheduleFromPayment = useCallback((payment, options = {}) => {
+    if (!payment) return
+
+    const paidService = allServices.find((service) => service.id === payment.service.id) || payment.service
+    addService(paidService)
+    setBookingPayment(payment)
+    setIsPaymentUnlocked(true)
+    setPaymentType(payment.paymentType || 'deposit')
+    setIsCalFrameLoaded(false)
+    isCalReadyRef.current = false
+    setIsBookingDetailsStep(false)
+    setShowCal(true)
+    setBookingConfirmed(false)
+    setConfirmedSummary(null)
+    window.localStorage?.setItem(PENDING_PAYMENT_STORAGE_KEY, payment.id)
+    focusBookingSection()
+
+    if (options.recovered) {
+      toast.info('Voce ja tem um pagamento aprovado. Termine escolhendo a data e o horario.')
+    } else if (options.notify !== false) {
+      toast.success('Pagamento aprovado. Agora escolha a data e o horario.')
+    }
+  }, [addService, focusBookingSection, setIsBookingDetailsStep, setIsPaymentUnlocked, setPaymentType])
 
   const handleProceed = useCallback(async () => {
     if (!selectedServices.length) {
@@ -228,6 +277,9 @@ export default function Booking() {
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || 'Erro ao iniciar pagamento.')
 
+      if (data.payment?.id) {
+        window.localStorage?.setItem(PENDING_PAYMENT_STORAGE_KEY, data.payment.id)
+      }
       window.location.href = data.initPoint || data.sandboxInitPoint
     } catch (error) {
       toast.error(error.message)
@@ -284,18 +336,7 @@ export default function Booking() {
           return
         }
 
-        const paidService = allServices.find((service) => service.id === data.payment.service.id) || data.payment.service
-        addService(paidService)
-        setBookingPayment(data.payment)
-        setIsPaymentUnlocked(true)
-        setPaymentType(data.payment.paymentType || 'deposit')
-        setIsCalFrameLoaded(false)
-        isCalReadyRef.current = false
-        setIsBookingDetailsStep(false)
-        setShowCal(true)
-        setBookingConfirmed(false)
-        setConfirmedSummary(null)
-        toast.success('Pagamento aprovado. Agora escolha a data e o horario.')
+        openScheduleFromPayment(data.payment)
         cleanPaymentParams()
       } catch (error) {
         toast.error('Nao foi possivel confirmar o pagamento. Tente novamente ou escolha outra forma de pagamento.')
@@ -305,7 +346,51 @@ export default function Booking() {
     }
 
     confirmPayment()
-  }, [addService, focusBookingSection, getToken, setIsBookingDetailsStep, user])
+  }, [focusBookingSection, getToken, openScheduleFromPayment, user])
+
+  useEffect(() => {
+    if (!user) {
+      pendingPaymentChecked.current = false
+      return
+    }
+
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('bookingPaymentId') || showCal || bookingConfirmed || pendingPaymentChecked.current) return
+
+    const token = getToken()
+    if (!token) return
+
+    pendingPaymentChecked.current = true
+
+    const restorePendingSchedule = async () => {
+      try {
+        const storedPaymentId = window.localStorage?.getItem(PENDING_PAYMENT_STORAGE_KEY)
+
+        if (storedPaymentId) {
+          const confirmRes = await fetch(`${API}/payments/booking/${storedPaymentId}/confirm`, {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+          const confirmData = await confirmRes.json().catch(() => ({}))
+          if (confirmRes.ok && confirmData.canSchedule) {
+            openScheduleFromPayment(confirmData.payment, { recovered: true })
+            return
+          }
+        }
+
+        const res = await fetch(`${API}/payments/pending-schedule`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        const data = await res.json().catch(() => ({}))
+        if (res.ok && data.canSchedule) {
+          openScheduleFromPayment(data.payment, { recovered: true })
+        }
+      } catch (error) {
+        console.error('Erro ao recuperar pagamento aprovado sem horario:', error)
+      }
+    }
+
+    restorePendingSchedule()
+  }, [bookingConfirmed, getToken, openScheduleFromPayment, showCal, user])
 
   const handleNewBooking = () => {
     isCalReadyRef.current = false
@@ -343,6 +428,12 @@ export default function Booking() {
     <section ref={sectionRef} id="agendamento" className="premium-section py-16 md:py-20">
       <div className="section-shell">
         <SectionTitle eyebrow="Agendamento" title="Reserve seu horário" text="Monte seu atendimento em poucos passos." />
+        <PublicAgendaPreview
+          bookings={publicAgenda}
+          loading={loadingPublicAgenda}
+          error={publicAgendaError}
+          onRefresh={fetchPublicAgenda}
+        />
         <Reveal>
           <div className="relative">
             <div className="absolute -inset-4 z-0 rounded-[3rem] bg-gradient-to-b from-gold/10 to-transparent opacity-40 blur-2xl"></div>
@@ -541,8 +632,14 @@ export default function Booking() {
                   </div>
 
                   {bookingPayment && (
-                    <div className="rounded-xl border border-emerald-300/20 bg-emerald-400/10 p-4 text-sm text-emerald-100">
-                      Pagamento aprovado: {bookingPayment.paymentType === 'full' ? 'valor total' : 'entrada de 30%'} de R$ {bookingPayment.amount.toFixed(2).replace('.', ',')}. Agora escolha seu horario.
+                    <div className="flex gap-3 rounded-xl border border-emerald-300/25 bg-emerald-400/10 p-4 text-sm text-emerald-100">
+                      <FiAlertTriangle className="mt-0.5 shrink-0 text-lg text-emerald-200" />
+                      <div>
+                        <p className="font-semibold">Voce ja pagou e precisa finalizar o agendamento.</p>
+                        <p className="mt-1 text-emerald-100/80">
+                          Pagamento aprovado: {bookingPayment.paymentType === 'full' ? 'valor total' : 'entrada de 30%'} de R$ {bookingPayment.amount.toFixed(2).replace('.', ',')}. Escolha a data e o horario abaixo.
+                        </p>
+                      </div>
                     </div>
                   )}
 
@@ -595,3 +692,109 @@ export default function Booking() {
     </section>
   )
 }
+
+function PublicAgendaPreview({ bookings, loading, error, onRefresh }) {
+  const groupedDays = useMemo(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    return Array.from({ length: 14 }, (_, index) => {
+      const date = new Date(today)
+      date.setDate(today.getDate() + index)
+      const key = toDateKey(date)
+      const dayBookings = bookings
+        .filter((booking) => toDateKey(new Date(booking.scheduledAt)) === key)
+        .sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt))
+
+      return { key, date, bookings: dayBookings }
+    })
+  }, [bookings])
+
+  return (
+    <div className="mb-8 rounded-[1.25rem] border border-white/10 bg-white/[0.04] p-5 md:p-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3 className="font-display text-2xl text-gold-light">Agenda da profissional</h3>
+          <p className="mt-1 text-sm text-cream/55">Veja os horarios ja ocupados antes de escolher seu servico.</p>
+        </div>
+        <button
+          type="button"
+          onClick={onRefresh}
+          disabled={loading}
+          className="inline-flex items-center justify-center gap-2 rounded-lg border border-gold/25 px-4 py-2 text-sm font-semibold text-gold-light transition-colors hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <FiRefreshCw className={loading ? 'animate-spin' : ''} />
+          Atualizar
+        </button>
+      </div>
+
+      {error && (
+        <div className="mt-4 rounded-lg border border-red-400/20 bg-red-500/10 p-3 text-sm text-red-100">
+          {error}
+        </div>
+      )}
+
+      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {groupedDays.map((day) => (
+          <div key={day.key} className="min-h-[128px] rounded-xl border border-white/10 bg-black/25 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-gold-light/70">
+                  {formatAgendaWeekday(day.date)}
+                </p>
+                <p className="mt-1 font-display text-xl text-cream">{formatAgendaDate(day.date)}</p>
+              </div>
+              <span className={`rounded-full px-2.5 py-1 text-[0.7rem] font-bold uppercase tracking-wider ${day.bookings.length ? 'bg-amber-300/10 text-amber-100' : 'bg-emerald-300/10 text-emerald-100'}`}>
+                {day.bookings.length ? `${day.bookings.length} ocupado(s)` : 'Livre'}
+              </span>
+            </div>
+
+            <div className="mt-4 space-y-2">
+              {loading ? (
+                <p className="text-sm text-cream/45">Carregando...</p>
+              ) : day.bookings.length ? (
+                day.bookings.slice(0, 3).map((booking) => (
+                  <div key={booking.id} className="flex items-center gap-2 text-sm text-cream/75">
+                    <FiClock className="shrink-0 text-gold" />
+                    <span>{formatAgendaTime(booking.scheduledAt)}{booking.endTime ? ` - ${formatAgendaTime(booking.endTime)}` : ''}</span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-cream/45">Nenhum horario reservado.</p>
+              )}
+              {day.bookings.length > 3 && (
+                <p className="text-xs font-semibold text-gold-light/70">+{day.bookings.length - 3} outro(s) horario(s)</p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+const agendaDateKeyFormatter = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'America/Fortaleza',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+})
+
+const toDateKey = (date) => agendaDateKeyFormatter.format(date)
+
+const formatAgendaDate = (date) => date.toLocaleDateString('pt-BR', {
+  timeZone: 'America/Fortaleza',
+  day: '2-digit',
+  month: 'short',
+})
+
+const formatAgendaWeekday = (date) => date.toLocaleDateString('pt-BR', {
+  timeZone: 'America/Fortaleza',
+  weekday: 'short',
+})
+
+const formatAgendaTime = (value) => new Date(value).toLocaleTimeString('pt-BR', {
+  timeZone: 'America/Fortaleza',
+  hour: '2-digit',
+  minute: '2-digit',
+})

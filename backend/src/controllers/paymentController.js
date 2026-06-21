@@ -75,6 +75,31 @@ const serializePayment = (payment) => ({
   approvedAt: payment.approvedAt,
 });
 
+export const getPendingSchedulePayment = async (req, res) => {
+  try {
+    const payment = await prisma.bookingPayment.findFirst({
+      where: {
+        userId: req.user.id,
+        status: 'approved',
+        booking: null,
+      },
+      orderBy: { approvedAt: 'desc' },
+    });
+
+    if (!payment || payment.amount < payment.minimumAmount) {
+      return res.json({ payment: null, canSchedule: false });
+    }
+
+    res.json({
+      payment: serializePayment(payment),
+      canSchedule: true,
+    });
+  } catch (error) {
+    console.error('Erro ao buscar pagamento pendente de agendamento:', error);
+    res.status(500).json({ error: 'Erro ao buscar pagamento pendente.' });
+  }
+};
+
 const markPaymentFromMercadoPago = async (bookingPayment, mercadoPagoPayment) => {
   if (!mercadoPagoPayment?.id) return bookingPayment;
 

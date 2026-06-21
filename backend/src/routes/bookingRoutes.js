@@ -5,6 +5,7 @@ import {
   createAdminBooking,
   getBookings,
   getBookingById,
+  getPublicAgenda,
   markRemainingPaymentPaid,
   markBookingNoShow,
   undoBookingServiceCompletion,
@@ -14,6 +15,7 @@ import { verifyAdmin, verifyToken } from '../middleware/authMiddleware.js';
 const router = express.Router();
 
 // Ambas as rotas exigem autenticação — a lógica de admin/client está no controller
+router.get('/public-agenda', getPublicAgenda);
 router.get('/', verifyToken, getBookings);
 router.post('/admin-create', verifyToken, verifyAdmin, createAdminBooking);
 router.get('/:id', verifyToken, getBookingById);
