@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import {
@@ -23,6 +23,7 @@ const STUDIO_TIME_ZONE = 'America/Fortaleza'
 const QUICK_DRAFT_KEY = 'thallytaQuickBookingDraft'
 const PENDING_PAYMENT_STORAGE_KEY = 'thallytaPendingBookingPaymentId'
 const DATE_PAGE_SIZE = 7
+const QUICK_DRAFT_MAX_AGE_MS = 30 * 60 * 1000
 
 const money = (value) => `R$ ${Number(value || 0).toFixed(2).replace('.', ',')}`
 
@@ -31,7 +32,12 @@ const servicePriceValue = (service) => Number(String(service?.price || '0').repl
 const readQuickDraft = () => {
   try {
     const value = window.localStorage?.getItem(QUICK_DRAFT_KEY)
-    return value ? JSON.parse(value) : null
+    const draft = value ? JSON.parse(value) : null
+    if (draft?.updatedAt && Date.now() - draft.updatedAt > QUICK_DRAFT_MAX_AGE_MS) {
+      window.localStorage?.removeItem(QUICK_DRAFT_KEY)
+      return null
+    }
+    return draft
   } catch {
     return null
   }
@@ -55,6 +61,7 @@ const clearQuickDraft = () => {
 
 export default function QuickBookingPage() {
   const { user, getToken, setLoginOpen } = useAuth()
+  const userSelectedServiceRef = useRef(false)
   const [agendaDays, setAgendaDays] = useState([])
   const [agendaServiceId, setAgendaServiceId] = useState('')
   const [bookings, setBookings] = useState([])
@@ -171,15 +178,27 @@ export default function QuickBookingPage() {
       (day.availableSlots || []).some((slot) => slot.start === selectedSlot.start),
     )
 
-    if (slotStillAvailable) return
+    if (slotStillAvailable) {
+      userSelectedServiceRef.current = false
+      return
+    }
 
     const firstAvailable = agendaDays.find((day) => day.availableSlots?.length)
     const nextDate = firstAvailable?.date || selectedDate
+    const shouldNotify = userSelectedServiceRef.current
     setSelectedSlot(null)
     setSelectedDate(nextDate)
-    writeQuickDraft({ serviceId: selectedService.id, paymentType })
-    toast.warn('Esse servico nao cabe no horario escolhido. Selecione outro horario disponivel.')
-    document.querySelector('main')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    userSelectedServiceRef.current = false
+
+    if (shouldNotify) {
+      writeQuickDraft({ serviceId: selectedService.id, paymentType })
+      toast.warn('Esse servico nao cabe no horario escolhido. Selecione outro horario disponivel.')
+      document.querySelector('main')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      return
+    }
+
+    setSelectedService(null)
+    clearQuickDraft()
   }, [agendaDays, agendaServiceId, loadingAgenda, paymentType, selectedDate, selectedService, selectedSlot])
 
   useEffect(() => {
@@ -257,6 +276,7 @@ export default function QuickBookingPage() {
   }
 
   const chooseService = (service) => {
+    userSelectedServiceRef.current = true
     setSelectedService(service)
     writeQuickDraft({ slot: selectedSlot, serviceId: service.id, paymentType })
     window.setTimeout(() => document.getElementById('quick-summary')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80)
