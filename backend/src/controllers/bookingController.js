@@ -86,6 +86,163 @@ export const getPublicAgenda = async (req, res) => {
   }
 };
 
+const hasScheduleConflict = async (start, end) => {
+  const conflicting = await prisma.booking.findFirst({
+    where: {
+      status: {
+        notIn: ['cancelled', 'no_show'],
+      },
+      scheduledAt: {
+        lt: end,
+      },
+      OR: [
+        {
+          endTime: {
+            gt: start,
+          },
+        },
+        {
+          endTime: null,
+          scheduledAt: {
+            gte: start,
+          },
+        },
+      ],
+    },
+    select: { id: true },
+  });
+
+  return Boolean(conflicting);
+};
+
+export const createPaidBooking = async (req, res) => {
+  try {
+    const { paymentId, start } = req.body;
+
+    if (!paymentId || !start) {
+      return res.status(400).json({ error: 'Pagamento e horario sao obrigatorios.' });
+    }
+
+    const payment = await prisma.bookingPayment.findUnique({
+      where: { id: paymentId },
+      include: { booking: true },
+    });
+
+    if (!payment || payment.userId !== req.user.id) {
+      return res.status(404).json({ error: 'Pagamento nao encontrado.' });
+    }
+
+    if (payment.booking) {
+      return res.status(409).json({ error: 'Este pagamento ja possui agendamento.' });
+    }
+
+    if (payment.status !== 'approved' || payment.amount < payment.minimumAmount) {
+      return res.status(409).json({ error: 'Pagamento ainda nao aprovado para agendamento.' });
+    }
+
+    const service = findServiceById(payment.serviceId);
+    if (!service) {
+      return res.status(400).json({ error: 'Servico do pagamento nao encontrado.' });
+    }
+
+    const scheduledAt = new Date(start);
+    if (Number.isNaN(scheduledAt.getTime())) {
+      return res.status(400).json({ error: 'Horario invalido.' });
+    }
+
+    const endTime = new Date(scheduledAt.getTime() + (service.durationMin || 60) * 60 * 1000);
+    const scheduleValidation = validateBookingWindow(scheduledAt, endTime);
+
+    if (!scheduleValidation.valid) {
+      return res.status(400).json({ error: scheduleValidation.reason });
+    }
+
+    if (await hasScheduleConflict(scheduledAt, endTime)) {
+      return res.status(409).json({ error: 'Este horario acabou de ficar indisponivel. Escolha outro horario.' });
+    }
+
+    const notes = [
+      `Servico: ${service.name}`,
+      `Valor: R$ ${service.price.toFixed(2)}`,
+      `Pagamento: ${payment.paymentType === 'full' ? 'valor total' : 'entrada'}`,
+      req.user.whatsappPhone ? `WhatsApp: ${req.user.whatsappPhone}` : null,
+      '(Agendamento criado pelo site apos pagamento)',
+    ].filter(Boolean).join('\n');
+
+    let calBooking;
+    try {
+      calBooking = await createCalBooking({
+        eventTypeSlug: service.calSlug || 'servicos-gerais',
+        start: scheduledAt.toISOString(),
+        attendeeName: req.user.name,
+        attendeeEmail: req.user.email,
+        notes,
+        adminCreated: false,
+        metadata: {
+          bookingPaymentId: payment.id,
+          serviceId: service.id,
+          serviceName: service.name,
+          serviceNames: service.name,
+          estimatedValue: service.price.toFixed(2),
+          attendeeWhatsapp: req.user.whatsappPhone || '',
+          paymentType: payment.paymentType,
+          paidAmount: payment.amount.toFixed(2),
+        },
+      });
+    } catch (calError) {
+      console.error('Erro ao criar booking pago no Cal.com:', calError);
+      return res.status(502).json({ error: calError.message || 'Nao foi possivel reservar no calendario.' });
+    }
+
+    const booking = await prisma.booking.upsert({
+      where: { calEventId: calBooking.uid },
+      update: {
+        userId: req.user.id,
+        service: service.name,
+        estimatedValue: service.price,
+        scheduledAt,
+        endTime,
+        status: 'confirmed',
+        notes,
+        attendeeName: req.user.name,
+        attendeeEmail: req.user.email,
+        attendeePhone: req.user.whatsappPhone || null,
+        location: 'Presencial',
+        calPayload: { siteCreated: true, calBooking },
+        paymentId: payment.id,
+      },
+      create: {
+        calEventId: calBooking.uid,
+        userId: req.user.id,
+        service: service.name,
+        estimatedValue: service.price,
+        scheduledAt,
+        endTime,
+        status: 'confirmed',
+        notes,
+        attendeeName: req.user.name,
+        attendeeEmail: req.user.email,
+        attendeePhone: req.user.whatsappPhone || null,
+        location: 'Presencial',
+        calPayload: { siteCreated: true, calBooking },
+        paymentId: payment.id,
+      },
+      include: bookingInclude,
+    });
+
+    try {
+      await notifyBookingCreated(prisma, booking);
+    } catch (notifyError) {
+      console.error('Erro ao enviar WhatsApp do agendamento pago:', notifyError);
+    }
+
+    res.status(201).json(booking);
+  } catch (error) {
+    console.error('Erro ao criar agendamento pago:', error);
+    res.status(500).json({ error: error.message || 'Erro ao confirmar agendamento.' });
+  }
+};
+
 /**
  * GET /api/bookings/:id
  * Detalhes de um booking específico.

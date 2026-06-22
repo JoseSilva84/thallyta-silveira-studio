@@ -28,7 +28,7 @@ function calHeaders() {
  * @param {object} [opts.metadata]     Extra metadata for the booking
  * @returns {{ uid: string, startTime: string, endTime: string|null }}
  */
-export async function createCalBooking({ eventTypeSlug, start, attendeeName, attendeeEmail, notes, metadata = {} }) {
+export async function createCalBooking({ eventTypeSlug, start, attendeeName, attendeeEmail, notes, metadata = {}, adminCreated = true }) {
   const username = process.env.CAL_USERNAME;
   if (!username) throw new Error('CAL_USERNAME nao configurado no .env.');
 
@@ -41,7 +41,7 @@ export async function createCalBooking({ eventTypeSlug, start, attendeeName, att
       email: attendeeEmail || `manual+${Date.now()}@studio.local`,
       timeZone: 'America/Fortaleza',
     },
-    metadata: { ...metadata, adminCreated: true },
+    metadata: { ...metadata, adminCreated },
   };
 
   if (notes) {

@@ -5,6 +5,9 @@ const LUNCH_START_MINUTES = 13 * 60;
 const LUNCH_END_MINUTES = 14 * 60 + 30;
 const CLOSE_MINUTES = 18 * 60;
 const SLOT_INTERVAL_MINUTES = 30;
+const LAST_MORNING_SLOT_START = 12 * 60;
+const LAST_AFTERNOON_SLOT_START = 17 * 60;
+const BLOCKED_START_MINUTES = new Set([12 * 60 + 30, 17 * 60 + 30]);
 const BUSINESS_WEEKDAYS = new Set(['Mon', 'Tue', 'Wed', 'Thu', 'Fri']);
 
 const dateTimeFormatter = new Intl.DateTimeFormat('en-US', {
@@ -63,6 +66,10 @@ export const validateBookingWindow = (startInput, endInput) => {
     return { valid: false, reason: 'O horario de 13h00 as 14h30 nao esta disponivel para agendamento.' };
   }
 
+  if (BLOCKED_START_MINUTES.has(startLocal.minutes)) {
+    return { valid: false, reason: 'Este horario nao esta disponivel para inicio de agendamento.' };
+  }
+
   return { valid: true };
 };
 
@@ -93,8 +100,8 @@ const bookingOverlapsSlot = (booking, slotStart, slotEnd) => {
 export const buildPublicAgendaDays = (bookings, daysCount, nowInput = new Date()) => {
   const todayKey = getStudioDateTime(nowInput).dateKey;
   const windows = [
-    [OPEN_MINUTES, LUNCH_START_MINUTES],
-    [LUNCH_END_MINUTES, CLOSE_MINUTES],
+    [OPEN_MINUTES, LAST_MORNING_SLOT_START + SLOT_INTERVAL_MINUTES],
+    [LUNCH_END_MINUTES, LAST_AFTERNOON_SLOT_START + SLOT_INTERVAL_MINUTES],
   ];
 
   return Array.from({ length: daysCount }, (_, index) => {

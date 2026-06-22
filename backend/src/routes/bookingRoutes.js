@@ -3,6 +3,7 @@ import {
   cancelBooking,
   completeBookingService,
   createAdminBooking,
+  createPaidBooking,
   getBookings,
   getBookingById,
   getPublicAgenda,
@@ -17,6 +18,7 @@ const router = express.Router();
 // Ambas as rotas exigem autenticação — a lógica de admin/client está no controller
 router.get('/public-agenda', getPublicAgenda);
 router.get('/', verifyToken, getBookings);
+router.post('/paid-create', verifyToken, createPaidBooking);
 router.post('/admin-create', verifyToken, verifyAdmin, createAdminBooking);
 router.get('/:id', verifyToken, getBookingById);
 router.post('/:id/cancel', verifyToken, cancelBooking);

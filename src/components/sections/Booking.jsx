@@ -11,6 +11,7 @@ import SectionTitle from '../ui/SectionTitle.jsx'
 const CAL_USERNAME = import.meta.env.VITE_CAL_USERNAME || 'thallyta-silveira-hxfjrf'
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
 const PENDING_PAYMENT_STORAGE_KEY = 'thallytaPendingBookingPaymentId'
+const PREFERRED_SLOT_STORAGE_KEY = 'thallytaPreferredScheduleSlot'
 const CAL_THEME = {
   'cal-bg': '#3d3528',
   'cal-bg-emphasis': '#514735',
@@ -44,6 +45,25 @@ const getValidParam = (params, ...names) => {
   return null
 }
 
+const readPreferredSlot = () => {
+  try {
+    const value = window.localStorage?.getItem(PREFERRED_SLOT_STORAGE_KEY)
+    return value ? JSON.parse(value) : null
+  } catch {
+    return null
+  }
+}
+
+const formatPreferredSlotDate = (slot) => {
+  if (!slot?.start) return ''
+  return new Date(slot.start).toLocaleDateString('pt-BR', {
+    timeZone: 'America/Fortaleza',
+    weekday: 'long',
+    day: '2-digit',
+    month: 'long',
+  })
+}
+
 export default function Booking() {
   const { user, setLoginOpen, getToken } = useAuth()
   const {
@@ -66,6 +86,8 @@ export default function Booking() {
   const [bookingPayment, setBookingPayment] = useState(null)
   const [creatingPayment, setCreatingPayment] = useState(false)
   const [confirmingPayment, setConfirmingPayment] = useState(false)
+  const [preferredSlot, setPreferredSlot] = useState(() => readPreferredSlot())
+  const [confirmingSelectedSlot, setConfirmingSelectedSlot] = useState(false)
   const sectionRef = useRef(null)
   const calFrameWrapRef = useRef(null)
   const lastScheduleRequest = useRef(scheduleRequestId)
@@ -97,6 +119,7 @@ export default function Booking() {
     setBookingConfirmed(false)
     setConfirmedSummary(null)
     setBookingPayment(null)
+    setPreferredSlot(null)
     setIsPaymentUnlocked(false)
     clearServices()
   }, [clearServices, setIsBookingDetailsStep, setIsPaymentUnlocked, setIsScheduleStepOpen])
@@ -107,11 +130,21 @@ export default function Booking() {
 
     if (previousUserId && previousUserId !== currentUserId) {
       window.localStorage?.removeItem(PENDING_PAYMENT_STORAGE_KEY)
+      window.localStorage?.removeItem(PREFERRED_SLOT_STORAGE_KEY)
       resetScheduleState()
     }
 
     previousUserIdRef.current = currentUserId
   }, [resetScheduleState, user?.id])
+
+  useEffect(() => {
+    const handleSlotSelected = (event) => {
+      setPreferredSlot(event.detail || readPreferredSlot())
+    }
+
+    window.addEventListener('booking:slot-selected', handleSlotSelected)
+    return () => window.removeEventListener('booking:slot-selected', handleSlotSelected)
+  }, [])
 
   // Inicializa a API do Cal.com embed e escuta o evento de booking concluído
   useEffect(() => {
@@ -159,8 +192,10 @@ export default function Booking() {
           setIsBookingDetailsStep(false)
           clearServices()
           setBookingPayment(null)
+          setPreferredSlot(null)
           setIsPaymentUnlocked(false)
           window.localStorage?.removeItem(PENDING_PAYMENT_STORAGE_KEY)
+          window.localStorage?.removeItem(PREFERRED_SLOT_STORAGE_KEY)
           window.dispatchEvent(new Event('booking:updated'))
           setTimeout(() => window.dispatchEvent(new Event('booking:updated')), 3000)
           setTimeout(() => window.dispatchEvent(new Event('booking:updated')), 8000)
@@ -240,18 +275,18 @@ export default function Booking() {
     setIsCalFrameLoaded(false)
     isCalReadyRef.current = false
     setIsBookingDetailsStep(false)
-    setShowCal(true)
+    setShowCal(!preferredSlot)
     setBookingConfirmed(false)
     setConfirmedSummary(null)
     window.localStorage?.setItem(PENDING_PAYMENT_STORAGE_KEY, payment.id)
     focusBookingSection()
 
     if (options.recovered) {
-      toast.info('Voce ja tem um pagamento aprovado. Termine escolhendo a data e o horario.')
+      toast.info(preferredSlot ? 'Voce ja pagou. Confirme o horario selecionado.' : 'Voce ja tem um pagamento aprovado. Termine escolhendo a data e o horario.')
     } else if (options.notify !== false) {
-      toast.success('Pagamento aprovado. Agora escolha a data e o horario.')
+      toast.success(preferredSlot ? 'Pagamento aprovado. Confirme o horario selecionado.' : 'Pagamento aprovado. Agora escolha a data e o horario.')
     }
-  }, [addService, focusBookingSection, setIsBookingDetailsStep, setIsPaymentUnlocked, setPaymentType])
+  }, [addService, focusBookingSection, preferredSlot, setIsBookingDetailsStep, setIsPaymentUnlocked, setPaymentType])
 
   const handleProceed = useCallback(async () => {
     if (!selectedServices.length) {
@@ -408,8 +443,80 @@ export default function Booking() {
     setBookingConfirmed(false)
     setConfirmedSummary(null)
     setBookingPayment(null)
+    setPreferredSlot(null)
     setIsPaymentUnlocked(false)
+    window.localStorage?.removeItem(PREFERRED_SLOT_STORAGE_KEY)
   }
+
+  const handleConfirmSelectedSlot = useCallback(async () => {
+    if (!bookingPayment || !preferredSlot?.start) return
+
+    const token = getToken()
+    if (!token) {
+      setLoginOpen(true)
+      return toast.info('Entre na sua conta para confirmar o agendamento.')
+    }
+
+    setConfirmingSelectedSlot(true)
+    try {
+      const res = await fetch(`${API}/bookings/paid-create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          paymentId: bookingPayment.id,
+          start: preferredSlot.start,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Nao foi possivel confirmar o horario.')
+
+      const summary = {
+        services: data.service || bookingPayment.service?.name || servicesParam,
+        total: Number(data.estimatedValue || bookingPayment.servicePrice || totalEstimado),
+        name: user?.name || '',
+        email: user?.email || '',
+        whatsapp: user?.whatsappPhone || '',
+        date: preferredSlot.start,
+        time: preferredSlot.time,
+      }
+
+      setConfirmedSummary(summary)
+      setBookingConfirmed(true)
+      setIsBookingDetailsStep(false)
+      setShowCal(false)
+      setBookingPayment(null)
+      setPreferredSlot(null)
+      setIsPaymentUnlocked(false)
+      clearServices()
+      window.localStorage?.removeItem(PENDING_PAYMENT_STORAGE_KEY)
+      window.localStorage?.removeItem(PREFERRED_SLOT_STORAGE_KEY)
+      window.dispatchEvent(new Event('booking:updated'))
+      fetchBookings(token)
+      toast.success('Agendamento confirmado com sucesso!')
+    } catch (error) {
+      toast.error(error.message)
+      window.dispatchEvent(new Event('booking:updated'))
+    } finally {
+      setConfirmingSelectedSlot(false)
+    }
+  }, [
+    bookingPayment,
+    clearServices,
+    fetchBookings,
+    getToken,
+    preferredSlot,
+    servicesParam,
+    setIsBookingDetailsStep,
+    setIsPaymentUnlocked,
+    setLoginOpen,
+    totalEstimado,
+    user?.email,
+    user?.name,
+    user?.whatsappPhone,
+  ])
 
   // Calcula o preço total estimado (pega o primeiro valor numérico de cada preço)
   const totalEstimado = useMemo(() => {
@@ -485,6 +592,17 @@ export default function Booking() {
                         <span className="block text-sm text-cream/50">{confirmedSummary?.whatsapp || user?.whatsappPhone}</span>
                       )}
                     </div>
+                    {confirmedSummary?.date && (
+                      <>
+                        <div className="h-px bg-gradient-to-r from-transparent via-gold/20 to-transparent"></div>
+                        <div>
+                          <span className="block text-xs font-bold uppercase tracking-wider text-gold-light/80">Data e horario</span>
+                          <span className="mt-1 block font-medium text-cream">
+                            {formatPreferredSlotDate({ start: confirmedSummary.date })} as {confirmedSummary.time}
+                          </span>
+                        </div>
+                      </>
+                    )}
                     {(confirmedSummary?.total || totalEstimado) > 0 && (
                       <>
                         <div className="h-px bg-gradient-to-r from-transparent via-gold/20 to-transparent"></div>
@@ -513,6 +631,19 @@ export default function Booking() {
                   </div>
                 </div>
 
+              ) : bookingPayment && preferredSlot ? (
+                <SelectedSlotConfirmation
+                  bookingPayment={bookingPayment}
+                  preferredSlot={preferredSlot}
+                  selectedServices={selectedServices}
+                  confirming={confirmingSelectedSlot}
+                  onConfirm={handleConfirmSelectedSlot}
+                  onChooseCalendar={() => {
+                    setPreferredSlot(null)
+                    window.localStorage?.removeItem(PREFERRED_SLOT_STORAGE_KEY)
+                    setShowCal(true)
+                  }}
+                />
               ) : !showCal ? (
                 /* ─── PASSO 1: Seleção de Serviços ─── */
                 <div className="space-y-8">
@@ -573,6 +704,14 @@ export default function Booking() {
                           <span className="block text-xs font-bold uppercase tracking-wider text-gold-light/80">Estimativa de Valor</span>
                           <span className="mt-1 block font-medium text-cream">
                             {totalEstimado > 0 ? `R$ ${totalEstimado.toFixed(2).replace('.', ',')}` : 'Consultar preços variáveis'}
+                          </span>
+                        </div>
+                      )}
+                      {preferredSlot && (
+                        <div>
+                          <span className="block text-xs font-bold uppercase tracking-wider text-gold-light/80">Horario escolhido</span>
+                          <span className="mt-1 block font-medium text-cream">
+                            {formatPreferredSlotDate(preferredSlot)} as {preferredSlot.time}
                           </span>
                         </div>
                       )}
@@ -692,5 +831,68 @@ export default function Booking() {
         </Reveal>
       </div>
     </section>
+  )
+}
+
+function SelectedSlotConfirmation({ bookingPayment, preferredSlot, selectedServices, confirming, onConfirm, onChooseCalendar }) {
+  const serviceName = selectedServices.map((service) => service.name).join(', ') || bookingPayment?.service?.name || 'Servico selecionado'
+  const paidLabel = bookingPayment?.paymentType === 'full' ? 'valor total' : 'entrada de 30%'
+
+  return (
+    <div className="mx-auto max-w-2xl space-y-6">
+      <div>
+        <h3 className="font-display text-3xl text-gold-light">Confirme seu horario</h3>
+        <p className="mt-2 text-sm text-cream/60">
+          Seu pagamento foi aprovado. Confira o resumo abaixo e confirme para reservar esse dia e horario.
+        </p>
+      </div>
+
+      <div className="rounded-2xl border border-gold/20 bg-black/25 p-5">
+        <div className="grid gap-4 text-sm sm:grid-cols-2">
+          <div>
+            <span className="block text-xs font-bold uppercase tracking-wider text-gold-light/80">Servico</span>
+            <span className="mt-1 block font-medium text-cream">{serviceName}</span>
+          </div>
+          <div>
+            <span className="block text-xs font-bold uppercase tracking-wider text-gold-light/80">Data e horario</span>
+            <span className="mt-1 block font-medium text-cream">
+              {formatPreferredSlotDate(preferredSlot)} as {preferredSlot.time}
+            </span>
+          </div>
+          <div>
+            <span className="block text-xs font-bold uppercase tracking-wider text-gold-light/80">Pagamento aprovado</span>
+            <span className="mt-1 block font-medium text-emerald-200">
+              {paidLabel} de R$ {Number(bookingPayment?.amount || 0).toFixed(2).replace('.', ',')}
+            </span>
+          </div>
+          <div>
+            <span className="block text-xs font-bold uppercase tracking-wider text-gold-light/80">Valor do servico</span>
+            <span className="mt-1 block font-medium text-cream">
+              R$ {Number(bookingPayment?.servicePrice || 0).toFixed(2).replace('.', ',')}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <button
+          type="button"
+          onClick={onConfirm}
+          disabled={confirming}
+          className="gold-button flex flex-1 items-center justify-center gap-2 rounded-xl px-5 py-4 text-sm font-bold uppercase tracking-wider disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {confirming ? <FiLoader className="animate-spin" /> : <FiCheckCircle />}
+          {confirming ? 'Confirmando horario...' : 'Confirmar horario'}
+        </button>
+        <button
+          type="button"
+          onClick={onChooseCalendar}
+          disabled={confirming}
+          className="rounded-xl border border-white/10 px-5 py-4 text-sm font-semibold text-cream/70 transition-colors hover:border-gold/30 hover:text-gold-light disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          Escolher outro horario
+        </button>
+      </div>
+    </div>
   )
 }

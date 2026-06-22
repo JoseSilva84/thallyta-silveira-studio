@@ -5,6 +5,7 @@ import SectionTitle from '../ui/SectionTitle.jsx'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
 const STUDIO_TIME_ZONE = 'America/Fortaleza'
+const PREFERRED_SLOT_STORAGE_KEY = 'thallytaPreferredScheduleSlot'
 
 export default function Agenda() {
   const [view, setView] = useState('calendar')
@@ -52,6 +53,19 @@ export default function Agenda() {
   }, [fetchAgenda])
 
   const days = useMemo(() => buildAgendaDays(bookings, availabilityDays), [availabilityDays, bookings])
+
+  const selectSlot = useCallback((day, slot) => {
+    const payload = {
+      date: day.key,
+      start: slot.start,
+      time: slot.time,
+    }
+
+    window.localStorage?.setItem(PREFERRED_SLOT_STORAGE_KEY, JSON.stringify(payload))
+    window.dispatchEvent(new CustomEvent('booking:slot-selected', { detail: payload }))
+    window.history.replaceState(null, '', '#agendamento')
+    document.getElementById('agendamento')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [])
 
   return (
     <section id="agenda" className="premium-section py-16 md:py-20">
@@ -112,22 +126,22 @@ export default function Agenda() {
 
             <div className="mt-6">
               {view === 'calendar' ? (
-                <AgendaCalendar days={days} loading={loading} onOpenDay={setSelectedDay} />
+                <AgendaCalendar days={days} loading={loading} onOpenDay={setSelectedDay} onSelectSlot={selectSlot} />
               ) : (
-                <AgendaList days={days} loading={loading} />
+                <AgendaList days={days} loading={loading} onSelectSlot={selectSlot} />
               )}
             </div>
           </div>
         </Reveal>
       </div>
       {selectedDay && (
-        <AgendaDayModal day={selectedDay} onClose={() => setSelectedDay(null)} />
+        <AgendaDayModal day={selectedDay} onClose={() => setSelectedDay(null)} onSelectSlot={selectSlot} />
       )}
     </section>
   )
 }
 
-function AgendaCalendar({ days, loading, onOpenDay }) {
+function AgendaCalendar({ days, loading, onOpenDay, onSelectSlot }) {
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-7">
       {days.map((day) => (
@@ -153,7 +167,7 @@ function AgendaCalendar({ days, loading, onOpenDay }) {
             ) : (
               <>
                 <p className="mb-2 text-xs font-bold uppercase tracking-wider text-emerald-200/80">Disponiveis</p>
-                <AvailableSlots slots={day.availableSlots} compact onOpenMore={() => onOpenDay(day)} />
+                <AvailableSlots slots={day.availableSlots} compact onOpenMore={() => onOpenDay(day)} onSelectSlot={(slot) => onSelectSlot(day, slot)} />
               </>
             )}
           </div>
@@ -187,7 +201,7 @@ function AgendaCalendar({ days, loading, onOpenDay }) {
   )
 }
 
-function AgendaList({ days, loading }) {
+function AgendaList({ days, loading, onSelectSlot }) {
   return (
     <div className="grid gap-3 md:grid-cols-2">
       {days.map((day) => (
@@ -211,7 +225,7 @@ function AgendaList({ days, loading }) {
               <>
                 <div>
                   <p className="mb-2 text-xs font-bold uppercase tracking-wider text-emerald-200/80">Disponiveis</p>
-                  <AvailableSlots slots={day.availableSlots} />
+                  <AvailableSlots slots={day.availableSlots} onSelectSlot={(slot) => onSelectSlot(day, slot)} />
                 </div>
                 {day.bookings.length > 0 && (
                   <div className="space-y-2">
@@ -230,7 +244,7 @@ function AgendaList({ days, loading }) {
   )
 }
 
-function AvailableSlots({ slots, compact = false, onOpenMore }) {
+function AvailableSlots({ slots, compact = false, onOpenMore, onSelectSlot }) {
   if (!slots?.length) {
     return <p className="text-sm text-cream/45">Sem horarios livres.</p>
   }
@@ -240,9 +254,14 @@ function AvailableSlots({ slots, compact = false, onOpenMore }) {
   return (
     <div className="flex flex-wrap gap-1.5">
       {visibleSlots.map((slot) => (
-        <span key={slot.start || slot.time} className="rounded-md border border-emerald-300/20 bg-emerald-300/10 px-2 py-1 text-xs font-semibold text-emerald-100">
+        <button
+          key={slot.start || slot.time}
+          type="button"
+          onClick={() => onSelectSlot?.(slot)}
+          className="rounded-md border border-emerald-300/20 bg-emerald-300/10 px-2 py-1 text-xs font-semibold text-emerald-100 transition-colors hover:bg-emerald-300/20 focus:outline-none focus:ring-2 focus:ring-emerald-200/40"
+        >
           {slot.time}
-        </span>
+        </button>
       ))}
       {compact && slots.length > visibleSlots.length && onOpenMore && (
         <button
@@ -258,7 +277,7 @@ function AvailableSlots({ slots, compact = false, onOpenMore }) {
   )
 }
 
-function AgendaDayModal({ day, onClose }) {
+function AgendaDayModal({ day, onClose, onSelectSlot }) {
   useEffect(() => {
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') onClose()
@@ -300,7 +319,13 @@ function AgendaDayModal({ day, onClose }) {
           <section>
             <p className="mb-3 text-xs font-bold uppercase tracking-wider text-emerald-200/80">Horarios disponiveis</p>
             {day.isBusinessDay ? (
-              <AvailableSlots slots={day.availableSlots} />
+              <AvailableSlots
+                slots={day.availableSlots}
+                onSelectSlot={(slot) => {
+                  onSelectSlot(day, slot)
+                  onClose()
+                }}
+              />
             ) : (
               <p className="text-sm text-cream/55">Studio fechado.</p>
             )}
