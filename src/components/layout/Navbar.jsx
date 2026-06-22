@@ -38,7 +38,11 @@ const getAnchorScrollTop = (element) => {
   if (!element) return 0
   const styles = window.getComputedStyle(element)
   const sectionPaddingTop = Number.parseFloat(styles.paddingTop) || 0
-  const headerOffset = window.matchMedia('(min-width: 768px)').matches ? 92 : 74
+  const headerOffset = window.matchMedia('(min-width: 1024px)').matches
+    ? 92
+    : window.matchMedia('(min-width: 768px)').matches
+      ? 72
+      : 28
 
   return Math.max(element.getBoundingClientRect().top + window.scrollY + sectionPaddingTop - headerOffset, 0)
 }

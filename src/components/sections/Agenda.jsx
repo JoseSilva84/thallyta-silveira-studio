@@ -111,7 +111,7 @@ export default function Agenda() {
   }, [days])
 
   return (
-    <section id="agenda" className="premium-section py-10 md:py-12">
+    <section id="agenda" className="premium-section py-6 md:py-8 lg:py-12">
       <div className="section-shell">
         <SectionTitle
           eyebrow="Agenda"

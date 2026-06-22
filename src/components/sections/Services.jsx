@@ -18,7 +18,7 @@ export default function Services() {
   }
 
   return (
-    <section id="servicos" className="premium-section py-10 md:py-14">
+    <section id="servicos" className="premium-section py-6 md:py-8 lg:py-14">
       <div className="section-shell">
         <SectionTitle eyebrow="Serviços" title="Escolha seu próximo cuidado" />
         <Reveal>

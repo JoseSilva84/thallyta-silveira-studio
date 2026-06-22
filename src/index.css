@@ -967,7 +967,7 @@ label.cursor-pointer:active {
   }
 
   section[id] {
-    scroll-margin-top: 74px;
+    scroll-margin-top: 32px;
   }
 
   .gold-button {
@@ -1006,6 +1006,12 @@ label.cursor-pointer:active {
 
   .gallery-slider-photo img {
     height: 360px;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  section[id] {
+    scroll-margin-top: 64px;
   }
 }
 

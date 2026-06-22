@@ -7,7 +7,7 @@ const directionsUrl = 'https://www.google.com/maps/search/?api=1&query=Rua%20Jos
 
 export default function Location() {
   return (
-    <section id="localizacao" className="premium-section py-10 md:py-14">
+    <section id="localizacao" className="premium-section py-6 md:py-8 lg:py-14">
       <div className="section-shell">
         <SectionTitle eyebrow="Localização" title="Venha viver seu momento" />
         <Reveal>
