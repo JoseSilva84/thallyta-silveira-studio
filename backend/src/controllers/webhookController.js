@@ -1,7 +1,8 @@
 import prisma from '../config/prisma.js';
 import { notifyBookingCreated } from '../services/whatsappService.js';
+import { validateBookingWindow } from '../utils/bookingHours.js';
 
-const cancelUnauthorizedCalBooking = async (calEventId) => {
+const cancelUnauthorizedCalBooking = async (calEventId, reason = 'Agendamento cancelado automaticamente: pagamento minimo nao aprovado.') => {
   const apiKey = process.env.CAL_API_KEY;
   if (!apiKey || !calEventId) return;
 
@@ -14,7 +15,7 @@ const cancelUnauthorizedCalBooking = async (calEventId) => {
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      cancellationReason: 'Agendamento cancelado automaticamente: pagamento minimo nao aprovado.',
+      cancellationReason: reason,
     }),
   });
 
@@ -61,6 +62,12 @@ const findUserIdByEmail = async (email) => {
   if (!email) return null;
   const user = await prisma.user.findUnique({ where: { email } });
   return user?.id || null;
+};
+
+const validatePayloadSchedule = (payload) => {
+  const start = payload.startTime || payload.start;
+  const end = payload.endTime || payload.end;
+  return validateBookingWindow(start, end);
 };
 
 /**
@@ -117,6 +124,16 @@ async function handleBookingCreated(payload) {
   const existing = await prisma.booking.findUnique({ where: { calEventId: uid } });
   if (existing) {
     console.log(`ℹ️ Booking ${uid} já existe. Ignorando duplicata.`);
+    return;
+  }
+
+  const scheduleValidation = validatePayloadSchedule(payload);
+  if (!scheduleValidation.valid) {
+    console.error('Booking recebido fora do horario permitido. Cancelando/ignorando.', {
+      uid,
+      reason: scheduleValidation.reason,
+    });
+    await cancelUnauthorizedCalBooking(uid, `Agendamento cancelado automaticamente: ${scheduleValidation.reason}`);
     return;
   }
 
@@ -231,6 +248,17 @@ async function handleBookingRescheduled(payload) {
 
   if (!previousUid && !newUid) {
     console.error('❌ UIDs de reagendamento não encontrados.');
+    return;
+  }
+
+  const scheduleValidation = validatePayloadSchedule(payload);
+  if (!scheduleValidation.valid) {
+    console.error('Reagendamento recebido fora do horario permitido. Cancelando novo horario.', {
+      previousUid,
+      newUid,
+      reason: scheduleValidation.reason,
+    });
+    await cancelUnauthorizedCalBooking(newUid, `Reagendamento cancelado automaticamente: ${scheduleValidation.reason}`);
     return;
   }
 

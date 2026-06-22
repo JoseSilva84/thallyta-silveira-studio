@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { FiAlertTriangle, FiCheck, FiCalendar, FiCheckCircle, FiClock, FiCreditCard, FiLoader, FiRefreshCw } from 'react-icons/fi'
+import { FiAlertTriangle, FiCheck, FiCalendar, FiCheckCircle, FiCreditCard, FiLoader } from 'react-icons/fi'
 import { toast } from 'react-toastify'
 import Cal, { getCalApi } from '@calcom/embed-react'
 import { allServices } from '../../data/services.js'
@@ -66,9 +66,6 @@ export default function Booking() {
   const [bookingPayment, setBookingPayment] = useState(null)
   const [creatingPayment, setCreatingPayment] = useState(false)
   const [confirmingPayment, setConfirmingPayment] = useState(false)
-  const [publicAgenda, setPublicAgenda] = useState([])
-  const [loadingPublicAgenda, setLoadingPublicAgenda] = useState(false)
-  const [publicAgendaError, setPublicAgendaError] = useState('')
   const sectionRef = useRef(null)
   const calFrameWrapRef = useRef(null)
   const lastScheduleRequest = useRef(scheduleRequestId)
@@ -193,25 +190,6 @@ export default function Booking() {
       cleanupLoad?.()
     }
   }, [showCal])
-
-  const fetchPublicAgenda = useCallback(async () => {
-    setLoadingPublicAgenda(true)
-    setPublicAgendaError('')
-    try {
-      const res = await fetch(`${API}/bookings/public-agenda?days=30`)
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || 'Erro ao carregar agenda.')
-      setPublicAgenda(Array.isArray(data.bookings) ? data.bookings : [])
-    } catch (error) {
-      setPublicAgendaError(error.message || 'Erro ao carregar agenda.')
-    } finally {
-      setLoadingPublicAgenda(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    fetchPublicAgenda()
-  }, [fetchPublicAgenda])
 
   // Monta a string de serviços selecionados para enviar como metadata ao Cal.com
   const servicesParam = useMemo(
@@ -428,12 +406,6 @@ export default function Booking() {
     <section ref={sectionRef} id="agendamento" className="premium-section py-16 md:py-20">
       <div className="section-shell">
         <SectionTitle eyebrow="Agendamento" title="Reserve seu horário" text="Monte seu atendimento em poucos passos." />
-        <PublicAgendaPreview
-          bookings={publicAgenda}
-          loading={loadingPublicAgenda}
-          error={publicAgendaError}
-          onRefresh={fetchPublicAgenda}
-        />
         <Reveal>
           <div className="relative">
             <div className="absolute -inset-4 z-0 rounded-[3rem] bg-gradient-to-b from-gold/10 to-transparent opacity-40 blur-2xl"></div>
@@ -692,109 +664,3 @@ export default function Booking() {
     </section>
   )
 }
-
-function PublicAgendaPreview({ bookings, loading, error, onRefresh }) {
-  const groupedDays = useMemo(() => {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-
-    return Array.from({ length: 14 }, (_, index) => {
-      const date = new Date(today)
-      date.setDate(today.getDate() + index)
-      const key = toDateKey(date)
-      const dayBookings = bookings
-        .filter((booking) => toDateKey(new Date(booking.scheduledAt)) === key)
-        .sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt))
-
-      return { key, date, bookings: dayBookings }
-    })
-  }, [bookings])
-
-  return (
-    <div className="mb-8 rounded-[1.25rem] border border-white/10 bg-white/[0.04] p-5 md:p-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h3 className="font-display text-2xl text-gold-light">Agenda da profissional</h3>
-          <p className="mt-1 text-sm text-cream/55">Veja os horarios ja ocupados antes de escolher seu servico.</p>
-        </div>
-        <button
-          type="button"
-          onClick={onRefresh}
-          disabled={loading}
-          className="inline-flex items-center justify-center gap-2 rounded-lg border border-gold/25 px-4 py-2 text-sm font-semibold text-gold-light transition-colors hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          <FiRefreshCw className={loading ? 'animate-spin' : ''} />
-          Atualizar
-        </button>
-      </div>
-
-      {error && (
-        <div className="mt-4 rounded-lg border border-red-400/20 bg-red-500/10 p-3 text-sm text-red-100">
-          {error}
-        </div>
-      )}
-
-      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {groupedDays.map((day) => (
-          <div key={day.key} className="min-h-[128px] rounded-xl border border-white/10 bg-black/25 p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-gold-light/70">
-                  {formatAgendaWeekday(day.date)}
-                </p>
-                <p className="mt-1 font-display text-xl text-cream">{formatAgendaDate(day.date)}</p>
-              </div>
-              <span className={`rounded-full px-2.5 py-1 text-[0.7rem] font-bold uppercase tracking-wider ${day.bookings.length ? 'bg-amber-300/10 text-amber-100' : 'bg-emerald-300/10 text-emerald-100'}`}>
-                {day.bookings.length ? `${day.bookings.length} ocupado(s)` : 'Livre'}
-              </span>
-            </div>
-
-            <div className="mt-4 space-y-2">
-              {loading ? (
-                <p className="text-sm text-cream/45">Carregando...</p>
-              ) : day.bookings.length ? (
-                day.bookings.slice(0, 3).map((booking) => (
-                  <div key={booking.id} className="flex items-center gap-2 text-sm text-cream/75">
-                    <FiClock className="shrink-0 text-gold" />
-                    <span>{formatAgendaTime(booking.scheduledAt)}{booking.endTime ? ` - ${formatAgendaTime(booking.endTime)}` : ''}</span>
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-cream/45">Nenhum horario reservado.</p>
-              )}
-              {day.bookings.length > 3 && (
-                <p className="text-xs font-semibold text-gold-light/70">+{day.bookings.length - 3} outro(s) horario(s)</p>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-const agendaDateKeyFormatter = new Intl.DateTimeFormat('en-CA', {
-  timeZone: 'America/Fortaleza',
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-})
-
-const toDateKey = (date) => agendaDateKeyFormatter.format(date)
-
-const formatAgendaDate = (date) => date.toLocaleDateString('pt-BR', {
-  timeZone: 'America/Fortaleza',
-  day: '2-digit',
-  month: 'short',
-})
-
-const formatAgendaWeekday = (date) => date.toLocaleDateString('pt-BR', {
-  timeZone: 'America/Fortaleza',
-  weekday: 'short',
-})
-
-const formatAgendaTime = (value) => new Date(value).toLocaleTimeString('pt-BR', {
-  timeZone: 'America/Fortaleza',
-  hour: '2-digit',
-  minute: '2-digit',
-})

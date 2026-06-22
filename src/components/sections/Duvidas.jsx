@@ -10,7 +10,7 @@ const faqs = [
   },
   {
     title: 'Qual o horário de funcionamento?',
-    content: 'O studio atende de Segunda a Sexta-feira, das 09:00 às 18:00. Não funcionamos aos Sábados e Domingos.'
+    content: 'O studio atende de Segunda a Sexta-feira, das 09:30 às 18:00, com pausa das 13:00 às 14:30. Não funcionamos aos Sábados e Domingos.'
   },
   {
     title: 'Como funciona o pagamento para reservar o horário?',

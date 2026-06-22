@@ -2966,7 +2966,7 @@ function statusBadge(status) {
 const emptyBlockForm = {
   date: '',
   allDay: true,
-  startTime: '09:00',
+  startTime: '09:30',
   endTime: '18:00',
   reason: '',
 };

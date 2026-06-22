@@ -17,6 +17,7 @@ const links = [
   ['Início', '#inicio'],
   ['Serviços', '#servicos'],
   ['Galeria', '#galeria'],
+  ['Agenda', '#agenda'],
   ['Agendamento', '#agendamento'],
   ['Fidelidade', '#fidelidade'],
   ['Dúvidas', '#duvidas'],
@@ -26,6 +27,7 @@ const links = [
 const mobileLinks = [
   ['Home', '#inicio', FiHome],
   ['Serviços', '#servicos', FiGrid],
+  ['Agenda', '#agenda', FiCalendar],
   ['Agendar', '#agendamento', FiCalendar],
   ['Perfil', '#fidelidade', FiUser],
 ]
@@ -48,14 +50,17 @@ const getStudioOpenStatus = () => {
   const minute = Number(value('minute'))
   const minutesNow = hour * 60 + minute
   const isWeekday = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].includes(weekday)
-  const opensAt = 9 * 60
+  const opensAt = 9 * 60 + 30
+  const lunchStartsAt = 13 * 60
+  const lunchEndsAt = 14 * 60 + 30
   const closesAt = 18 * 60
-  const isOpen = isWeekday && minutesNow >= opensAt && minutesNow < closesAt
+  const isLunchBreak = minutesNow >= lunchStartsAt && minutesNow < lunchEndsAt
+  const isOpen = isWeekday && minutesNow >= opensAt && minutesNow < closesAt && !isLunchBreak
 
   return {
     isOpen,
     label: isOpen ? 'Aberto' : 'Fechado',
-    detail: 'Seg. a sex. 09:00-18:00',
+    detail: 'Seg. a sex. 09:30-18:00, pausa 13:00-14:30',
   }
 }
 
@@ -324,7 +329,7 @@ export default function Navbar() {
       )}
 
       <nav className="silver-nav fixed inset-x-4 bottom-2 z-50 mx-auto max-w-sm rounded-2xl p-1.5 md:hidden" aria-label="Navegação principal mobile">
-        <div className="grid grid-cols-4 gap-1">
+        <div className="grid grid-cols-5 gap-1">
           {mobileLinks.map(([label, href, Icon]) => {
             const active = isActive(href)
             return (

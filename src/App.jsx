@@ -8,6 +8,7 @@ import About from './components/sections/About.jsx'
 import Services from './components/sections/Services.jsx'
 import Gallery from './components/sections/Gallery.jsx'
 import Testimonials from './components/sections/Testimonials.jsx'
+import Agenda from './components/sections/Agenda.jsx'
 import Booking from './components/sections/Booking.jsx'
 import Loyalty from './components/sections/Loyalty.jsx'
 import Location from './components/sections/Location.jsx'
@@ -58,6 +59,7 @@ function Home() {
         <Services />
         <Gallery />
         <Testimonials />
+        <Agenda />
         <Booking />
         <Loyalty />
         <Duvidas />

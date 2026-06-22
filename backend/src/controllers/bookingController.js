@@ -2,6 +2,7 @@ import prisma from '../config/prisma.js';
 import { createCalBooking } from '../services/calService.js';
 import { findServiceById } from '../data/services.js';
 import { notifyBookingCreated } from '../services/whatsappService.js';
+import { validateBookingWindow } from '../utils/bookingHours.js';
 import { randomUUID } from 'node:crypto';
 
 const bookingInclude = {
@@ -374,6 +375,11 @@ export const createAdminBooking = async (req, res) => {
 
     const durationMs = (service.durationMin || 60) * 60 * 1000;
     const endTime = new Date(scheduledAt.getTime() + durationMs);
+    const scheduleValidation = validateBookingWindow(scheduledAt, endTime);
+
+    if (!scheduleValidation.valid) {
+      return res.status(400).json({ error: scheduleValidation.reason });
+    }
 
     // ── Build notes for Cal.com (shows on calendar) ───────────────
     const calNotes = [
