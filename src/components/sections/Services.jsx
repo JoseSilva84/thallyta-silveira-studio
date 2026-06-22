@@ -61,7 +61,7 @@ export default function Services() {
 
       if (!canUseSelectedSlot) {
         clearPreferredSlot()
-        toast.warn('Esse horario nao comporta a duracao desse serviço. Escolha outro dia ou horario na agenda.')
+        toast.warn('Esse horário nao comporta a duração desse serviço. Escolha outro dia ou horario na agenda.')
         document.getElementById('agenda')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
         return
       }

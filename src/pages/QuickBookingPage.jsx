@@ -14,9 +14,10 @@ import {
   FiScissors,
   FiX,
 } from 'react-icons/fi'
-import { allServices } from '../data/services.js'
+import { allServices, serviceGroups } from '../data/services.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import LoginModal from '../components/auth/LoginModal.jsx'
+import ServiceCard from '../components/ui/ServiceCard.jsx'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
 const STUDIO_TIME_ZONE = 'America/Fortaleza'
@@ -76,6 +77,7 @@ export default function QuickBookingPage() {
   const [confirmingPayment, setConfirmingPayment] = useState(false)
   const [confirmedBooking, setConfirmedBooking] = useState(null)
   const [confirmedPayment, setConfirmedPayment] = useState(null)
+  const [activeServiceGroup, setActiveServiceGroup] = useState(serviceGroups[0]?.id || '')
 
   const serviceIdForAgenda = selectedSlot && selectedService?.id ? selectedService.id : ''
   const total = servicePriceValue(selectedService)
@@ -88,6 +90,7 @@ export default function QuickBookingPage() {
   const visibleDays = days.slice(dateStart, dateStart + DATE_PAGE_SIZE)
   const selectedDay = days.find((day) => day.key === selectedDate) || days.find((day) => day.availableSlots.length > 0) || days[0]
   const nextAvailableDay = days.find((day) => day.availableSlots.length > 0 && day.key !== selectedDay?.key)
+  const activeGroup = serviceGroups.find((item) => item.id === activeServiceGroup) || serviceGroups[0]
   const pageStep = confirmedBooking
     ? 'confirmed'
     : !selectedSlot
@@ -99,9 +102,9 @@ export default function QuickBookingPage() {
           : 'summary'
   const currentStep = pageStep === 'confirmed' ? 5 : pageStep === 'summary' ? 4 : pageStep === 'service' ? 3 : pageStep === 'login' ? 2 : 1
   const pageTitle = {
-    agenda: 'Escolha seu horario',
+    agenda: 'Escolha seu horário',
     login: 'Entre para continuar',
-    service: 'Escolha o servico',
+    service: 'Escolha o serviço',
     summary: 'Revise e pague',
     confirmed: 'Agendamento confirmado',
   }[pageStep]
@@ -549,8 +552,8 @@ export default function QuickBookingPage() {
             </button>
           </section>
         ) : pageStep === 'service' ? (
-            <section id="quick-services" className="mt-6 scroll-mt-24 rounded-[2rem] border border-gold/20 bg-black/30 p-4 md:p-6">
-              <div className="mb-4 flex items-center gap-3">
+            <section id="quick-services" className="gold-border mt-6 scroll-mt-24 rounded-[2.5rem] bg-black/40 p-5 backdrop-blur-xl sm:p-8 lg:p-10">
+              <div className="mb-8 flex items-center gap-3">
                 <FiScissors className="text-gold-light" />
                 <div>
                   <p className="text-xs font-bold uppercase tracking-wider text-gold-light/70">Servico</p>
@@ -563,26 +566,46 @@ export default function QuickBookingPage() {
                   <button type="button" onClick={() => setLoginOpen(true)} className="ml-2 font-bold text-gold-light underline">Entrar agora</button>
                 </div>
               )}
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {allServices.map((service) => {
-                  const active = selectedService?.id === service.id
-                  return (
-                    <button
-                      key={service.id}
-                      type="button"
-                      onClick={() => user ? chooseService(service) : setLoginOpen(true)}
-                      disabled={!selectedSlot}
-                      className={`min-h-[7rem] rounded-xl border p-4 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${
-                        active ? 'border-gold bg-gold/15 text-gold-light' : 'border-white/10 bg-white/[0.04] text-cream hover:border-gold/30 hover:bg-gold/10'
-                      }`}
-                    >
-                      <span className="block font-display text-lg">{service.name}</span>
-                      <span className="mt-1 block text-sm text-cream/55">{service.duration}</span>
-                      <span className="mt-3 block font-bold text-gold-light">{service.price}</span>
-                    </button>
-                  )
-                })}
+
+              <div className="mb-8 flex flex-wrap justify-center gap-3">
+                {serviceGroups.map((group) => (
+                  <button
+                    key={group.id}
+                    type="button"
+                    onClick={() => setActiveServiceGroup(group.id)}
+                    className={`tap-gold rounded-full px-5 py-2.5 text-sm font-bold transition-all duration-300 ${
+                      activeGroup?.id === group.id
+                        ? 'silver-glow scale-105 bg-gradient-to-r from-gold to-gold-light text-dark shadow-[0_0_20px_rgba(217,177,92,0.3)]'
+                        : 'border border-gold/20 bg-white/5 text-cream/70 backdrop-blur hover:border-gold/40 hover:bg-white/10 hover:text-gold-light'
+                    }`}
+                  >
+                    {group.label}
+                  </button>
+                ))}
               </div>
+
+              <div className="grid min-w-0 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {(activeGroup?.services || []).map((service) => (
+                  <ServiceCard
+                    key={service.id}
+                    service={{ ...service, group: activeGroup.label }}
+                    onAdd={(chosenService) => (user ? chooseService({ ...chosenService, group: activeGroup.label }) : setLoginOpen(true))}
+                    actionLabel={selectedService?.id === service.id ? 'Selecionado' : 'Escolher'}
+                  />
+                ))}
+              </div>
+
+              {selectedService && (
+                <div className="mt-6 rounded-2xl border border-gold/25 bg-gold/10 p-4 text-sm text-gold-light">
+                  Serviço selecionado: <strong>{selectedService.name}</strong>
+                </div>
+              )}
+
+              {!selectedSlot && (
+                <div className="mt-6 rounded-2xl border border-amber-300/25 bg-amber-300/10 p-4 text-sm text-amber-100">
+                  Escolha um dia e horário antes de selecionar o serviço.
+                </div>
+              )}
             </section>
         ) : (
             <section id="quick-summary" className="mt-6 scroll-mt-24 rounded-[2rem] border border-gold/20 bg-gradient-to-b from-dark-card/90 to-dark/95 p-4 md:p-6">

@@ -712,7 +712,7 @@ export default function Booking({ embedded = false } = {}) {
     window.localStorage?.removeItem(PREFERRED_SLOT_STORAGE_KEY)
     clearCheckoutDraft()
     clearServices()
-    toast.info('Selecao cancelada. Escolha outro serviço, dia ou horario.')
+    toast.info('Seleção cancelada. Escolha outro serviço, dia ou horário.')
   }
 
   const handleConfirmSelectedSlot = useCallback(async () => {
