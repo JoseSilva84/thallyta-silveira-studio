@@ -26,6 +26,14 @@ const getBackendUrl = () => {
   return configured ? configured.replace(/\/$/, '') : null;
 };
 
+const getSafeReturnPath = (value) => {
+  if (!value || typeof value !== 'string') return '/';
+  const normalized = value.trim();
+  if (!normalized.startsWith('/')) return '/';
+  if (normalized.startsWith('//')) return '/';
+  return normalized.split('#')[0].split('?')[0] || '/';
+};
+
 const roundMoney = (value) => Math.round(value * 100) / 100;
 
 const getValidId = (value) => {
@@ -457,7 +465,7 @@ const markPaymentFromMercadoPago = async (bookingPayment, mercadoPagoPayment) =>
 
 export const createBookingPreference = async (req, res) => {
   try {
-    const { serviceId, paymentType, start } = req.body;
+    const { serviceId, paymentType, start, returnPath } = req.body;
     const service = findServiceById(serviceId);
 
     if (!service) {
@@ -537,7 +545,8 @@ export const createBookingPreference = async (req, res) => {
     });
 
     const frontendUrl = getFrontendUrl();
-    const returnUrl = `${frontendUrl}/?bookingPaymentId=${bookingPayment.id}`;
+    const safeReturnPath = getSafeReturnPath(returnPath);
+    const returnUrl = `${frontendUrl}${safeReturnPath}?bookingPaymentId=${bookingPayment.id}`;
     const backendUrl = getBackendUrl();
     const preference = await mercadoPagoRequest('/checkout/preferences', {
       method: 'POST',

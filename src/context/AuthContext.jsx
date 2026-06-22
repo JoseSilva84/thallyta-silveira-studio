@@ -6,6 +6,7 @@ const AuthContext = createContext(null)
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
 const BOOKING_CHECKOUT_DRAFT_KEY = 'thallytaBookingCheckoutDraft'
+const QUICK_BOOKING_DRAFT_KEY = 'thallytaQuickBookingDraft'
 
 const readToken = () => localStorage.getItem('authToken')
 const parseToken = (token) => {
@@ -64,6 +65,12 @@ export function AuthProvider({ children }) {
     const params = new URLSearchParams(window.location.search)
     const token = params.get('token')
     const getPostLoginPath = () => {
+      try {
+        const quickDraft = JSON.parse(localStorage.getItem(QUICK_BOOKING_DRAFT_KEY) || 'null')
+        if (quickDraft?.slot) return '/agendar'
+      } catch {
+        return '/'
+      }
       try {
         const draft = JSON.parse(localStorage.getItem(BOOKING_CHECKOUT_DRAFT_KEY) || 'null')
         if (draft?.continueAfterLogin) return '/#servicos'

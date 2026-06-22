@@ -14,6 +14,7 @@ import Duvidas from './components/sections/Duvidas.jsx'
 import AdminPanel from './components/admin/AdminPanel.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import RegisterPage from './pages/RegisterPage.jsx'
+import QuickBookingPage from './pages/QuickBookingPage.jsx'
 import ProtectedRoute from './components/auth/ProtectedRoute.jsx'
 import MyBookingsPage from './pages/MyBookingsPage.jsx'
 import WhatsappPromptModal from './components/auth/WhatsappPromptModal.jsx'
@@ -24,6 +25,7 @@ import { useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 
 const BOOKING_CHECKOUT_DRAFT_KEY = 'thallytaBookingCheckoutDraft'
+const QUICK_BOOKING_DRAFT_KEY = 'thallytaQuickBookingDraft'
 
 function GoogleAuthCallback() {
   const { } = useAuth()
@@ -32,6 +34,12 @@ function GoogleAuthCallback() {
 
   useEffect(() => {
     const getPostLoginPath = () => {
+      try {
+        const quickDraft = JSON.parse(localStorage.getItem(QUICK_BOOKING_DRAFT_KEY) || 'null')
+        if (quickDraft?.slot) return '/agendar'
+      } catch {
+        return '/'
+      }
       try {
         const draft = JSON.parse(localStorage.getItem(BOOKING_CHECKOUT_DRAFT_KEY) || 'null')
         if (draft?.continueAfterLogin) return '/#servicos'
@@ -96,6 +104,7 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/agendar" element={<QuickBookingPage />} />
         <Route path="/auth/callback" element={<GoogleAuthCallback />} />
         <Route
           path="/meus-agendamentos"
