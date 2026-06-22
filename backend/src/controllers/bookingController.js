@@ -218,7 +218,6 @@ export const createPaidBooking = async (req, res) => {
         attendeeEmail: req.user.email,
         attendeePhone: req.user.whatsappPhone,
         notes,
-        lengthInMinutes: service.durationMin || 60,
         adminCreated: false,
         metadata: {
           bookingPaymentId: payment.id,
@@ -614,7 +613,6 @@ export const createAdminBooking = async (req, res) => {
         attendeeEmail,
         attendeePhone,
         notes: calNotes,
-        lengthInMinutes: service.durationMin || 60,
         metadata: {
           serviceId: service.id,
           serviceName: service.name,

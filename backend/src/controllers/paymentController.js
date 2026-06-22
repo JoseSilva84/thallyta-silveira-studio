@@ -274,7 +274,6 @@ const buildConfirmedBookingFromPayment = async (payment) => {
       attendeeEmail: hydratedPayment.user?.email,
       attendeePhone: hydratedPayment.user?.whatsappPhone,
       notes,
-      lengthInMinutes: service.durationMin || 60,
       adminCreated: false,
       metadata: {
         bookingPaymentId: hydratedPayment.id,

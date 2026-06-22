@@ -57,7 +57,6 @@ export async function createCalBooking({
   notes,
   metadata = {},
   adminCreated = true,
-  lengthInMinutes,
 }) {
   const username = process.env.CAL_USERNAME;
   if (!username) throw new Error('CAL_USERNAME nao configurado no .env.');
@@ -77,10 +76,6 @@ export async function createCalBooking({
     allowConflicts: true,
     allowBookingOutOfBounds: true,
   };
-
-  if (lengthInMinutes) {
-    body.lengthInMinutes = lengthInMinutes;
-  }
 
   console.log('[calService] Criando booking no Cal.com:', { eventTypeSlug, start, attendeeName });
 

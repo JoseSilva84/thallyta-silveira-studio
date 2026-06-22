@@ -76,7 +76,6 @@ export const syncBookingToCalById = async (bookingId) => {
     attendeeEmail: booking.attendeeEmail || booking.user?.email,
     attendeePhone: booking.attendeePhone || booking.user?.whatsappPhone,
     notes,
-    lengthInMinutes: service.durationMin || 60,
     adminCreated: true,
     metadata: {
       bookingId: booking.id,
