@@ -142,6 +142,7 @@ export default function Booking({ embedded = false } = {}) {
   const confirmingPaymentIdRef = useRef('')
   const pendingPaymentErrorShownRef = useRef(false)
   const recoveredPaymentPromptedRef = useRef('')
+  const autoConfirmSlotRef = useRef('')
   const bookingSnapshotRef = useRef({
     services: '',
     total: 0,
@@ -743,6 +744,16 @@ export default function Booking({ embedded = false } = {}) {
   ])
 
   useEffect(() => {
+    if (!bookingPayment || !preferredSlot?.start || bookingConfirmed || confirmingSelectedSlot) return
+
+    const autoConfirmKey = `${bookingPayment.id}:${preferredSlot.start}`
+    if (autoConfirmSlotRef.current === autoConfirmKey) return
+
+    autoConfirmSlotRef.current = autoConfirmKey
+    handleConfirmSelectedSlot()
+  }, [bookingConfirmed, bookingPayment, confirmingSelectedSlot, handleConfirmSelectedSlot, preferredSlot?.start])
+
+  useEffect(() => {
     bookingSnapshotRef.current = {
       services: servicesParam,
       total: totalEstimado,
@@ -864,20 +875,7 @@ export default function Booking({ embedded = false } = {}) {
                   </div>
                 </div>
 
-              ) : bookingPayment && preferredSlot ? (
-                <SelectedSlotConfirmation
-                  bookingPayment={bookingPayment}
-                  preferredSlot={preferredSlot}
-                  selectedServices={selectedServices}
-                  confirming={confirmingSelectedSlot}
-                  onConfirm={handleConfirmSelectedSlot}
-                  onChooseCalendar={() => {
-                    setPreferredSlot(null)
-                    window.localStorage?.removeItem(PREFERRED_SLOT_STORAGE_KEY)
-                    setShowCal(true)
-                  }}
-                />
-              ) : !showCal ? (
+              ) : !showCal || bookingPayment ? (
                 /* ─── PASSO 1: Seleção de Serviços ─── */
                 <div className="space-y-8">
                   {!embedded && (
