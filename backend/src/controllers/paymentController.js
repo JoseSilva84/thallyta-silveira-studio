@@ -35,6 +35,14 @@ const getValidId = (value) => {
   return normalized;
 };
 
+const getMercadoPagoResourceId = (value) => {
+  const normalized = getValidId(value);
+  if (!normalized) return null;
+
+  const match = normalized.match(/\/(?:payments|merchant_orders)\/([^/?#]+)/);
+  return getValidId(match?.[1] || normalized);
+};
+
 const getAccessToken = () => {
   const token = process.env.MP_ACCESS_TOKEN;
   if (!token) {
@@ -528,8 +536,15 @@ export const confirmBookingPayment = async (req, res) => {
 
 export const handleMercadoPagoWebhook = async (req, res) => {
   try {
-    const resourceId = getValidId(req.query.id || req.body?.data?.id || req.body?.id);
-    const type = req.query.type || req.body?.type || req.body?.topic;
+    const type = req.query.type || req.query.topic || req.body?.type || req.body?.topic;
+    const resourceId = getMercadoPagoResourceId(
+      req.query.id
+        || req.query['data.id']
+        || req.query.resource
+        || req.body?.data?.id
+        || req.body?.id
+        || req.body?.resource,
+    );
 
     if (!resourceId || (type && !['payment', 'merchant_order'].includes(type))) {
       return res.status(200).json({ received: true });
