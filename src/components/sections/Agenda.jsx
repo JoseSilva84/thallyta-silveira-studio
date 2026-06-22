@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { FiCalendar, FiChevronLeft, FiChevronRight, FiClock, FiRefreshCw } from 'react-icons/fi'
 import Reveal from '../ui/Reveal.jsx'
 import SectionTitle from '../ui/SectionTitle.jsx'
@@ -13,7 +13,7 @@ export default function Agenda() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [selectedDate, setSelectedDate] = useState('')
-  const dateStripRef = useRef(null)
+  const [mobileDateStart, setMobileDateStart] = useState(0)
 
   const fetchAgenda = useCallback(async () => {
     setLoading(true)
@@ -60,7 +60,19 @@ export default function Agenda() {
     setSelectedDate((firstAvailable || days[0]).key)
   }, [days, selectedDate])
 
+  useEffect(() => {
+    if (!selectedDate || !days.length) return
+    const selectedIndex = days.findIndex((day) => day.key === selectedDate)
+    if (selectedIndex < 0) return
+    if (selectedIndex < mobileDateStart || selectedIndex >= mobileDateStart + 3) {
+      setMobileDateStart(Math.floor(selectedIndex / 3) * 3)
+    }
+  }, [days, mobileDateStart, selectedDate])
+
   const selectedDay = days.find((day) => day.key === selectedDate) || days[0]
+  const mobileDateDays = days.slice(mobileDateStart, mobileDateStart + 3)
+  const canShowPreviousDates = mobileDateStart > 0
+  const canShowNextDates = mobileDateStart + 3 < days.length
   const nextAvailableDay = useMemo(() => {
     if (!selectedDay) return null
     return days.find((day) => day.key !== selectedDay.key && day.availableSlots.length > 0) || null
@@ -79,15 +91,12 @@ export default function Agenda() {
     document.getElementById('servicos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [])
 
-  const scrollDateStrip = useCallback((direction) => {
-    const strip = dateStripRef.current
-    if (!strip) return
-
-    strip.scrollBy({
-      left: direction * strip.clientWidth,
-      behavior: 'smooth',
+  const showDateGroup = useCallback((direction) => {
+    setMobileDateStart((current) => {
+      const next = current + direction * 3
+      return Math.min(Math.max(next, 0), Math.max(days.length - 3, 0))
     })
-  }, [])
+  }, [days.length])
 
   return (
     <section id="agenda" className="premium-section py-14 md:py-16">
@@ -144,40 +153,53 @@ export default function Agenda() {
                   ))}
                 </div>
 
-                <div className="agenda-scroll-wrap mt-3 sm:mt-3">
-                  <div className="mb-2 flex items-center justify-between sm:hidden">
+                <div className="mt-3 sm:hidden">
+                  <div className="grid grid-cols-[2.25rem_minmax(0,1fr)_2.25rem] items-stretch gap-2">
                     <button
                       type="button"
-                      onClick={() => scrollDateStrip(-1)}
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gold/25 bg-black/25 text-gold-light transition-colors hover:bg-gold/10"
+                      onClick={() => showDateGroup(-1)}
+                      disabled={!canShowPreviousDates}
+                      className="inline-flex h-full min-h-[4.35rem] items-center justify-center rounded-xl border border-gold/25 bg-black/25 text-gold-light transition-colors hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-35"
                       aria-label="Ver datas anteriores"
                     >
                       <FiChevronLeft />
                     </button>
-                    <div className="agenda-scroll-rail pointer-events-none h-1.5 w-24 rounded-full bg-white/10" aria-hidden="true">
-                      <span className="agenda-scroll-thumb block h-full w-10 rounded-full bg-gold/70" />
+
+                    <div className="grid min-w-0 grid-cols-3 gap-2">
+                      {mobileDateDays.map((day) => (
+                        <DateButton
+                          key={day.key}
+                          day={day}
+                          active={selectedDay?.key === day.key}
+                          loading={loading}
+                          compact
+                          onClick={() => setSelectedDate(day.key)}
+                        />
+                      ))}
                     </div>
+
                     <button
                       type="button"
-                      onClick={() => scrollDateStrip(1)}
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gold/25 bg-black/25 text-gold-light transition-colors hover:bg-gold/10"
+                      onClick={() => showDateGroup(1)}
+                      disabled={!canShowNextDates}
+                      className="inline-flex h-full min-h-[4.35rem] items-center justify-center rounded-xl border border-gold/25 bg-black/25 text-gold-light transition-colors hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-35"
                       aria-label="Ver mais datas"
                     >
                       <FiChevronRight />
                     </button>
                   </div>
+                </div>
 
-                  <div ref={dateStripRef} className="agenda-date-strip grid grid-flow-col auto-cols-[calc((100%-1rem)/3)] grid-rows-1 gap-2 overflow-x-auto pb-2 sm:grid-flow-row sm:grid-cols-7 sm:grid-rows-none sm:overflow-visible sm:pb-0">
-                    {days.slice(0, 14).map((day) => (
-                      <DateButton
-                        key={day.key}
-                        day={day}
-                        active={selectedDay?.key === day.key}
-                        loading={loading}
-                        onClick={() => setSelectedDate(day.key)}
-                      />
-                    ))}
-                  </div>
+                <div className="mt-3 hidden sm:grid sm:grid-cols-7 sm:gap-2">
+                  {days.slice(0, 14).map((day) => (
+                    <DateButton
+                      key={day.key}
+                      day={day}
+                      active={selectedDay?.key === day.key}
+                      loading={loading}
+                      onClick={() => setSelectedDate(day.key)}
+                    />
+                  ))}
                 </div>
               </div>
 
@@ -250,7 +272,7 @@ export default function Agenda() {
   )
 }
 
-function DateButton({ day, active, loading, onClick }) {
+function DateButton({ day, active, loading, compact = false, onClick }) {
   const isUnavailable = !day.isBusinessDay || day.availableSlots.length === 0
 
   return (
@@ -258,7 +280,7 @@ function DateButton({ day, active, loading, onClick }) {
       type="button"
       onClick={onClick}
       disabled={loading}
-      className={`min-h-[4.75rem] w-full rounded-xl border p-2 text-center transition-colors disabled:cursor-wait disabled:opacity-60 sm:min-h-[4.25rem] ${
+      className={`${compact ? 'min-h-[4.35rem] px-1.5 py-2' : 'min-h-[4.75rem] p-2 sm:min-h-[4.25rem]'} w-full rounded-xl border text-center transition-colors disabled:cursor-wait disabled:opacity-60 ${
         active
           ? 'border-gold bg-gold text-dark shadow-[0_0_18px_rgba(217,177,92,0.25)]'
           : isUnavailable
@@ -267,9 +289,13 @@ function DateButton({ day, active, loading, onClick }) {
       }`}
       aria-pressed={active}
     >
-      <span className="block text-[0.62rem] font-bold uppercase tracking-wider">{formatShortWeekday(day.date)}</span>
-      <span className="mt-1 block font-display text-xl leading-none">{formatDayNumber(day.date)}</span>
-      <span className="mt-1 block text-[0.58rem] font-bold uppercase leading-tight tracking-wider sm:text-[0.62rem]">
+      <span className={`${compact ? 'text-[0.55rem]' : 'text-[0.62rem]'} block font-bold uppercase tracking-wider`}>
+        {formatShortWeekday(day.date)}
+      </span>
+      <span className={`${compact ? 'text-lg' : 'text-xl'} mt-1 block font-display leading-none`}>
+        {formatDayNumber(day.date)}
+      </span>
+      <span className={`${compact ? 'text-[0.5rem]' : 'text-[0.58rem] sm:text-[0.62rem]'} mt-1 block font-bold uppercase leading-tight tracking-wider`}>
         {day.availableSlots.length > 0 ? `${day.availableSlots.length} vagas` : day.isBusinessDay ? 'lotado' : 'fechado'}
       </span>
     </button>

@@ -506,35 +506,6 @@ section[id] {
     0 0 20px rgba(217, 177, 92, 0.28);
 }
 
-.agenda-date-strip {
-  scroll-snap-type: x mandatory;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(217, 177, 92, 0.42) rgba(255, 255, 255, 0.06);
-  -webkit-overflow-scrolling: touch;
-}
-
-.agenda-date-strip > button {
-  scroll-snap-align: start;
-}
-
-.agenda-date-strip::-webkit-scrollbar {
-  height: 5px;
-}
-
-.agenda-date-strip::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.06);
-  border-radius: 999px;
-}
-
-.agenda-date-strip::-webkit-scrollbar-thumb {
-  background: rgba(217, 177, 92, 0.42);
-  border-radius: 999px;
-}
-
-.agenda-scroll-thumb {
-  animation: agenda-rail-slide 1.8s ease-in-out infinite;
-}
-
 .hero-photo-stage {
   perspective: 1000px;
 }
@@ -918,15 +889,6 @@ label.cursor-pointer:active {
   }
   to {
     transform: translateX(80%) rotate(12deg);
-  }
-}
-
-@keyframes agenda-rail-slide {
-  0%, 100% {
-    transform: translateX(0);
-  }
-  50% {
-    transform: translateX(2.75rem);
   }
 }
 
