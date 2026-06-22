@@ -141,6 +141,7 @@ export default function Booking({ embedded = false } = {}) {
   const autoProceedAfterLoginRef = useRef(false)
   const confirmingPaymentIdRef = useRef('')
   const pendingPaymentErrorShownRef = useRef(false)
+  const recoveredPaymentPromptedRef = useRef('')
   const bookingSnapshotRef = useRef({
     services: '',
     total: 0,
@@ -373,14 +374,18 @@ export default function Booking({ embedded = false } = {}) {
     setIsCalFrameLoaded(false)
     isCalReadyRef.current = false
     setIsBookingDetailsStep(false)
-    setShowCal(!preferredSlot)
+    setShowCal(false)
     setBookingConfirmed(false)
     setConfirmedSummary(null)
     window.localStorage?.setItem(PENDING_PAYMENT_STORAGE_KEY, payment.id)
-    focusBookingSection()
+    if (preferredSlot?.start) {
+      focusBookingSection()
+    } else {
+      document.getElementById('agenda')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
 
     if (options.recovered) {
-      toast.info(preferredSlot ? 'Voce ja pagou. Confirme o horario selecionado.' : 'Voce ja tem um pagamento aprovado. Termine escolhendo a data e o horario.')
+      toast.info(preferredSlot ? 'Voce ja pagou. Confirme o horario selecionado.' : 'Voce ja pagou. Escolha um horario disponivel para confirmar o agendamento.')
     } else if (options.notify !== false) {
       toast.success(preferredSlot ? 'Pagamento aprovado. Confirme o horario selecionado.' : 'Pagamento aprovado. Agora escolha a data e o horario.')
     }
@@ -531,6 +536,13 @@ export default function Booking({ embedded = false } = {}) {
           return
         }
 
+        if (data.payment?.status === 'approved') {
+          recoveredPaymentPromptedRef.current = data.payment.id
+          openScheduleFromPayment(data.payment, { recovered: true })
+          cleanPaymentParams()
+          return
+        }
+
         if (!data.canSchedule) {
           if (mpStatus === 'failure') {
             toast.error('Pagamento nao aprovado. O agendamento ainda nao foi liberado.')
@@ -550,7 +562,7 @@ export default function Booking({ embedded = false } = {}) {
     }
 
     confirmPayment()
-  }, [bookingHash, fetchBookings, focusBookingSection, getToken, showConfirmedBooking, user])
+  }, [bookingHash, fetchBookings, focusBookingSection, getToken, openScheduleFromPayment, showConfirmedBooking, user])
 
   useEffect(() => {
     if (!user) {
@@ -584,6 +596,13 @@ export default function Booking({ embedded = false } = {}) {
             toast.success('Agendamento confirmado com sucesso!')
             return
           }
+          if (confirmRes.ok && confirmData.payment?.status === 'approved') {
+            if (recoveredPaymentPromptedRef.current !== confirmData.payment.id) {
+              recoveredPaymentPromptedRef.current = confirmData.payment.id
+              openScheduleFromPayment(confirmData.payment, { recovered: true })
+            }
+            return
+          }
         }
 
         const res = await fetch(`${API}/payments/pending-schedule`, {
@@ -603,6 +622,13 @@ export default function Booking({ embedded = false } = {}) {
           toast.success('Agendamento confirmado com sucesso!')
           return
         }
+        if (data.payment?.status === 'approved') {
+          if (recoveredPaymentPromptedRef.current !== data.payment.id) {
+            recoveredPaymentPromptedRef.current = data.payment.id
+            openScheduleFromPayment(data.payment, { recovered: true })
+          }
+          return
+        }
         if (data.message && !pendingPaymentErrorShownRef.current) {
           pendingPaymentErrorShownRef.current = true
           toast.info(data.message)
@@ -615,7 +641,7 @@ export default function Booking({ embedded = false } = {}) {
     restorePendingSchedule()
     const interval = window.setInterval(restorePendingSchedule, 10000)
     return () => window.clearInterval(interval)
-  }, [bookingConfirmed, fetchBookings, getToken, showCal, showConfirmedBooking, user])
+  }, [bookingConfirmed, fetchBookings, getToken, openScheduleFromPayment, showCal, showConfirmedBooking, user])
 
   const handleNewBooking = () => {
     isCalReadyRef.current = false
