@@ -17,6 +17,11 @@ const faqs = [
     content: 'Para garantir o seu horário na agenda, é necessário efetuar o pagamento através da nossa integração segura com o Mercado Pago. Você pode optar por pagar uma entrada de 30% do valor do serviço ou já pagar o valor total. O horário será reservado e liberado automaticamente assim que o pagamento for aprovado.'
   },
   {
+    title: 'Quando você pagar e o calendário demorar aparecer e você atualizar o site, o que acontece?',
+    content: 'Se o pagamento ja foi aprovado, o sistema reconhece que ainda falta escolher a data e o horario. Ao voltar ou atualizar o site, entre na mesma conta e finalize o agendamento pelo calendario sem pagar novamente.',
+    videoId: 'LvJryu01C78'
+  },
+  {
     title: 'Como funciona o programa de fidelidade?',
     content: 'A cada visita e serviço finalizado no studio, você recebe um selo no seu cartão fidelidade digital (disponível na sua conta aqui no site). Ao completar 10 selos, você desbloqueia uma recompensa especial!'
   },
