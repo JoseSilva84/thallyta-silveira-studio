@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { toast } from 'react-toastify'
 import { serviceGroups } from '../../data/services.js'
 import { useBooking } from '../../context/BookingContext.jsx'
 import Reveal from '../ui/Reveal.jsx'
@@ -6,15 +7,66 @@ import SectionTitle from '../ui/SectionTitle.jsx'
 import ServiceCard from '../ui/ServiceCard.jsx'
 import Booking from './Booking.jsx'
 
+const API = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
+const PREFERRED_SLOT_STORAGE_KEY = 'thallytaPreferredScheduleSlot'
+
+const readPreferredSlot = () => {
+  try {
+    const value = window.localStorage?.getItem(PREFERRED_SLOT_STORAGE_KEY)
+    return value ? JSON.parse(value) : null
+  } catch {
+    return null
+  }
+}
+
+const clearPreferredSlot = () => {
+  window.localStorage?.removeItem(PREFERRED_SLOT_STORAGE_KEY)
+  window.dispatchEvent(new CustomEvent('booking:slot-selected', { detail: null }))
+}
+
+const isSlotAvailableForService = async (service, preferredSlot) => {
+  if (!service?.id || !preferredSlot?.start) return true
+
+  const params = new URLSearchParams({ days: '30', serviceId: service.id })
+  const res = await fetch(`${API}/bookings/public-agenda?${params.toString()}`)
+  const data = await res.json().catch(() => ({}))
+
+  if (!res.ok) throw new Error(data.error || 'Nao foi possivel validar esse horario.')
+
+  const selectedStart = new Date(preferredSlot.start).getTime()
+  return (data.agendaDays || []).some((day) =>
+    (day.availableSlots || []).some((slot) => new Date(slot.start).getTime() === selectedStart),
+  )
+}
+
 export default function Services() {
   const [active, setActive] = useState(serviceGroups[0].id)
+  const [validatingServiceId, setValidatingServiceId] = useState('')
   const { addService } = useBooking()
   const group = serviceGroups.find((item) => item.id === active)
-  const handleAddService = (service) => {
-    addService(service)
-    window.setTimeout(() => {
-      document.getElementById('servicos-checkout')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }, 80)
+  const handleAddService = async (service) => {
+    const preferredSlot = readPreferredSlot()
+
+    try {
+      setValidatingServiceId(service.id)
+      const canUseSelectedSlot = await isSlotAvailableForService(service, preferredSlot)
+
+      if (!canUseSelectedSlot) {
+        clearPreferredSlot()
+        toast.warn('Esse horario nao comporta a duracao desse serviço. Escolha outro dia ou horario na agenda.')
+        document.getElementById('agenda')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        return
+      }
+
+      addService(service)
+      window.setTimeout(() => {
+        document.getElementById('servicos-checkout')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 80)
+    } catch (error) {
+      toast.error(error.message || 'Nao foi possivel validar esse horario.')
+    } finally {
+      setValidatingServiceId('')
+    }
   }
 
   return (
@@ -40,7 +92,12 @@ export default function Services() {
               </div>
               <div className="grid min-w-0 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {group.services.map((service) => (
-                  <ServiceCard key={service.id} service={{ ...service, group: group.label }} onAdd={handleAddService} actionLabel="Escolher" />
+                  <ServiceCard
+                    key={service.id}
+                    service={{ ...service, group: group.label }}
+                    onAdd={handleAddService}
+                    actionLabel={validatingServiceId === service.id ? 'Verificando...' : 'Escolher'}
+                  />
                 ))}
               </div>
               <Booking embedded />

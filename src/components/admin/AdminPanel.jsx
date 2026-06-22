@@ -347,7 +347,7 @@ export default function AdminPanel() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || 'Erro ao confirmar servico realizado');
       updateBookingInList(data);
-      toast.success('Servico confirmado e fidelidade liberada!');
+      toast.success('Serviço confirmado e fidelidade liberada!');
     } catch (error) {
       toast.error(error.message);
     }

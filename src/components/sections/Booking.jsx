@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { FiAlertTriangle, FiCheck, FiCalendar, FiCheckCircle, FiCreditCard, FiLoader } from 'react-icons/fi'
+import { FiAlertTriangle, FiCheck, FiCalendar, FiCheckCircle, FiCreditCard, FiLoader, FiXCircle } from 'react-icons/fi'
 import { toast } from 'react-toastify'
 import Cal, { getCalApi } from '@calcom/embed-react'
 import { allServices } from '../../data/services.js'
@@ -609,6 +609,20 @@ export default function Booking({ embedded = false } = {}) {
     clearCheckoutDraft()
   }
 
+  const handleCancelCheckout = () => {
+    isCalReadyRef.current = false
+    setIsBookingDetailsStep(false)
+    setShowCal(false)
+    setIsScheduleStepOpen(false)
+    setBookingPayment(null)
+    setPreferredSlot(null)
+    setIsPaymentUnlocked(false)
+    window.localStorage?.removeItem(PREFERRED_SLOT_STORAGE_KEY)
+    clearCheckoutDraft()
+    clearServices()
+    toast.info('Selecao cancelada. Escolha outro serviço, dia ou horario.')
+  }
+
   const handleConfirmSelectedSlot = useCallback(async () => {
     if (!bookingPayment || !preferredSlot?.start) return
 
@@ -920,14 +934,25 @@ export default function Booking({ embedded = false } = {}) {
                         </div>
                       )}
                     </div>
-                    <button
-                      onClick={handleProceed}
-                      disabled={creatingPayment || confirmingPayment}
-                      className="gold-button mt-6 flex w-full items-center justify-center gap-2 rounded-xl px-5 py-4 text-sm font-bold uppercase tracking-wider shadow-[0_0_20px_rgba(0,0,0,0.3)] transition-all hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(217,177,92,0.25)] disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {creatingPayment || confirmingPayment ? <FiLoader className="text-lg animate-spin" /> : <FiCreditCard className="text-lg" />}
-                      {creatingPayment ? 'Abrindo Mercado Pago...' : confirmingPayment ? 'Confirmando pagamento...' : preferredSlot?.start ? 'Pagar e Reservar' : 'Escolher Data e Horario'}
-                    </button>
+                    <div className="mt-6 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+                      <button
+                        onClick={handleProceed}
+                        disabled={creatingPayment || confirmingPayment}
+                        className="gold-button flex w-full items-center justify-center gap-2 rounded-xl px-5 py-4 text-sm font-bold uppercase tracking-wider shadow-[0_0_20px_rgba(0,0,0,0.3)] transition-all hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(217,177,92,0.25)] disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {creatingPayment || confirmingPayment ? <FiLoader className="text-lg animate-spin" /> : <FiCreditCard className="text-lg" />}
+                        {creatingPayment ? 'Abrindo Mercado Pago...' : confirmingPayment ? 'Confirmando pagamento...' : preferredSlot?.start ? 'Pagar e Reservar' : 'Escolher Data e Horario'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCancelCheckout}
+                        disabled={creatingPayment || confirmingPayment}
+                        className="flex items-center justify-center gap-2 rounded-xl border border-white/10 px-5 py-4 text-sm font-bold uppercase tracking-wider text-cream/70 transition-colors hover:border-gold/30 hover:text-gold-light disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <FiXCircle className="text-lg" />
+                        Cancelar
+                      </button>
+                    </div>
                   </div>
                 </div>
               ) : (

@@ -336,7 +336,7 @@ function ClientLoyaltySummary({ bookings }) {
             <h4 className="text-sm font-bold uppercase tracking-wider text-cream/60">Ultimos registros</h4>
             {recentBookings.length === 0 ? (
               <p className="mt-4 rounded-lg border border-white/10 bg-white/5 p-4 text-sm text-cream/55">
-                Seus selos aparecem aqui quando o studio confirmar que o servico foi realizado.
+                Seus selos aparecem aqui quando o studio confirmar que o serviço foi realizado.
               </p>
             ) : (
               <div className="mt-4 space-y-3">
