@@ -264,6 +264,17 @@ export default function Booking() {
   const selectedService = selectedServices[0] || null
   const selectedCalLink = useMemo(() => getCalLinkFromUrl(selectedService?.calUrl), [selectedService?.calUrl])
 
+  // Calcula o preço total estimado (pega o primeiro valor numérico de cada preço)
+  const totalEstimado = useMemo(() => {
+    return selectedServices.reduce((sum, s) => {
+      const match = s.price.match(/R\$\s*([\d.,]+)/)
+      if (match) {
+        return sum + parseFloat(match[1].replace('.', '').replace(',', '.'))
+      }
+      return sum
+    }, 0)
+  }, [selectedServices])
+
   const openScheduleFromPayment = useCallback((payment, options = {}) => {
     if (!payment) return
 
@@ -517,17 +528,6 @@ export default function Booking() {
     user?.name,
     user?.whatsappPhone,
   ])
-
-  // Calcula o preço total estimado (pega o primeiro valor numérico de cada preço)
-  const totalEstimado = useMemo(() => {
-    return selectedServices.reduce((sum, s) => {
-      const match = s.price.match(/R\$\s*([\d.,]+)/)
-      if (match) {
-        return sum + parseFloat(match[1].replace('.', '').replace(',', '.'))
-      }
-      return sum
-    }, 0)
-  }, [selectedServices])
 
   useEffect(() => {
     bookingSnapshotRef.current = {
