@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { FiCalendar, FiChevronLeft, FiChevronRight, FiClock, FiRefreshCw } from 'react-icons/fi'
 import Reveal from '../ui/Reveal.jsx'
 import SectionTitle from '../ui/SectionTitle.jsx'
@@ -20,6 +20,8 @@ const getServiceCardsScrollTop = (element) => {
   return Math.max(element.getBoundingClientRect().top + window.scrollY - headerOffset, 0)
 }
 
+const isMobileViewport = () => window.matchMedia('(max-width: 639px)').matches
+
 export default function Agenda() {
   const [bookings, setBookings] = useState([])
   const [availabilityDays, setAvailabilityDays] = useState([])
@@ -28,6 +30,7 @@ export default function Agenda() {
   const [selectedDate, setSelectedDate] = useState('')
   const [mobileDateStart, setMobileDateStart] = useState(0)
   const [desktopDateStart, setDesktopDateStart] = useState(0)
+  const timeCardRef = useRef(null)
 
   const fetchAgenda = useCallback(async () => {
     setLoading(true)
@@ -114,6 +117,18 @@ export default function Agenda() {
     }
   }, [])
 
+  const selectDate = useCallback((dateKey) => {
+    setSelectedDate(dateKey)
+
+    if (!isMobileViewport()) return
+
+    window.setTimeout(() => {
+      if (timeCardRef.current) {
+        window.scrollTo({ top: getServiceCardsScrollTop(timeCardRef.current), behavior: 'smooth' })
+      }
+    }, 80)
+  }, [])
+
   const showDateGroup = useCallback((direction, pageSize, dateStart, setDateStart) => {
     const maxStart = Math.max(days.length - pageSize, 0)
     const next = Math.min(Math.max(dateStart + direction * pageSize, 0), maxStart)
@@ -192,7 +207,7 @@ export default function Agenda() {
                           active={selectedDay?.key === day.key}
                           loading={loading}
                           compact
-                          onClick={() => setSelectedDate(day.key)}
+                          onClick={() => selectDate(day.key)}
                         />
                       ))}
                     </div>
@@ -223,7 +238,7 @@ export default function Agenda() {
                         day={day}
                         active={selectedDay?.key === day.key}
                         loading={loading}
-                        onClick={() => setSelectedDate(day.key)}
+                        onClick={() => selectDate(day.key)}
                       />
                     ))}
                   </div>
@@ -252,7 +267,7 @@ export default function Agenda() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-gold/20 bg-gradient-to-b from-dark-card/85 to-dark/95 p-4 sm:p-5">
+              <div ref={timeCardRef} className="rounded-2xl border border-gold/20 bg-gradient-to-b from-dark-card/85 to-dark/95 p-4 sm:p-5">
                 {selectedDay ? (
                   <>
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
