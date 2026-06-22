@@ -2,7 +2,7 @@ import prisma from '../config/prisma.js';
 import { createCalBooking } from '../services/calService.js';
 import { findServiceById } from '../data/services.js';
 import { notifyBookingCreated } from '../services/whatsappService.js';
-import { validateBookingWindow } from '../utils/bookingHours.js';
+import { buildPublicAgendaDays, validateBookingWindow } from '../utils/bookingHours.js';
 import { randomUUID } from 'node:crypto';
 
 const bookingInclude = {
@@ -71,6 +71,7 @@ export const getPublicAgenda = async (req, res) => {
     res.json({
       generatedAt: now.toISOString(),
       days,
+      agendaDays: buildPublicAgendaDays(bookings, days, now),
       bookings: bookings.map((booking) => ({
         id: booking.id,
         service: booking.service,

@@ -9,6 +9,7 @@ const STUDIO_TIME_ZONE = 'America/Fortaleza'
 export default function Agenda() {
   const [view, setView] = useState('calendar')
   const [bookings, setBookings] = useState([])
+  const [availabilityDays, setAvailabilityDays] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -20,6 +21,7 @@ export default function Agenda() {
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || 'Erro ao carregar agenda.')
       setBookings(Array.isArray(data.bookings) ? data.bookings : [])
+      setAvailabilityDays(Array.isArray(data.agendaDays) ? data.agendaDays : [])
     } catch (err) {
       setError(err.message || 'Erro ao carregar agenda.')
     } finally {
@@ -31,15 +33,32 @@ export default function Agenda() {
     fetchAgenda()
   }, [fetchAgenda])
 
-  const days = useMemo(() => buildAgendaDays(bookings), [bookings])
+  useEffect(() => {
+    const interval = window.setInterval(fetchAgenda, 30000)
+    const handleVisibility = () => {
+      if (!document.hidden) fetchAgenda()
+    }
+    const handleBookingUpdated = () => fetchAgenda()
+
+    document.addEventListener('visibilitychange', handleVisibility)
+    window.addEventListener('booking:updated', handleBookingUpdated)
+
+    return () => {
+      window.clearInterval(interval)
+      document.removeEventListener('visibilitychange', handleVisibility)
+      window.removeEventListener('booking:updated', handleBookingUpdated)
+    }
+  }, [fetchAgenda])
+
+  const days = useMemo(() => buildAgendaDays(bookings, availabilityDays), [availabilityDays, bookings])
 
   return (
     <section id="agenda" className="premium-section py-16 md:py-20">
       <div className="section-shell">
         <SectionTitle
           eyebrow="Agenda"
-          title="Consulte os horários ocupados"
-          text="Veja a agenda antes de escolher o serviço. O horário definitivo é reservado após o pagamento e confirmação no calendário."
+          title="Consulte os horarios disponiveis"
+          text="Veja os horarios livres e ocupados antes de escolher o servico."
         />
 
         <Reveal>
@@ -50,7 +69,7 @@ export default function Agenda() {
                   <FiClock className="text-gold" /> Atendimento a partir das 09h30
                 </span>
                 <span className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-black/20 px-3 py-2">
-                  <FiClock className="text-gold" /> Pausa: 13h00 às 14h30
+                  <FiClock className="text-gold" /> Pausa: 13h00 as 14h30
                 </span>
               </div>
 
@@ -61,7 +80,7 @@ export default function Agenda() {
                     onClick={() => setView('calendar')}
                     className={`inline-flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition-colors ${view === 'calendar' ? 'bg-gold text-dark' : 'text-cream/70 hover:text-cream'}`}
                   >
-                    <FiCalendar /> Calendário
+                    <FiCalendar /> Calendario
                   </button>
                   <button
                     type="button"
@@ -110,7 +129,7 @@ function AgendaCalendar({ days, loading }) {
       {days.map((day) => (
         <div
           key={day.key}
-          className="group relative min-h-[132px] rounded-xl border border-white/10 bg-black/25 p-4 transition-colors hover:border-gold/35 hover:bg-black/35"
+          className="group relative min-h-[188px] rounded-xl border border-white/10 bg-black/25 p-4 transition-colors hover:border-gold/35 hover:bg-black/35"
         >
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -122,31 +141,50 @@ function AgendaCalendar({ days, loading }) {
             </span>
           </div>
 
-          <div className="mt-4 space-y-2">
+          <div className="mt-4">
             {loading ? (
               <p className="text-sm text-cream/45">Carregando...</p>
             ) : !day.isBusinessDay ? (
               <p className="text-sm text-cream/45">Studio fechado.</p>
-            ) : day.bookings.length ? (
-              day.bookings.slice(0, 2).map((booking) => (
-                <AgendaTime key={booking.id} booking={booking} />
-              ))
             ) : (
-              <p className="text-sm text-cream/45">Nenhum horário reservado.</p>
-            )}
-            {day.bookings.length > 2 && (
-              <p className="text-xs font-semibold text-gold-light/70">+{day.bookings.length - 2} horário(s)</p>
+              <>
+                <p className="mb-2 text-xs font-bold uppercase tracking-wider text-emerald-200/80">Disponiveis</p>
+                <AvailableSlots slots={day.availableSlots} compact />
+              </>
             )}
           </div>
 
           {day.bookings.length > 0 && (
+            <div className="mt-4 border-t border-white/10 pt-3">
+              <p className="mb-2 text-xs font-bold uppercase tracking-wider text-amber-100/80">Ocupados</p>
+              <div className="space-y-2">
+                {day.bookings.slice(0, 2).map((booking) => (
+                  <AgendaTime key={booking.id} booking={booking} />
+                ))}
+                {day.bookings.length > 2 && (
+                  <p className="text-xs font-semibold text-gold-light/70">+{day.bookings.length - 2} horario(s)</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {(day.bookings.length > 0 || day.availableSlots.length > 6) && (
             <div className="pointer-events-none absolute left-1/2 top-full z-30 mt-3 hidden w-72 -translate-x-1/2 rounded-xl border border-gold/25 bg-dark-card p-4 text-sm shadow-2xl group-hover:block">
               <p className="mb-3 font-display text-lg text-gold-light">{formatLongDate(day.date)}</p>
-              <div className="space-y-2">
-                {day.bookings.map((booking) => (
-                  <AgendaTime key={booking.id} booking={booking} showService />
-                ))}
-              </div>
+              {day.isBusinessDay && (
+                <div className="mb-4">
+                  <p className="mb-2 text-xs font-bold uppercase tracking-wider text-emerald-200/80">Disponiveis</p>
+                  <AvailableSlots slots={day.availableSlots} />
+                </div>
+              )}
+              {day.bookings.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-bold uppercase tracking-wider text-amber-100/80">Ocupados</p>
+                  {day.bookings.map((booking) => (
+                    <AgendaTime key={booking.id} booking={booking} showService />
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -170,21 +208,53 @@ function AgendaList({ days, loading }) {
             </span>
           </div>
 
-          <div className="mt-4 space-y-2">
+          <div className="mt-4 space-y-4">
             {loading ? (
               <p className="text-sm text-cream/45">Carregando...</p>
             ) : !day.isBusinessDay ? (
               <p className="text-sm text-cream/45">Studio fechado.</p>
-            ) : day.bookings.length ? (
-              day.bookings.map((booking) => (
-                <AgendaTime key={booking.id} booking={booking} showService />
-              ))
             ) : (
-              <p className="text-sm text-cream/45">Nenhum horário reservado.</p>
+              <>
+                <div>
+                  <p className="mb-2 text-xs font-bold uppercase tracking-wider text-emerald-200/80">Disponiveis</p>
+                  <AvailableSlots slots={day.availableSlots} />
+                </div>
+                {day.bookings.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-bold uppercase tracking-wider text-amber-100/80">Ocupados</p>
+                    {day.bookings.map((booking) => (
+                      <AgendaTime key={booking.id} booking={booking} showService />
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
       ))}
+    </div>
+  )
+}
+
+function AvailableSlots({ slots, compact = false }) {
+  if (!slots?.length) {
+    return <p className="text-sm text-cream/45">Sem horarios livres.</p>
+  }
+
+  const visibleSlots = compact ? slots.slice(0, 6) : slots
+
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {visibleSlots.map((slot) => (
+        <span key={slot.start || slot.time} className="rounded-md border border-emerald-300/20 bg-emerald-300/10 px-2 py-1 text-xs font-semibold text-emerald-100">
+          {slot.time}
+        </span>
+      ))}
+      {compact && slots.length > visibleSlots.length && (
+        <span className="rounded-md border border-gold/20 bg-gold/10 px-2 py-1 text-xs font-semibold text-gold-light">
+          +{slots.length - visibleSlots.length}
+        </span>
+      )}
     </div>
   )
 }
@@ -196,12 +266,12 @@ function AgendaTime({ booking, showService = false }) {
       <span className="shrink-0">
         {formatTime(booking.scheduledAt)}{booking.endTime ? ` - ${formatTime(booking.endTime)}` : ''}
       </span>
-      {showService && <span className="truncate text-cream/45">· {booking.service}</span>}
+      {showService && <span className="truncate text-cream/45">- {booking.service}</span>}
     </div>
   )
 }
 
-function buildAgendaDays(bookings) {
+function buildAgendaDays(bookings, availabilityDays) {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
@@ -212,20 +282,27 @@ function buildAgendaDays(bookings) {
     const dayBookings = bookings
       .filter((booking) => toDateKey(new Date(booking.scheduledAt)) === key)
       .sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt))
+    const availability = availabilityDays.find((day) => day.date === key)
 
-    return { key, date, bookings: dayBookings, isBusinessDay: isBusinessDay(date) }
+    return {
+      key,
+      date,
+      bookings: dayBookings,
+      isBusinessDay: availability?.isBusinessDay ?? isBusinessDay(date),
+      availableSlots: availability?.availableSlots || [],
+    }
   })
 }
 
 const getDayBadgeClass = (day) => {
   if (!day.isBusinessDay) return 'bg-white/10 text-cream/55'
-  return day.bookings.length ? 'bg-amber-300/10 text-amber-100' : 'bg-emerald-300/10 text-emerald-100'
+  return day.availableSlots.length ? 'bg-emerald-300/10 text-emerald-100' : 'bg-amber-300/10 text-amber-100'
 }
 
 const getDayBadgeLabel = (day, compact = false) => {
   if (!day.isBusinessDay) return 'Fechado'
-  if (day.bookings.length) return compact ? `${day.bookings.length}` : `${day.bookings.length} ocupado(s)`
-  return 'Livre'
+  if (day.availableSlots.length) return compact ? `${day.availableSlots.length}` : `${day.availableSlots.length} livre(s)`
+  return 'Lotado'
 }
 
 const dateKeyFormatter = new Intl.DateTimeFormat('en-CA', {

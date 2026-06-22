@@ -4,6 +4,7 @@ const OPEN_MINUTES = 9 * 60 + 30;
 const LUNCH_START_MINUTES = 13 * 60;
 const LUNCH_END_MINUTES = 14 * 60 + 30;
 const CLOSE_MINUTES = 18 * 60;
+const SLOT_INTERVAL_MINUTES = 30;
 const BUSINESS_WEEKDAYS = new Set(['Mon', 'Tue', 'Wed', 'Thu', 'Fri']);
 
 const dateTimeFormatter = new Intl.DateTimeFormat('en-US', {
@@ -63,6 +64,70 @@ export const validateBookingWindow = (startInput, endInput) => {
   }
 
   return { valid: true };
+};
+
+const padTime = (value) => String(value).padStart(2, '0');
+
+const minutesToTime = (minutes) => `${padTime(Math.floor(minutes / 60))}:${padTime(minutes % 60)}`;
+
+const addDaysToDateKey = (dateKey, amount) => {
+  const [year, month, day] = dateKey.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day + amount, 12, 0, 0, 0));
+  return getStudioDateTime(date).dateKey;
+};
+
+const localSlotToDate = (dateKey, minutes) => {
+  const [year, month, day] = dateKey.split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day, Math.floor(minutes / 60) + 3, minutes % 60, 0, 0));
+};
+
+const bookingOverlapsSlot = (booking, slotStart, slotEnd) => {
+  const bookingStart = new Date(booking.scheduledAt);
+  const bookingEnd = booking.endTime
+    ? new Date(booking.endTime)
+    : new Date(bookingStart.getTime() + SLOT_INTERVAL_MINUTES * 60 * 1000);
+
+  return bookingStart < slotEnd && bookingEnd > slotStart;
+};
+
+export const buildPublicAgendaDays = (bookings, daysCount, nowInput = new Date()) => {
+  const todayKey = getStudioDateTime(nowInput).dateKey;
+  const windows = [
+    [OPEN_MINUTES, LUNCH_START_MINUTES],
+    [LUNCH_END_MINUTES, CLOSE_MINUTES],
+  ];
+
+  return Array.from({ length: daysCount }, (_, index) => {
+    const dateKey = addDaysToDateKey(todayKey, index);
+    const dayDate = localSlotToDate(dateKey, 12 * 60);
+    const localDay = getStudioDateTime(dayDate);
+    const isBusinessDay = BUSINESS_WEEKDAYS.has(localDay.weekday);
+    const dayBookings = bookings.filter((booking) => getStudioDateTime(new Date(booking.scheduledAt)).dateKey === dateKey);
+    const availableSlots = [];
+
+    if (isBusinessDay) {
+      for (const [windowStart, windowEnd] of windows) {
+        for (let minutes = windowStart; minutes + SLOT_INTERVAL_MINUTES <= windowEnd; minutes += SLOT_INTERVAL_MINUTES) {
+          const slotStart = localSlotToDate(dateKey, minutes);
+          const slotEnd = new Date(slotStart.getTime() + SLOT_INTERVAL_MINUTES * 60 * 1000);
+
+          if (slotEnd <= nowInput) continue;
+          if (dayBookings.some((booking) => bookingOverlapsSlot(booking, slotStart, slotEnd))) continue;
+
+          availableSlots.push({
+            time: minutesToTime(minutes),
+            start: slotStart.toISOString(),
+          });
+        }
+      }
+    }
+
+    return {
+      date: dateKey,
+      isBusinessDay,
+      availableSlots,
+    };
+  });
 };
 
 export const businessHoursLabel = 'segunda a sexta, 09h30 as 18h00, com pausa de 13h00 as 14h30';
