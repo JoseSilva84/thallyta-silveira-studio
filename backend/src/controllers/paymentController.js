@@ -3,7 +3,7 @@ import prisma from '../config/prisma.js';
 import { findServiceById } from '../data/services.js';
 import { createCalBooking } from '../services/calService.js';
 import { notifyBookingCreated } from '../services/whatsappService.js';
-import { validateBookingWindow } from '../utils/bookingHours.js';
+import { validateBookingWindow, validateClientBookingLeadTime } from '../utils/bookingHours.js';
 import { findConfirmedScheduleConflict, hasScheduleConflict } from '../utils/scheduleAvailability.js';
 
 const MERCADO_PAGO_API = 'https://api.mercadopago.com';
@@ -295,6 +295,12 @@ export const createBookingPreference = async (req, res) => {
     }
 
     const now = new Date();
+    const leadTimeValidation = validateClientBookingLeadTime(scheduledAt, now);
+
+    if (!leadTimeValidation.valid) {
+      return res.status(400).json({ error: leadTimeValidation.reason });
+    }
+
     await prisma.bookingPayment.updateMany({
       where: {
         userId: req.user.id,

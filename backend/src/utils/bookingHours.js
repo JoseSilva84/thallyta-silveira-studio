@@ -5,6 +5,7 @@ const LUNCH_START_MINUTES = 13 * 60;
 const LUNCH_END_MINUTES = 14 * 60 + 30;
 const CLOSE_MINUTES = 18 * 60;
 const SLOT_INTERVAL_MINUTES = 30;
+const MIN_CLIENT_LEAD_TIME_MINUTES = 120;
 const LAST_MORNING_SLOT_START = 12 * 60;
 const LAST_AFTERNOON_SLOT_START = 17 * 60;
 const BLOCKED_START_MINUTES = new Set([12 * 60 + 30, 17 * 60 + 30]);
@@ -73,6 +74,23 @@ export const validateBookingWindow = (startInput, endInput) => {
   return { valid: true };
 };
 
+export const validateClientBookingLeadTime = (startInput, nowInput = new Date()) => {
+  const start = startInput instanceof Date ? startInput : new Date(startInput);
+  const now = nowInput instanceof Date ? nowInput : new Date(nowInput);
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(now.getTime())) {
+    return { valid: false, reason: 'Horario de agendamento invalido.' };
+  }
+
+  const minimumStart = new Date(now.getTime() + MIN_CLIENT_LEAD_TIME_MINUTES * 60 * 1000);
+
+  if (start <= minimumStart) {
+    return { valid: false, reason: 'Escolha um horario com pelo menos 2 horas de antecedencia.' };
+  }
+
+  return { valid: true };
+};
+
 const padTime = (value) => String(value).padStart(2, '0');
 
 const minutesToTime = (minutes) => `${padTime(Math.floor(minutes / 60))}:${padTime(minutes % 60)}`;
@@ -99,6 +117,7 @@ const bookingOverlapsSlot = (booking, slotStart, slotEnd) => {
 
 export const buildPublicAgendaDays = (bookings, daysCount, nowInput = new Date()) => {
   const todayKey = getStudioDateTime(nowInput).dateKey;
+  const minimumClientStart = new Date(nowInput.getTime() + MIN_CLIENT_LEAD_TIME_MINUTES * 60 * 1000);
   const windows = [
     [OPEN_MINUTES, LAST_MORNING_SLOT_START + SLOT_INTERVAL_MINUTES],
     [LUNCH_END_MINUTES, LAST_AFTERNOON_SLOT_START + SLOT_INTERVAL_MINUTES],
@@ -118,7 +137,7 @@ export const buildPublicAgendaDays = (bookings, daysCount, nowInput = new Date()
           const slotStart = localSlotToDate(dateKey, minutes);
           const slotEnd = new Date(slotStart.getTime() + SLOT_INTERVAL_MINUTES * 60 * 1000);
 
-          if (slotEnd <= nowInput) continue;
+          if (slotStart <= minimumClientStart) continue;
           if (dayBookings.some((booking) => bookingOverlapsSlot(booking, slotStart, slotEnd))) continue;
 
           availableSlots.push({
