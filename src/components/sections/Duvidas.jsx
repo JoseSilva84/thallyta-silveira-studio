@@ -55,7 +55,7 @@ export default function Duvidas() {
   }
 
   return (
-    <section id="duvidas" className="py-20 bg-dark/20">
+    <section id="duvidas" className="bg-dark/20 py-10 md:py-14">
       <div className="section-shell max-w-4xl mx-auto">
         <SectionTitle eyebrow="Dúvidas" title="Perguntas Frequentes" text="Confira as principais dúvidas sobre os nossos serviços e veja vídeos tutoriais." />
         

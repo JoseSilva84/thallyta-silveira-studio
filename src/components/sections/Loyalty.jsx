@@ -30,7 +30,7 @@ export default function Loyalty() {
   }, [bookings])
 
   return (
-    <section id="fidelidade" className="premium-section py-16 md:py-20">
+    <section id="fidelidade" className="premium-section py-10 md:py-14">
       <div className="section-shell">
         <SectionTitle eyebrow="Fidelidade" title="Recompensas Especiais" />
         <Reveal>

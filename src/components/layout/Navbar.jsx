@@ -34,6 +34,15 @@ const mobileLinks = [
 const sectionIds = links.map(([, href]) => href.slice(1))
 const STUDIO_TIME_ZONE = 'America/Fortaleza'
 
+const getAnchorScrollTop = (element) => {
+  if (!element) return 0
+  const styles = window.getComputedStyle(element)
+  const sectionPaddingTop = Number.parseFloat(styles.paddingTop) || 0
+  const headerOffset = window.matchMedia('(min-width: 768px)').matches ? 92 : 74
+
+  return Math.max(element.getBoundingClientRect().top + window.scrollY + sectionPaddingTop - headerOffset, 0)
+}
+
 const getStudioOpenStatus = () => {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: STUDIO_TIME_ZONE,
@@ -112,6 +121,21 @@ export default function Navbar() {
     ? 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_0_18px_rgba(52,211,153,0.12)]'
     : 'border-red-300/25 bg-red-400/10 text-red-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_0_18px_rgba(248,113,113,0.10)]'
 
+  const handleAnchorClick = (event, href, afterScroll) => {
+    const id = href?.startsWith('#') ? href.slice(1) : ''
+    const element = id ? document.getElementById(id) : null
+    if (!element) {
+      afterScroll?.()
+      return
+    }
+
+    event.preventDefault()
+    afterScroll?.()
+    window.history.pushState(null, '', href)
+    window.scrollTo({ top: getAnchorScrollTop(element), behavior: 'smooth' })
+    setActiveSection(id)
+  }
+
   const startWhatsappEditing = () => {
     setPhone(formatBrazilWhatsappDisplay(user?.whatsappPhone))
     setPhoneError('')
@@ -144,6 +168,7 @@ export default function Navbar() {
           <div className={`silver-nav hidden md:flex w-full items-center justify-between rounded-full px-5 py-3 transition ${scrolled ? 'shadow-2xl' : ''}`}>
             <a
               href="#inicio"
+              onClick={(event) => handleAnchorClick(event, '#inicio')}
               className={`tap-gold flex items-center gap-3 rounded-full px-1 py-1 ${isActive('#inicio') ? 'brand-active' : ''}`}
               aria-label={`Studio de Beleza Thallyta Silveira - ${studioStatus.label}`}
               aria-current={isActive('#inicio') ? 'page' : undefined}
@@ -166,7 +191,13 @@ export default function Navbar() {
 
             <div className="hidden items-center gap-2 lg:flex">
               {links.map(([label, href]) => (
-                <a key={href} href={href} className={`nav-link px-3 py-2 text-sm ${isActive(href) ? 'active' : ''}`} aria-current={isActive(href) ? 'page' : undefined}>
+                <a
+                  key={href}
+                  href={href}
+                  onClick={(event) => handleAnchorClick(event, href)}
+                  className={`nav-link px-3 py-2 text-sm ${isActive(href) ? 'active' : ''}`}
+                  aria-current={isActive(href) ? 'page' : undefined}
+                >
                   {label}
                 </a>
               ))}
@@ -219,7 +250,7 @@ export default function Navbar() {
                 <a
                   key={href}
                   href={href}
-                  onClick={() => setOpen(false)}
+                  onClick={(event) => handleAnchorClick(event, href, () => setOpen(false))}
                   className={`nav-link rounded-md px-3 py-3 text-cream/80 ${isActive(href) ? 'active' : ''}`}
                   aria-current={isActive(href) ? 'page' : undefined}
                 >
@@ -343,7 +374,9 @@ export default function Navbar() {
                     } else {
                       navigate('/meus-agendamentos');
                     }
+                    return
                   }
+                  handleAnchorClick(e, href)
                 }}
                 className={`relative flex min-h-[3.75rem] flex-col items-center justify-center gap-1 rounded-xl transition-colors duration-300 ${
                   active ? 'text-gold-light' : 'text-cream/50 hover:bg-white/5 hover:text-cream/90'

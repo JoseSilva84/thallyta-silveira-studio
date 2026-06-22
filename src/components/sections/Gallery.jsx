@@ -58,7 +58,7 @@ export default function Gallery() {
   }
 
   return (
-    <section id="galeria" className="premium-section py-16 md:py-20">
+    <section id="galeria" className="premium-section py-10 md:py-14">
       <div className="section-shell">
         <SectionTitle eyebrow="Galeria" title="Resultados e detalhes do studio" />
         <Reveal>

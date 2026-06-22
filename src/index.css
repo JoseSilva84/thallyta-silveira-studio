@@ -108,7 +108,7 @@ select:focus-visible {
 }
 
 section[id] {
-  scroll-margin-top: 112px;
+  scroll-margin-top: 84px;
 }
 
 .gold-border {
@@ -967,7 +967,7 @@ label.cursor-pointer:active {
   }
 
   section[id] {
-    scroll-margin-top: 92px;
+    scroll-margin-top: 74px;
   }
 
   .gold-button {

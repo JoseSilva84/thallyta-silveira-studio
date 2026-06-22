@@ -10,7 +10,7 @@ const pillars = [
 
 export default function About() {
   return (
-    <section id="sobre" className="py-20">
+    <section id="sobre" className="py-10 md:py-14">
       <div className="section-shell">
         <SectionTitle eyebrow="Conheça o Estúdio" title="Cuidado premium" text="Um espaço pensado para receber você com conforto, escuta e excelência em cada detalhe." />
         <div className="grid items-center gap-12 lg:grid-cols-[0.85fr_1fr] lg:gap-16">
