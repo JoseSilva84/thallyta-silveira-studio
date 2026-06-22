@@ -6,6 +6,8 @@ import SectionTitle from '../ui/SectionTitle.jsx'
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
 const STUDIO_TIME_ZONE = 'America/Fortaleza'
 const PREFERRED_SLOT_STORAGE_KEY = 'thallytaPreferredScheduleSlot'
+const MOBILE_DATE_PAGE_SIZE = 3
+const DESKTOP_DATE_PAGE_SIZE = 7
 
 export default function Agenda() {
   const [bookings, setBookings] = useState([])
@@ -14,6 +16,7 @@ export default function Agenda() {
   const [error, setError] = useState('')
   const [selectedDate, setSelectedDate] = useState('')
   const [mobileDateStart, setMobileDateStart] = useState(0)
+  const [desktopDateStart, setDesktopDateStart] = useState(0)
 
   const fetchAgenda = useCallback(async () => {
     setLoading(true)
@@ -64,15 +67,21 @@ export default function Agenda() {
     if (!selectedDate || !days.length) return
     const selectedIndex = days.findIndex((day) => day.key === selectedDate)
     if (selectedIndex < 0) return
-    if (selectedIndex < mobileDateStart || selectedIndex >= mobileDateStart + 3) {
-      setMobileDateStart(Math.floor(selectedIndex / 3) * 3)
+    if (selectedIndex < mobileDateStart || selectedIndex >= mobileDateStart + MOBILE_DATE_PAGE_SIZE) {
+      setMobileDateStart(Math.floor(selectedIndex / MOBILE_DATE_PAGE_SIZE) * MOBILE_DATE_PAGE_SIZE)
     }
-  }, [days, mobileDateStart, selectedDate])
+    if (selectedIndex < desktopDateStart || selectedIndex >= desktopDateStart + DESKTOP_DATE_PAGE_SIZE) {
+      setDesktopDateStart(Math.floor(selectedIndex / DESKTOP_DATE_PAGE_SIZE) * DESKTOP_DATE_PAGE_SIZE)
+    }
+  }, [days, desktopDateStart, mobileDateStart, selectedDate])
 
   const selectedDay = days.find((day) => day.key === selectedDate) || days[0]
-  const mobileDateDays = days.slice(mobileDateStart, mobileDateStart + 3)
+  const mobileDateDays = days.slice(mobileDateStart, mobileDateStart + MOBILE_DATE_PAGE_SIZE)
+  const desktopDateDays = days.slice(desktopDateStart, desktopDateStart + DESKTOP_DATE_PAGE_SIZE)
   const canShowPreviousDates = mobileDateStart > 0
-  const canShowNextDates = mobileDateStart + 3 < days.length
+  const canShowNextDates = mobileDateStart + MOBILE_DATE_PAGE_SIZE < days.length
+  const canShowPreviousDesktopDates = desktopDateStart > 0
+  const canShowNextDesktopDates = desktopDateStart + DESKTOP_DATE_PAGE_SIZE < days.length
   const nextAvailableDay = useMemo(() => {
     if (!selectedDay) return null
     return days.find((day) => day.key !== selectedDay.key && day.availableSlots.length > 0) || null
@@ -91,12 +100,15 @@ export default function Agenda() {
     document.getElementById('servicos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [])
 
-  const showDateGroup = useCallback((direction) => {
-    setMobileDateStart((current) => {
-      const next = current + direction * 3
-      return Math.min(Math.max(next, 0), Math.max(days.length - 3, 0))
-    })
-  }, [days.length])
+  const showDateGroup = useCallback((direction, pageSize, dateStart, setDateStart) => {
+    const maxStart = Math.max(days.length - pageSize, 0)
+    const next = Math.min(Math.max(dateStart + direction * pageSize, 0), maxStart)
+    const nextGroup = days.slice(next, next + pageSize)
+    const nextSelectedDay = nextGroup.find((day) => day.availableSlots.length > 0) || nextGroup[0]
+
+    setDateStart(next)
+    if (nextSelectedDay) setSelectedDate(nextSelectedDay.key)
+  }, [days])
 
   return (
     <section id="agenda" className="premium-section py-14 md:py-16">
@@ -147,17 +159,11 @@ export default function Agenda() {
                   <FiCalendar className="text-2xl text-gold-light" />
                 </div>
 
-                <div className="hidden grid-cols-7 gap-2 text-center text-[0.68rem] font-bold uppercase tracking-wider text-cream/35 sm:grid">
-                  {['S', 'T', 'Q', 'Q', 'S', 'S', 'D'].map((label, index) => (
-                    <span key={`${label}-${index}`}>{label}</span>
-                  ))}
-                </div>
-
                 <div className="mt-3 sm:hidden">
                   <div className="grid grid-cols-[2.25rem_minmax(0,1fr)_2.25rem] items-stretch gap-2">
                     <button
                       type="button"
-                      onClick={() => showDateGroup(-1)}
+                      onClick={() => showDateGroup(-1, MOBILE_DATE_PAGE_SIZE, mobileDateStart, setMobileDateStart)}
                       disabled={!canShowPreviousDates}
                       className="inline-flex h-full min-h-[4.35rem] items-center justify-center rounded-xl border border-gold/25 bg-black/25 text-gold-light transition-colors hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-35"
                       aria-label="Ver datas anteriores"
@@ -180,7 +186,7 @@ export default function Agenda() {
 
                     <button
                       type="button"
-                      onClick={() => showDateGroup(1)}
+                      onClick={() => showDateGroup(1, MOBILE_DATE_PAGE_SIZE, mobileDateStart, setMobileDateStart)}
                       disabled={!canShowNextDates}
                       className="inline-flex h-full min-h-[4.35rem] items-center justify-center rounded-xl border border-gold/25 bg-black/25 text-gold-light transition-colors hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-35"
                       aria-label="Ver mais datas"
@@ -190,16 +196,38 @@ export default function Agenda() {
                   </div>
                 </div>
 
-                <div className="mt-3 hidden sm:grid sm:grid-cols-7 sm:gap-2">
-                  {days.slice(0, 14).map((day) => (
-                    <DateButton
-                      key={day.key}
-                      day={day}
-                      active={selectedDay?.key === day.key}
-                      loading={loading}
-                      onClick={() => setSelectedDate(day.key)}
-                    />
-                  ))}
+                <div className="mt-3 hidden sm:grid sm:grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] sm:items-stretch sm:gap-3">
+                  <button
+                    type="button"
+                    onClick={() => showDateGroup(-1, DESKTOP_DATE_PAGE_SIZE, desktopDateStart, setDesktopDateStart)}
+                    disabled={!canShowPreviousDesktopDates}
+                    className="inline-flex h-full min-h-[4.25rem] items-center justify-center rounded-xl border border-gold/25 bg-black/25 text-gold-light transition-colors hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-35"
+                    aria-label="Ver datas anteriores"
+                  >
+                    <FiChevronLeft />
+                  </button>
+
+                  <div className="grid min-w-0 grid-cols-7 gap-2">
+                    {desktopDateDays.map((day) => (
+                      <DateButton
+                        key={day.key}
+                        day={day}
+                        active={selectedDay?.key === day.key}
+                        loading={loading}
+                        onClick={() => setSelectedDate(day.key)}
+                      />
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => showDateGroup(1, DESKTOP_DATE_PAGE_SIZE, desktopDateStart, setDesktopDateStart)}
+                    disabled={!canShowNextDesktopDates}
+                    className="inline-flex h-full min-h-[4.25rem] items-center justify-center rounded-xl border border-gold/25 bg-black/25 text-gold-light transition-colors hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-35"
+                    aria-label="Ver mais datas"
+                  >
+                    <FiChevronRight />
+                  </button>
                 </div>
               </div>
 
@@ -305,8 +333,9 @@ function DateButton({ day, active, loading, compact = false, onClick }) {
 function buildAgendaDays(bookings, availabilityDays) {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
+  const daysCount = Math.max(30, availabilityDays.length || 0)
 
-  return Array.from({ length: 14 }, (_, index) => {
+  return Array.from({ length: daysCount }, (_, index) => {
     const date = new Date(today)
     date.setDate(today.getDate() + index)
     const key = toDateKey(date)
