@@ -139,6 +139,7 @@ export default function Booking({ embedded = false } = {}) {
   const previousUserIdRef = useRef(user?.id || null)
   const restoredCheckoutDraftRef = useRef(false)
   const autoProceedAfterLoginRef = useRef(false)
+  const confirmingPaymentIdRef = useRef('')
   const bookingSnapshotRef = useRef({
     services: '',
     total: 0,
@@ -488,6 +489,8 @@ export default function Booking({ embedded = false } = {}) {
     const params = new URLSearchParams(window.location.search)
     const bookingPaymentId = params.get('bookingPaymentId')
     if (!bookingPaymentId || !user) return
+    if (confirmingPaymentIdRef.current === bookingPaymentId) return
+    confirmingPaymentIdRef.current = bookingPaymentId
 
     const paymentId = getValidParam(params, 'payment_id', 'collection_id')
     const mpStatus = getValidParam(params, 'mpStatus', 'status', 'collection_status')
@@ -528,7 +531,7 @@ export default function Booking({ embedded = false } = {}) {
           if (mpStatus === 'failure') {
             toast.error('Pagamento nao aprovado. O agendamento ainda nao foi liberado.')
           } else {
-            toast.info('Pagamento pendente. Assim que for aprovado, seu horario sera confirmado automaticamente.')
+            toast.info(data.message || 'Pagamento pendente. Assim que for aprovado, seu horario sera confirmado automaticamente.')
           }
           cleanPaymentParams()
           return
@@ -536,7 +539,7 @@ export default function Booking({ embedded = false } = {}) {
 
         cleanPaymentParams()
       } catch (error) {
-        toast.error('Nao foi possivel confirmar o pagamento. Tente novamente ou escolha outra forma de pagamento.')
+        toast.error(error.message || 'Nao foi possivel confirmar o pagamento. Tente novamente ou escolha outra forma de pagamento.')
       } finally {
         setConfirmingPayment(false)
       }

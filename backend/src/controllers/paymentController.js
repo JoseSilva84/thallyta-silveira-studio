@@ -527,6 +527,11 @@ export const confirmBookingPayment = async (req, res) => {
       payment: serializePayment(updated),
       booking: serializeBookingSummary(booking),
       canSchedule: Boolean(booking),
+      message: booking
+        ? 'Agendamento confirmado.'
+        : updated.status === 'approved'
+          ? 'Pagamento aprovado, mas o agendamento ainda nao foi criado.'
+          : 'Pagamento ainda nao aprovado pelo Mercado Pago.',
     });
   } catch (error) {
     console.error('Erro ao confirmar pagamento Mercado Pago:', error);
