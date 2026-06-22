@@ -202,17 +202,7 @@ export default function Agenda() {
                   ))}
                 </div>
 
-                <div className="relative mt-3 hidden sm:block">
-                  <button
-                    type="button"
-                    onClick={() => showDateGroup(-1, DESKTOP_DATE_PAGE_SIZE, desktopDateStart, setDesktopDateStart)}
-                    disabled={!canShowPreviousDesktopDates}
-                    className="absolute left-[-0.65rem] top-1/2 z-10 inline-flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-xl border border-gold/25 bg-black/35 text-gold-light shadow-[0_10px_24px_rgba(0,0,0,0.22)] backdrop-blur-sm transition-colors hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-35"
-                    aria-label="Ver datas anteriores"
-                  >
-                    <FiChevronLeft />
-                  </button>
-
+                <div className="mt-3 hidden sm:block">
                   <div className="grid min-w-0 grid-cols-7 gap-2">
                     {desktopDateDays.map((day) => (
                       <DateButton
@@ -225,15 +215,27 @@ export default function Agenda() {
                     ))}
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => showDateGroup(1, DESKTOP_DATE_PAGE_SIZE, desktopDateStart, setDesktopDateStart)}
-                    disabled={!canShowNextDesktopDates}
-                    className="absolute right-[-0.65rem] top-1/2 z-10 inline-flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-xl border border-gold/25 bg-black/35 text-gold-light shadow-[0_10px_24px_rgba(0,0,0,0.22)] backdrop-blur-sm transition-colors hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-35"
-                    aria-label="Ver mais datas"
-                  >
-                    <FiChevronRight />
-                  </button>
+                  <div className="mt-4 flex items-center justify-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => showDateGroup(-1, DESKTOP_DATE_PAGE_SIZE, desktopDateStart, setDesktopDateStart)}
+                      disabled={!canShowPreviousDesktopDates}
+                      className="inline-flex h-10 w-12 items-center justify-center rounded-xl border border-gold/25 bg-black/25 text-gold-light transition-colors hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-35"
+                      aria-label="Ver datas anteriores"
+                    >
+                      <FiChevronLeft />
+                    </button>
+                    <span className="h-1.5 w-16 rounded-full bg-gold/35" aria-hidden="true" />
+                    <button
+                      type="button"
+                      onClick={() => showDateGroup(1, DESKTOP_DATE_PAGE_SIZE, desktopDateStart, setDesktopDateStart)}
+                      disabled={!canShowNextDesktopDates}
+                      className="inline-flex h-10 w-12 items-center justify-center rounded-xl border border-gold/25 bg-black/25 text-gold-light transition-colors hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-35"
+                      aria-label="Ver mais datas"
+                    >
+                      <FiChevronRight />
+                    </button>
+                  </div>
                 </div>
               </div>
 
