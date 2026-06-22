@@ -847,7 +847,7 @@ export default function Booking({ embedded = false } = {}) {
                       <>
                         <div className="h-px bg-gradient-to-r from-transparent via-gold/20 to-transparent"></div>
                         <div>
-                          <span className="block text-xs font-bold uppercase tracking-wider text-gold-light/80">Data e horario</span>
+                          <span className="block text-xs font-bold uppercase tracking-wider text-gold-light/80">Data e horário</span>
                           <span className="mt-1 block font-medium text-cream">
                             {formatPreferredSlotDate({ start: confirmedSummary.date })} as {confirmedSummary.time}
                           </span>
@@ -1008,7 +1008,7 @@ export default function Booking({ embedded = false } = {}) {
                         className="gold-button flex w-full items-center justify-center gap-2 rounded-xl px-5 py-4 text-sm font-bold uppercase tracking-wider shadow-[0_0_20px_rgba(0,0,0,0.3)] transition-all hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(217,177,92,0.25)] disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {creatingPayment || confirmingPayment ? <FiLoader className="text-lg animate-spin" /> : <FiCreditCard className="text-lg" />}
-                        {creatingPayment ? 'Abrindo Mercado Pago...' : confirmingPayment ? 'Confirmando pagamento...' : preferredSlot?.start ? 'Pagar e Reservar' : 'Escolher Data e Horario'}
+                        {creatingPayment ? 'Abrindo Mercado Pago...' : confirmingPayment ? 'Confirmando pagamento...' : preferredSlot?.start ? 'Pagar e Reservar' : 'Escolher Data e Horário'}
                       </button>
                       <button
                         type="button"
@@ -1130,7 +1130,7 @@ function SelectedSlotConfirmation({ bookingPayment, preferredSlot, selectedServi
             <span className="mt-1 block font-medium text-cream">{serviceName}</span>
           </div>
           <div>
-            <span className="block text-xs font-bold uppercase tracking-wider text-gold-light/80">Data e horario</span>
+            <span className="block text-xs font-bold uppercase tracking-wider text-gold-light/80">Data e horário</span>
             <span className="mt-1 block font-medium text-cream">
               {formatPreferredSlotDate(preferredSlot)} as {preferredSlot.time}
             </span>

@@ -654,8 +654,8 @@ export default function QuickBookingPage() {
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
-                <SummaryItem label="Data e horario" value={selectedSlot ? `${formatLongDate(new Date(selectedSlot.start))} as ${selectedSlot.time}` : 'Escolha um horario'} icon={<FiClock />} />
-                <SummaryItem label="Servico" value={selectedService?.name || 'Escolha um servico'} icon={<FiScissors />} />
+                <SummaryItem label="Data e horário" value={selectedSlot ? `${formatLongDate(new Date(selectedSlot.start))} as ${selectedSlot.time}` : 'Escolha um horario'} icon={<FiClock />} />
+                <SummaryItem label="Serviço" value={selectedService?.name || 'Escolha um servico'} icon={<FiScissors />} />
                 <SummaryItem label="Valor total" value={selectedService ? money(total) : '-'} icon={<FiCreditCard />} />
                 <SummaryItem label="Cliente" value={user?.name || 'Entre na sua conta'} icon={<FiCheckCircle />} />
               </div>
@@ -724,7 +724,7 @@ function ConfirmationCard({ booking, payment, onNew }) {
       <p className="mt-2 text-sm text-cream/60">Enviamos os detalhes para voce e para o studio.</p>
       <div className="mt-6 space-y-4 rounded-2xl border border-gold/20 bg-black/25 p-5 text-left">
         <SummaryLine label="Servico" value={booking.service} />
-        <SummaryLine label="Data e horario" value={`${formatLongDate(new Date(booking.scheduledAt))} as ${formatTime(booking.scheduledAt)}`} />
+        <SummaryLine label="Data e horário" value={`${formatLongDate(new Date(booking.scheduledAt))} as ${formatTime(booking.scheduledAt)}`} />
         <SummaryLine label="Cliente" value={booking.attendeeName || '-'} />
         <SummaryLine label="Valor" value={money(booking.estimatedValue)} />
         {payment && <SummaryLine label="Pago" value={money(payment.amount)} />}
