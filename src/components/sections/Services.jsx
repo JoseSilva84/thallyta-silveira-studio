@@ -67,9 +67,14 @@ export default function Services() {
       }
 
       addService(service)
-      window.setTimeout(() => {
-        document.getElementById('servicos-checkout')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      }, 80)
+      const scrollToCheckout = () => {
+        const el = document.getElementById('servicos-checkout')
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
+      }
+      window.setTimeout(scrollToCheckout, 150)
+      window.setTimeout(scrollToCheckout, 400)
     } catch (error) {
       toast.error(getErrorMessage(error, 'Nao foi possivel validar esse horario.'))
     } finally {
