@@ -116,7 +116,6 @@ export default function Agenda() {
         <SectionTitle
           eyebrow="Agenda"
           title="Escolha o melhor dia"
-          text="Selecione uma data para ver apenas os horarios disponiveis daquele dia."
         />
 
         <Reveal>
