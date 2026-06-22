@@ -82,6 +82,7 @@ export default function QuickBookingPage() {
   const deposit = Math.round(total * 30) / 100
   const amountToPay = paymentType === 'full' ? total : deposit
   const remaining = paymentType === 'full' ? 0 : Math.max(total - deposit, 0)
+  const needsWhatsapp = Boolean(user?.id && user.role !== 'ADMIN' && !user.whatsappPhone)
 
   const days = useMemo(() => buildAgendaDays(bookings, agendaDays), [agendaDays, bookings])
   const visibleDays = days.slice(dateStart, dateStart + DATE_PAGE_SIZE)
@@ -105,7 +106,7 @@ export default function QuickBookingPage() {
     confirmed: 'Agendamento confirmado',
   }[pageStep]
   const pageSubtitle = {
-    agenda: 'Selecione o melhor dia e horario disponivel.',
+    agenda: 'Selecione o melhor dia e horário disponível.',
     login: 'Acesse sua conta para reservar esse horario.',
     service: 'Escolha o cuidado que deseja agendar.',
     summary: 'Confira os dados e escolha como deseja pagar.',
@@ -130,6 +131,16 @@ export default function QuickBookingPage() {
       setLoadingAgenda(false)
     }
   }, [serviceIdForAgenda])
+
+  const moveDatePage = (direction) => {
+    const maxStart = Math.max(days.length - DATE_PAGE_SIZE, 0)
+    const nextStart = Math.min(Math.max(dateStart + direction * DATE_PAGE_SIZE, 0), maxStart)
+    const nextDays = days.slice(nextStart, nextStart + DATE_PAGE_SIZE)
+    const nextSelectedDay = nextDays.find((day) => day.availableSlots.length > 0) || nextDays[0]
+
+    setDateStart(nextStart)
+    if (nextSelectedDay) setSelectedDate(nextSelectedDay.key)
+  }
 
   useEffect(() => {
     fetchAgenda()
@@ -192,7 +203,7 @@ export default function QuickBookingPage() {
 
     if (shouldNotify) {
       writeQuickDraft({ serviceId: selectedService.id, paymentType })
-      toast.warn('Esse servico nao cabe no horario escolhido. Selecione outro horario disponivel.')
+      toast.warn('Esse serviço nao cabe no horario escolhido. Selecione outro horário disponível.')
       document.querySelector('main')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
       return
     }
@@ -272,10 +283,18 @@ export default function QuickBookingPage() {
       setLoginOpen(true)
       return
     }
+    if (needsWhatsapp) {
+      toast.info('Informe seu WhatsApp para continuar.')
+      return
+    }
     document.getElementById('quick-services')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
   const chooseService = (service) => {
+    if (needsWhatsapp) {
+      toast.info('Informe seu WhatsApp para continuar.')
+      return
+    }
     userSelectedServiceRef.current = true
     setSelectedService(service)
     writeQuickDraft({ slot: selectedSlot, serviceId: service.id, paymentType })
@@ -288,6 +307,10 @@ export default function QuickBookingPage() {
     const token = getToken()
     if (!token) {
       setLoginOpen(true)
+      return
+    }
+    if (needsWhatsapp) {
+      toast.info('Informe seu WhatsApp para continuar.')
       return
     }
 
@@ -361,7 +384,20 @@ export default function QuickBookingPage() {
           </Link>
           <div className="min-w-0 flex-1">
             <p className="font-display text-xl leading-tight text-gold-light">Thallyta Silveira</p>
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-cream/45">Agendamento rapido</p>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-cream/45">Agendamento rápido</p>
+            <button
+              type="button"
+              onClick={() => !user && setLoginOpen(true)}
+              className={`mt-2 max-w-full truncate rounded-full border px-3 py-1 text-[0.68rem] font-bold uppercase tracking-wider ${
+                user
+                  ? needsWhatsapp
+                    ? 'border-amber-300/30 bg-amber-300/10 text-amber-100'
+                    : 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100'
+                  : 'border-gold/25 bg-black/20 text-gold-light'
+              }`}
+            >
+              {user ? (needsWhatsapp ? 'Logado - falta WhatsApp' : `Logado: ${user.name || user.email}`) : 'Nao logado - entrar'}
+            </button>
           </div>
           <div className="flex size-11 shrink-0 items-center justify-center rounded-full border border-gold/30 bg-gold/10 font-display text-lg text-gold-light">
             {currentStep}
@@ -412,11 +448,11 @@ export default function QuickBookingPage() {
 
               <div className="rounded-2xl border border-white/10 bg-black/25 p-3">
                 <div className="mb-4 flex items-center justify-between">
-                  <button type="button" onClick={() => setDateStart(Math.max(dateStart - DATE_PAGE_SIZE, 0))} className="tap-gold rounded-xl p-3 text-gold-light disabled:opacity-30" disabled={dateStart === 0}>
+                  <button type="button" onClick={() => moveDatePage(-1)} className="tap-gold rounded-xl p-3 text-gold-light disabled:opacity-30" disabled={dateStart === 0}>
                     <FiChevronLeft />
                   </button>
                   <h3 className="font-display text-2xl text-cream">{formatMonth(selectedDay?.date || new Date())}</h3>
-                  <button type="button" onClick={() => setDateStart(Math.min(dateStart + DATE_PAGE_SIZE, Math.max(days.length - DATE_PAGE_SIZE, 0)))} className="tap-gold rounded-xl p-3 text-gold-light disabled:opacity-30" disabled={dateStart + DATE_PAGE_SIZE >= days.length}>
+                  <button type="button" onClick={() => moveDatePage(1)} className="tap-gold rounded-xl p-3 text-gold-light disabled:opacity-30" disabled={dateStart + DATE_PAGE_SIZE >= days.length}>
                     <FiChevronRight />
                   </button>
                 </div>
@@ -452,9 +488,9 @@ export default function QuickBookingPage() {
                 ) : selectedDay?.availableSlots?.length ? (
                   <>
                     <p className="mb-3 text-center text-sm font-semibold text-cream/60">
-                      Selecione o horario para {formatNumericDate(selectedDay.date)}
+                      Selecione o horário para {formatNumericDate(selectedDay.date)}
                     </p>
-                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3">
                       {selectedDay.availableSlots.map((slot) => {
                         const active = selectedSlot?.start === slot.start
                         return (
@@ -462,13 +498,13 @@ export default function QuickBookingPage() {
                             key={slot.start}
                             type="button"
                             onClick={() => chooseSlot(selectedDay, slot)}
-                            className={`flex items-center justify-between rounded-xl border px-4 py-4 text-lg font-bold transition-colors ${
+                            className={`flex items-center justify-between rounded-xl border px-3 py-3 text-base font-bold transition-colors sm:px-4 sm:py-4 sm:text-lg ${
                               active
                                 ? 'border-gold bg-gold text-dark'
                                 : 'border-white/10 bg-black/20 text-cream hover:border-gold/30 hover:bg-gold/10'
                             }`}
                           >
-                            <span className={`size-6 rounded-full border ${active ? 'border-dark bg-dark/10 ring-2 ring-dark/20' : 'border-cream/30'}`} />
+                            <span className={`size-5 shrink-0 rounded-full border sm:size-6 ${active ? 'border-dark bg-dark/10 ring-2 ring-dark/20' : 'border-cream/30'}`} />
                             {slot.time}
                           </button>
                         )
