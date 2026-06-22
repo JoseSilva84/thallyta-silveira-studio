@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { FiCalendar, FiChevronRight, FiClock, FiRefreshCw } from 'react-icons/fi'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { FiCalendar, FiChevronLeft, FiChevronRight, FiClock, FiRefreshCw } from 'react-icons/fi'
 import Reveal from '../ui/Reveal.jsx'
 import SectionTitle from '../ui/SectionTitle.jsx'
 
@@ -13,6 +13,7 @@ export default function Agenda() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [selectedDate, setSelectedDate] = useState('')
+  const dateStripRef = useRef(null)
 
   const fetchAgenda = useCallback(async () => {
     setLoading(true)
@@ -78,6 +79,16 @@ export default function Agenda() {
     document.getElementById('servicos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [])
 
+  const scrollDateStrip = useCallback((direction) => {
+    const strip = dateStripRef.current
+    if (!strip) return
+
+    strip.scrollBy({
+      left: direction * strip.clientWidth,
+      behavior: 'smooth',
+    })
+  }, [])
+
   return (
     <section id="agenda" className="premium-section py-14 md:py-16">
       <div className="section-shell">
@@ -133,8 +144,30 @@ export default function Agenda() {
                   ))}
                 </div>
 
-                <div className="agenda-scroll-wrap relative sm:static">
-                  <div className="agenda-date-strip mt-3 -mx-1 grid grid-flow-col grid-rows-2 gap-2 overflow-x-auto px-1 pb-3 sm:mx-0 sm:grid-flow-row sm:grid-cols-7 sm:grid-rows-none sm:overflow-visible sm:px-0 sm:pb-0">
+                <div className="agenda-scroll-wrap mt-3 sm:mt-3">
+                  <div className="mb-2 flex items-center justify-between sm:hidden">
+                    <button
+                      type="button"
+                      onClick={() => scrollDateStrip(-1)}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gold/25 bg-black/25 text-gold-light transition-colors hover:bg-gold/10"
+                      aria-label="Ver datas anteriores"
+                    >
+                      <FiChevronLeft />
+                    </button>
+                    <div className="agenda-scroll-rail pointer-events-none h-1.5 w-24 rounded-full bg-white/10" aria-hidden="true">
+                      <span className="agenda-scroll-thumb block h-full w-10 rounded-full bg-gold/70" />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => scrollDateStrip(1)}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gold/25 bg-black/25 text-gold-light transition-colors hover:bg-gold/10"
+                      aria-label="Ver mais datas"
+                    >
+                      <FiChevronRight />
+                    </button>
+                  </div>
+
+                  <div ref={dateStripRef} className="agenda-date-strip grid grid-flow-col auto-cols-[calc((100%-1rem)/3)] grid-rows-1 gap-2 overflow-x-auto pb-2 sm:grid-flow-row sm:grid-cols-7 sm:grid-rows-none sm:overflow-visible sm:pb-0">
                     {days.slice(0, 14).map((day) => (
                       <DateButton
                         key={day.key}
@@ -144,14 +177,6 @@ export default function Agenda() {
                         onClick={() => setSelectedDate(day.key)}
                       />
                     ))}
-                  </div>
-                  <div className="agenda-scroll-cue pointer-events-none absolute inset-y-3 right-[-0.15rem] flex items-center sm:hidden" aria-hidden="true">
-                    <span className="agenda-scroll-cue-icon inline-flex h-9 w-9 items-center justify-center rounded-full border border-gold/35 bg-dark/80 text-gold-light shadow-[0_10px_24px_rgba(0,0,0,0.34)] backdrop-blur-md">
-                      <FiChevronRight />
-                    </span>
-                  </div>
-                  <div className="agenda-scroll-rail pointer-events-none mx-auto mt-1 h-1.5 w-20 rounded-full bg-white/10 sm:hidden" aria-hidden="true">
-                    <span className="agenda-scroll-thumb block h-full w-9 rounded-full bg-gold/70" />
                   </div>
                 </div>
               </div>
@@ -181,7 +206,7 @@ export default function Agenda() {
                           <p className="mb-3 text-xs font-bold uppercase tracking-wider text-emerald-200/80">
                             Horarios disponiveis
                           </p>
-                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3">
                             {selectedDay.availableSlots.map((slot) => (
                               <button
                                 key={slot.start || slot.time}
@@ -233,7 +258,7 @@ function DateButton({ day, active, loading, onClick }) {
       type="button"
       onClick={onClick}
       disabled={loading}
-      className={`min-h-[4.75rem] w-[4.9rem] shrink-0 rounded-xl border p-2 text-center transition-colors disabled:cursor-wait disabled:opacity-60 sm:w-auto sm:min-h-[4.25rem] ${
+      className={`min-h-[4.75rem] w-full rounded-xl border p-2 text-center transition-colors disabled:cursor-wait disabled:opacity-60 sm:min-h-[4.25rem] ${
         active
           ? 'border-gold bg-gold text-dark shadow-[0_0_18px_rgba(217,177,92,0.25)]'
           : isUnavailable

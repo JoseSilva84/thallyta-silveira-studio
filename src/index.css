@@ -507,7 +507,7 @@ section[id] {
 }
 
 .agenda-date-strip {
-  scroll-snap-type: x proximity;
+  scroll-snap-type: x mandatory;
   scrollbar-width: thin;
   scrollbar-color: rgba(217, 177, 92, 0.42) rgba(255, 255, 255, 0.06);
   -webkit-overflow-scrolling: touch;
@@ -531,34 +531,8 @@ section[id] {
   border-radius: 999px;
 }
 
-.agenda-scroll-wrap::after {
-  content: "";
-  position: absolute;
-  top: 0.65rem;
-  right: -0.75rem;
-  bottom: 1.65rem;
-  width: 3.8rem;
-  pointer-events: none;
-  background: linear-gradient(90deg, transparent, rgba(37, 31, 24, 0.82) 58%, rgba(37, 31, 24, 0.96));
-}
-
-.agenda-scroll-cue {
-  z-index: 2;
-  animation: agenda-cue-fade 2.3s ease-in-out infinite;
-}
-
-.agenda-scroll-cue-icon {
-  animation: agenda-cue-nudge 1.35s ease-in-out infinite;
-}
-
 .agenda-scroll-thumb {
   animation: agenda-rail-slide 1.8s ease-in-out infinite;
-}
-
-@media (min-width: 640px) {
-  .agenda-scroll-wrap::after {
-    display: none;
-  }
 }
 
 .hero-photo-stage {
@@ -944,24 +918,6 @@ label.cursor-pointer:active {
   }
   to {
     transform: translateX(80%) rotate(12deg);
-  }
-}
-
-@keyframes agenda-cue-fade {
-  0%, 100% {
-    opacity: 0.72;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-@keyframes agenda-cue-nudge {
-  0%, 100% {
-    transform: translateX(0);
-  }
-  50% {
-    transform: translateX(5px);
   }
 }
 
