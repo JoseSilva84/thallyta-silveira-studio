@@ -150,6 +150,23 @@ export default function QuickBookingPage() {
   }, [fetchAgenda])
 
   useEffect(() => {
+    const interval = window.setInterval(fetchAgenda, 30000)
+    const handleVisibility = () => {
+      if (!document.hidden) fetchAgenda()
+    }
+    const handleBookingUpdated = () => fetchAgenda()
+
+    document.addEventListener('visibilitychange', handleVisibility)
+    window.addEventListener('booking:updated', handleBookingUpdated)
+
+    return () => {
+      window.clearInterval(interval)
+      document.removeEventListener('visibilitychange', handleVisibility)
+      window.removeEventListener('booking:updated', handleBookingUpdated)
+    }
+  }, [fetchAgenda])
+
+  useEffect(() => {
     const draft = readQuickDraft()
     if (!draft) return
 
@@ -184,8 +201,9 @@ export default function QuickBookingPage() {
   }, [dateStart, days, selectedDate])
 
   useEffect(() => {
-    if (!selectedService || !selectedSlot || loadingAgenda) return
-    if (agendaServiceId !== selectedService.id) return
+    if (!selectedSlot || loadingAgenda) return
+    if (selectedService && agendaServiceId !== selectedService.id) return
+    if (!selectedService && agendaServiceId) return
     if (!agendaDays.length) return
 
     const slotStillAvailable = agendaDays.some((day) =>
@@ -203,6 +221,13 @@ export default function QuickBookingPage() {
     setSelectedSlot(null)
     setSelectedDate(nextDate)
     userSelectedServiceRef.current = false
+
+    if (!selectedService) {
+      writeQuickDraft({ paymentType })
+      toast.info('Esse horário acabou de ser reservado. Atualizamos a agenda para você escolher outro.')
+      document.querySelector('main')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      return
+    }
 
     if (shouldNotify) {
       writeQuickDraft({ serviceId: selectedService.id, paymentType })
