@@ -79,6 +79,21 @@ const findMercadoPagoPaymentByExternalReference = async (externalReference) => {
   return results.find((payment) => payment.status === 'approved') || results[0] || null;
 };
 
+const findMercadoPagoPaymentByPreference = async (preferenceId) => {
+  if (!preferenceId) return null;
+
+  const params = new URLSearchParams({ preference_id: preferenceId });
+  const data = await mercadoPagoRequest(`/merchant_orders/search?${params.toString()}`);
+  const orders = Array.isArray(data?.elements) ? data.elements : [];
+  const payments = orders.flatMap((order) => (Array.isArray(order?.payments) ? order.payments : []));
+  const approved = payments.find((payment) => payment.status === 'approved');
+  const fallback = approved || payments[0] || null;
+
+  if (!fallback?.id) return null;
+
+  return mercadoPagoRequest(`/v1/payments/${fallback.id}`);
+};
+
 const syncBookingPaymentWithMercadoPago = async (bookingPayment, mercadoPagoPaymentId = null) => {
   if (!bookingPayment) return null;
   if (bookingPayment.status === 'approved' && bookingPayment.amount >= bookingPayment.minimumAmount) {
@@ -87,7 +102,10 @@ const syncBookingPaymentWithMercadoPago = async (bookingPayment, mercadoPagoPaym
 
   const mercadoPagoPayment = mercadoPagoPaymentId
     ? await mercadoPagoRequest(`/v1/payments/${mercadoPagoPaymentId}`)
-    : await findMercadoPagoPaymentByExternalReference(bookingPayment.externalReference);
+    : (
+        await findMercadoPagoPaymentByExternalReference(bookingPayment.externalReference)
+        || await findMercadoPagoPaymentByPreference(bookingPayment.preferenceId)
+      );
 
   if (!mercadoPagoPayment?.id) return bookingPayment;
 
