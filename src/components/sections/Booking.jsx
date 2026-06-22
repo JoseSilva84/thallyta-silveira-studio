@@ -12,6 +12,7 @@ const CAL_USERNAME = import.meta.env.VITE_CAL_USERNAME || 'thallyta-silveira-hxf
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
 const PENDING_PAYMENT_STORAGE_KEY = 'thallytaPendingBookingPaymentId'
 const PREFERRED_SLOT_STORAGE_KEY = 'thallytaPreferredScheduleSlot'
+const CONFIRMED_BOOKINGS_SESSION_KEY = 'thallytaConfirmedBookingIds'
 const BOOKING_CHECKOUT_DRAFT_KEY = 'thallytaBookingCheckoutDraft'
 const CAL_THEME = {
   'cal-bg': '#3d3528',
@@ -83,6 +84,25 @@ const clearCheckoutDraft = () => {
   } catch {
     // Ignore cleanup failures.
   }
+}
+
+const markBookingAsShown = (bookingId) => {
+  if (!bookingId) return
+  try {
+    const raw = window.sessionStorage?.getItem(CONFIRMED_BOOKINGS_SESSION_KEY)
+    const ids = raw ? JSON.parse(raw) : []
+    if (!ids.includes(bookingId)) ids.push(bookingId)
+    window.sessionStorage?.setItem(CONFIRMED_BOOKINGS_SESSION_KEY, JSON.stringify(ids))
+  } catch { /* ignore */ }
+}
+
+const wasBookingAlreadyShown = (bookingId) => {
+  if (!bookingId) return false
+  try {
+    const raw = window.sessionStorage?.getItem(CONFIRMED_BOOKINGS_SESSION_KEY)
+    const ids = raw ? JSON.parse(raw) : []
+    return ids.includes(bookingId)
+  } catch { return false }
 }
 
 const formatPreferredSlotDate = (slot) => {
@@ -338,6 +358,9 @@ export default function Booking({ embedded = false } = {}) {
   const showConfirmedBooking = useCallback((booking, payment = null) => {
     if (!booking) return
 
+    // If this booking was already shown in this session, skip it
+    if (wasBookingAlreadyShown(booking.id)) return
+
     const summary = {
       services: booking.service || payment?.service?.name || servicesParam,
       total: Number(booking.estimatedValue || payment?.servicePrice || totalEstimado || 0),
@@ -348,6 +371,7 @@ export default function Booking({ embedded = false } = {}) {
       time: formatPreferredSlotTime({ start: booking.scheduledAt }),
     }
 
+    markBookingAsShown(booking.id)
     setConfirmedSummary(summary)
     setBookingConfirmed(true)
     setIsBookingDetailsStep(false)
@@ -599,9 +623,14 @@ export default function Booking({ embedded = false } = {}) {
           })
           const confirmData = await confirmRes.json().catch(() => ({}))
           if (confirmRes.ok && confirmData.booking) {
-            showConfirmedBooking(confirmData.booking, confirmData.payment)
-            fetchBookings(token)
-            toast.success('Agendamento confirmado com sucesso!')
+            if (!wasBookingAlreadyShown(confirmData.booking.id)) {
+              showConfirmedBooking(confirmData.booking, confirmData.payment)
+              fetchBookings(token)
+              toast.success('Agendamento confirmado com sucesso!')
+            } else {
+              // Already shown — just clean up stale localStorage
+              window.localStorage?.removeItem(PENDING_PAYMENT_STORAGE_KEY)
+            }
             return
           }
           if (confirmRes.ok && confirmData.payment?.status === 'approved') {
@@ -625,9 +654,14 @@ export default function Booking({ embedded = false } = {}) {
           return
         }
         if (res.ok && data.booking) {
-          showConfirmedBooking(data.booking, data.payment)
-          fetchBookings(token)
-          toast.success('Agendamento confirmado com sucesso!')
+          if (!wasBookingAlreadyShown(data.booking.id)) {
+            showConfirmedBooking(data.booking, data.payment)
+            fetchBookings(token)
+            toast.success('Agendamento confirmado com sucesso!')
+          } else {
+            // Already shown — just clean up stale localStorage
+            window.localStorage?.removeItem(PENDING_PAYMENT_STORAGE_KEY)
+          }
           return
         }
         if (data.payment?.status === 'approved') {
@@ -653,6 +687,7 @@ export default function Booking({ embedded = false } = {}) {
 
   const handleNewBooking = () => {
     isCalReadyRef.current = false
+    pendingPaymentChecked.current = true
     setIsBookingDetailsStep(false)
     setShowCal(false)
     setIsScheduleStepOpen(false)
@@ -661,6 +696,7 @@ export default function Booking({ embedded = false } = {}) {
     setBookingPayment(null)
     setPreferredSlot(null)
     setIsPaymentUnlocked(false)
+    window.localStorage?.removeItem(PENDING_PAYMENT_STORAGE_KEY)
     window.localStorage?.removeItem(PREFERRED_SLOT_STORAGE_KEY)
     clearCheckoutDraft()
   }
