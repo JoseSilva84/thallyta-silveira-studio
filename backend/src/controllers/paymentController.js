@@ -161,6 +161,8 @@ const serializeBookingSummary = (booking) => {
     attendeeEmail: booking.attendeeEmail,
     attendeePhone: booking.attendeePhone,
     status: booking.status,
+    calendarFallback: Boolean(booking.calPayload?.calendarFallback),
+    calendarError: booking.calPayload?.calBookingError || null,
   };
 };
 

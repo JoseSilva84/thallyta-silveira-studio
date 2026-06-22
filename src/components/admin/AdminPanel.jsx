@@ -1021,6 +1021,7 @@ function BookingsTable({ bookings, fetching, statusFilter, statusBadge, onComple
                 const phone = booking.attendeePhone || booking.user?.whatsappPhone || '';
                 const email = booking.attendeeEmail || booking.user?.email || '';
                 const payment = getBookingPaymentSummary(booking);
+                const calendarFallback = Boolean(booking.calPayload?.calendarFallback);
                 return (
                   <tr key={booking.id} className="transition-colors hover:bg-white/5">
                     <td className="px-4 py-3">
@@ -1033,6 +1034,14 @@ function BookingsTable({ bookings, fetching, statusFilter, statusBadge, onComple
                     </td>
                     <td className="max-w-[200px] px-4 py-3">
                       <span className="block truncate text-sm text-cream/80" title={booking.service}>{booking.service}</span>
+                      {calendarFallback && (
+                        <span
+                          className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-400/10 px-2.5 py-1 text-[0.65rem] font-bold uppercase tracking-wider text-amber-200"
+                          title={booking.calPayload?.calBookingError || 'O agendamento foi salvo no sistema, mas nao foi criado no Cal.com.'}
+                        >
+                          <FiAlertTriangle className="size-3" /> Revisar Cal.com
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-sm text-cream/70 whitespace-nowrap">
                       <div className="font-semibold text-cream/80">{formatCurrency(payment.total)}</div>

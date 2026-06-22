@@ -704,7 +704,11 @@ export default function Booking({ embedded = false } = {}) {
       showConfirmedBooking(data.booking, data.payment)
       window.dispatchEvent(new Event('booking:updated'))
       fetchBookings(token)
-      toast.success('Agendamento confirmado com sucesso!')
+      if (data.booking.calendarFallback) {
+        toast.warn('Agendamento confirmado no sistema. O Cal.com recusou a reserva, revise no painel administrativo.')
+      } else {
+        toast.success('Agendamento confirmado com sucesso!')
+      }
     } catch (error) {
       toast.error(getErrorMessage(error, 'Nao foi possivel confirmar o horario.'))
       window.dispatchEvent(new Event('booking:updated'))
