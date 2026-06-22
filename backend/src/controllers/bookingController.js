@@ -68,10 +68,45 @@ export const getPublicAgenda = async (req, res) => {
       },
     });
 
+    const activePaymentHolds = await prisma.bookingPayment.findMany({
+      where: {
+        booking: null,
+        status: {
+          in: ['pending', 'approved'],
+        },
+        scheduledAt: {
+          gte: now,
+          lte: until,
+        },
+        holdExpiresAt: {
+          gt: now,
+        },
+      },
+      orderBy: { scheduledAt: 'asc' },
+      select: {
+        id: true,
+        serviceName: true,
+        scheduledAt: true,
+        endTime: true,
+        status: true,
+      },
+    });
+
+    const occupiedTimes = [
+      ...bookings,
+      ...activePaymentHolds.map((payment) => ({
+        id: payment.id,
+        service: payment.serviceName,
+        scheduledAt: payment.scheduledAt,
+        endTime: payment.endTime,
+        status: 'payment_hold',
+      })),
+    ];
+
     res.json({
       generatedAt: now.toISOString(),
       days,
-      agendaDays: buildPublicAgendaDays(bookings, days, now),
+      agendaDays: buildPublicAgendaDays(occupiedTimes, days, now),
       bookings: bookings.map((booking) => ({
         id: booking.id,
         service: booking.service,

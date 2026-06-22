@@ -95,6 +95,16 @@ const formatPreferredSlotDate = (slot) => {
   })
 }
 
+const formatPreferredSlotTime = (slot) => {
+  if (slot?.time) return slot.time
+  if (!slot?.start) return ''
+  return new Date(slot.start).toLocaleTimeString('pt-BR', {
+    timeZone: 'America/Fortaleza',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
 export default function Booking({ embedded = false } = {}) {
   const { user, setLoginOpen, getToken } = useAuth()
   const {
@@ -314,6 +324,42 @@ export default function Booking({ embedded = false } = {}) {
     }, 0)
   }, [selectedServices])
 
+  const showConfirmedBooking = useCallback((booking, payment = null) => {
+    if (!booking) return
+
+    const summary = {
+      services: booking.service || payment?.service?.name || servicesParam,
+      total: Number(booking.estimatedValue || payment?.servicePrice || totalEstimado || 0),
+      name: booking.attendeeName || user?.name || '',
+      email: booking.attendeeEmail || user?.email || '',
+      whatsapp: booking.attendeePhone || user?.whatsappPhone || '',
+      date: booking.scheduledAt,
+      time: formatPreferredSlotTime({ start: booking.scheduledAt }),
+    }
+
+    setConfirmedSummary(summary)
+    setBookingConfirmed(true)
+    setIsBookingDetailsStep(false)
+    setShowCal(false)
+    setBookingPayment(null)
+    setPreferredSlot(null)
+    setIsPaymentUnlocked(false)
+    clearServices()
+    window.localStorage?.removeItem(PENDING_PAYMENT_STORAGE_KEY)
+    window.localStorage?.removeItem(PREFERRED_SLOT_STORAGE_KEY)
+    clearCheckoutDraft()
+    window.dispatchEvent(new Event('booking:updated'))
+  }, [
+    clearServices,
+    servicesParam,
+    setIsBookingDetailsStep,
+    setIsPaymentUnlocked,
+    totalEstimado,
+    user?.email,
+    user?.name,
+    user?.whatsappPhone,
+  ])
+
   const openScheduleFromPayment = useCallback((payment, options = {}) => {
     if (!payment) return
 
@@ -381,6 +427,7 @@ export default function Booking({ embedded = false } = {}) {
         body: JSON.stringify({
           serviceId: selectedService.id,
           paymentType,
+          start: preferredSlot.start,
         }),
       })
       const data = await res.json().catch(() => ({}))
@@ -469,17 +516,24 @@ export default function Booking({ embedded = false } = {}) {
         const data = await res.json().catch(() => ({}))
         if (!res.ok) throw new Error(data.error || 'Erro ao confirmar pagamento.')
 
+        if (data.booking) {
+          showConfirmedBooking(data.booking, data.payment)
+          cleanPaymentParams()
+          fetchBookings(token)
+          toast.success('Agendamento confirmado com sucesso!')
+          return
+        }
+
         if (!data.canSchedule) {
           if (mpStatus === 'failure') {
             toast.error('Pagamento nao aprovado. O agendamento ainda nao foi liberado.')
           } else {
-            toast.info('Pagamento pendente. Assim que for aprovado, volte para escolher o horario.')
+            toast.info('Pagamento pendente. Assim que for aprovado, seu horario sera confirmado automaticamente.')
           }
           cleanPaymentParams()
           return
         }
 
-        openScheduleFromPayment(data.payment)
         cleanPaymentParams()
       } catch (error) {
         toast.error('Nao foi possivel confirmar o pagamento. Tente novamente ou escolha outra forma de pagamento.')
@@ -489,7 +543,7 @@ export default function Booking({ embedded = false } = {}) {
     }
 
     confirmPayment()
-  }, [bookingHash, focusBookingSection, getToken, openScheduleFromPayment, user])
+  }, [bookingHash, fetchBookings, focusBookingSection, getToken, showConfirmedBooking, user])
 
   useEffect(() => {
     if (!user) {
@@ -514,8 +568,10 @@ export default function Booking({ embedded = false } = {}) {
             headers: { Authorization: `Bearer ${token}` },
           })
           const confirmData = await confirmRes.json().catch(() => ({}))
-          if (confirmRes.ok && confirmData.canSchedule) {
-            openScheduleFromPayment(confirmData.payment, { recovered: true })
+          if (confirmRes.ok && confirmData.booking) {
+            showConfirmedBooking(confirmData.booking, confirmData.payment)
+            fetchBookings(token)
+            toast.success('Agendamento confirmado com sucesso!')
             return
           }
         }
@@ -524,8 +580,10 @@ export default function Booking({ embedded = false } = {}) {
           headers: { Authorization: `Bearer ${token}` },
         })
         const data = await res.json().catch(() => ({}))
-        if (res.ok && data.canSchedule) {
-          openScheduleFromPayment(data.payment, { recovered: true })
+        if (res.ok && data.booking) {
+          showConfirmedBooking(data.booking, data.payment)
+          fetchBookings(token)
+          toast.success('Agendamento confirmado com sucesso!')
         }
       } catch (error) {
         console.error('Erro ao recuperar pagamento aprovado sem horario:', error)
@@ -533,7 +591,7 @@ export default function Booking({ embedded = false } = {}) {
     }
 
     restorePendingSchedule()
-  }, [bookingConfirmed, getToken, openScheduleFromPayment, showCal, user])
+  }, [bookingConfirmed, fetchBookings, getToken, showCal, showConfirmedBooking, user])
 
   const handleNewBooking = () => {
     isCalReadyRef.current = false
@@ -665,7 +723,7 @@ export default function Booking({ embedded = false } = {}) {
                   <div
                     key={step}
                     className={`h-1.5 rounded-full transition-all duration-500 ${
-                      (step === 1 && selectedServices.length > 0) || (step === 2 && showCal) || (step === 3 && bookingConfirmed)
+                      (step === 1 && selectedServices.length > 0) || (step === 2 && preferredSlot?.start) || (step === 3 && bookingConfirmed)
                         ? 'silver-glow bg-gradient-to-r from-gold to-gold-light shadow-[0_0_10px_rgba(217,177,92,0.4)]'
                         : 'bg-white/10'
                     }`}

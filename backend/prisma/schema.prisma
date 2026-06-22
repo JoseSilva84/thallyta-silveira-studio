@@ -76,12 +76,18 @@ model BookingPayment {
   externalReference String   @unique
   initPoint         String?
   sandboxInitPoint  String?
+  scheduledAt       DateTime?
+  endTime           DateTime?
+  holdExpiresAt     DateTime?
   metadata          Json?
   approvedAt        DateTime?
   remainingPaidAt   DateTime?
   remainingPaidBy   String?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+
+  @@index([scheduledAt])
+  @@index([holdExpiresAt])
 }
 
 model NotificationLog {

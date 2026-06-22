@@ -1,10 +1,15 @@
 import { randomUUID } from 'crypto';
 import prisma from '../config/prisma.js';
 import { findServiceById } from '../data/services.js';
+import { createCalBooking } from '../services/calService.js';
+import { notifyBookingCreated } from '../services/whatsappService.js';
+import { validateBookingWindow } from '../utils/bookingHours.js';
+import { findConfirmedScheduleConflict, hasScheduleConflict } from '../utils/scheduleAvailability.js';
 
 const MERCADO_PAGO_API = 'https://api.mercadopago.com';
 const PRODUCTION_FRONTEND_URL = 'https://www.thallytasilveira.com.br';
 const MINIMUM_PERCENTAGE = 0.3;
+const PAYMENT_HOLD_MINUTES = 12;
 
 const getFrontendUrl = () => {
   if (process.env.PUBLIC_FRONTEND_URL) return process.env.PUBLIC_FRONTEND_URL.replace(/\/$/, '');
@@ -72,8 +77,136 @@ const serializePayment = (payment) => ({
   paymentType: payment.paymentType,
   amount: payment.amount,
   minimumAmount: payment.minimumAmount,
+  scheduledAt: payment.scheduledAt,
+  endTime: payment.endTime,
+  holdExpiresAt: payment.holdExpiresAt,
   approvedAt: payment.approvedAt,
 });
+
+const serializeBookingSummary = (booking) => {
+  if (!booking) return null;
+
+  return {
+    id: booking.id,
+    service: booking.service,
+    estimatedValue: booking.estimatedValue,
+    scheduledAt: booking.scheduledAt,
+    endTime: booking.endTime,
+    attendeeName: booking.attendeeName,
+    attendeeEmail: booking.attendeeEmail,
+    attendeePhone: booking.attendeePhone,
+    status: booking.status,
+  };
+};
+
+const getBookingInclude = {
+  user: {
+    select: { id: true, name: true, email: true, whatsappPhone: true },
+  },
+  payment: true,
+};
+
+const buildConfirmedBookingFromPayment = async (payment) => {
+  const hydratedPayment = payment.booking
+    ? payment
+    : await prisma.bookingPayment.findUnique({
+        where: { id: payment.id },
+        include: { booking: true, user: true },
+      });
+
+  if (!hydratedPayment) return null;
+  if (hydratedPayment.booking) return hydratedPayment.booking;
+  if (hydratedPayment.status !== 'approved' || hydratedPayment.amount < hydratedPayment.minimumAmount) return null;
+
+  const service = findServiceById(hydratedPayment.serviceId);
+  if (!service || !hydratedPayment.scheduledAt) return null;
+
+  const scheduledAt = new Date(hydratedPayment.scheduledAt);
+  const endTime = hydratedPayment.endTime
+    ? new Date(hydratedPayment.endTime)
+    : new Date(scheduledAt.getTime() + (service.durationMin || 60) * 60 * 1000);
+
+  const validation = validateBookingWindow(scheduledAt, endTime);
+  if (!validation.valid) {
+    throw new Error(validation.reason);
+  }
+
+  const bookingConflict = await findConfirmedScheduleConflict(prisma, scheduledAt, endTime);
+  if (bookingConflict) {
+    throw new Error('Este horario acabou de ficar indisponivel. Escolha outro horario.');
+  }
+
+  const notes = [
+    `Servico: ${service.name}`,
+    `Valor: R$ ${service.price.toFixed(2)}`,
+    `Pagamento: ${hydratedPayment.paymentType === 'full' ? 'valor total' : 'entrada'}`,
+    hydratedPayment.user?.whatsappPhone ? `WhatsApp: ${hydratedPayment.user.whatsappPhone}` : null,
+    '(Agendamento criado automaticamente pelo site apos pagamento)',
+  ].filter(Boolean).join('\n');
+
+  const calBooking = await createCalBooking({
+    eventTypeSlug: service.calSlug || 'servicos-gerais',
+    start: scheduledAt.toISOString(),
+    attendeeName: hydratedPayment.user?.name || 'Cliente',
+    attendeeEmail: hydratedPayment.user?.email,
+    notes,
+    adminCreated: false,
+    metadata: {
+      bookingPaymentId: hydratedPayment.id,
+      serviceId: service.id,
+      serviceName: service.name,
+      serviceNames: service.name,
+      estimatedValue: service.price.toFixed(2),
+      attendeeWhatsapp: hydratedPayment.user?.whatsappPhone || '',
+      paymentType: hydratedPayment.paymentType,
+      paidAmount: hydratedPayment.amount.toFixed(2),
+    },
+  });
+
+  const booking = await prisma.booking.upsert({
+    where: { calEventId: calBooking.uid },
+    update: {
+      userId: hydratedPayment.userId,
+      service: service.name,
+      estimatedValue: service.price,
+      scheduledAt,
+      endTime,
+      status: 'confirmed',
+      notes,
+      attendeeName: hydratedPayment.user?.name || 'Cliente',
+      attendeeEmail: hydratedPayment.user?.email || null,
+      attendeePhone: hydratedPayment.user?.whatsappPhone || null,
+      location: 'Presencial',
+      calPayload: { siteCreated: true, autoConfirmedAfterPayment: true, calBooking },
+      paymentId: hydratedPayment.id,
+    },
+    create: {
+      calEventId: calBooking.uid,
+      userId: hydratedPayment.userId,
+      service: service.name,
+      estimatedValue: service.price,
+      scheduledAt,
+      endTime,
+      status: 'confirmed',
+      notes,
+      attendeeName: hydratedPayment.user?.name || 'Cliente',
+      attendeeEmail: hydratedPayment.user?.email || null,
+      attendeePhone: hydratedPayment.user?.whatsappPhone || null,
+      location: 'Presencial',
+      calPayload: { siteCreated: true, autoConfirmedAfterPayment: true, calBooking },
+      paymentId: hydratedPayment.id,
+    },
+    include: getBookingInclude,
+  });
+
+  try {
+    await notifyBookingCreated(prisma, booking);
+  } catch (notifyError) {
+    console.error('Erro ao enviar WhatsApp do agendamento pago:', notifyError);
+  }
+
+  return booking;
+};
 
 export const getPendingSchedulePayment = async (req, res) => {
   try {
@@ -81,8 +214,8 @@ export const getPendingSchedulePayment = async (req, res) => {
       where: {
         userId: req.user.id,
         status: 'approved',
-        booking: null,
       },
+      include: { booking: true },
       orderBy: { approvedAt: 'desc' },
     });
 
@@ -92,7 +225,8 @@ export const getPendingSchedulePayment = async (req, res) => {
 
     res.json({
       payment: serializePayment(payment),
-      canSchedule: true,
+      booking: serializeBookingSummary(payment.booking),
+      canSchedule: Boolean(payment.booking),
     });
   } catch (error) {
     console.error('Erro ao buscar pagamento pendente de agendamento:', error);
@@ -133,7 +267,7 @@ const markPaymentFromMercadoPago = async (bookingPayment, mercadoPagoPayment) =>
 
 export const createBookingPreference = async (req, res) => {
   try {
-    const { serviceId, paymentType } = req.body;
+    const { serviceId, paymentType, start } = req.body;
     const service = findServiceById(serviceId);
 
     if (!service) {
@@ -144,10 +278,46 @@ export const createBookingPreference = async (req, res) => {
       return res.status(400).json({ error: 'Escolha entrada de 30% ou pagamento total.' });
     }
 
+    if (!start) {
+      return res.status(400).json({ error: 'Escolha o dia e horario antes de pagar.' });
+    }
+
+    const scheduledAt = new Date(start);
+    if (Number.isNaN(scheduledAt.getTime())) {
+      return res.status(400).json({ error: 'Horario invalido.' });
+    }
+
+    const endTime = new Date(scheduledAt.getTime() + (service.durationMin || 60) * 60 * 1000);
+    const scheduleValidation = validateBookingWindow(scheduledAt, endTime);
+
+    if (!scheduleValidation.valid) {
+      return res.status(400).json({ error: scheduleValidation.reason });
+    }
+
+    const now = new Date();
+    await prisma.bookingPayment.updateMany({
+      where: {
+        userId: req.user.id,
+        booking: null,
+        status: 'pending',
+        holdExpiresAt: {
+          gt: now,
+        },
+      },
+      data: {
+        holdExpiresAt: now,
+      },
+    });
+
+    if (await hasScheduleConflict(prisma, scheduledAt, endTime, { now })) {
+      return res.status(409).json({ error: 'Este horario acabou de ficar indisponivel. Escolha outro horario.' });
+    }
+
     const servicePrice = roundMoney(service.price);
     const minimumAmount = roundMoney(servicePrice * MINIMUM_PERCENTAGE);
     const amount = paymentType === 'full' ? servicePrice : minimumAmount;
     const externalReference = `booking_${randomUUID()}`;
+    const holdExpiresAt = new Date(now.getTime() + PAYMENT_HOLD_MINUTES * 60 * 1000);
 
     const bookingPayment = await prisma.bookingPayment.create({
       data: {
@@ -159,9 +329,13 @@ export const createBookingPreference = async (req, res) => {
         amount,
         minimumAmount,
         externalReference,
+        scheduledAt,
+        endTime,
+        holdExpiresAt,
         metadata: {
           minimumPercentage: MINIMUM_PERCENTAGE,
           remainingAmount: paymentType === 'full' ? 0 : roundMoney(servicePrice - amount),
+          holdMinutes: PAYMENT_HOLD_MINUTES,
         },
       },
     });
@@ -191,6 +365,7 @@ export const createBookingPreference = async (req, res) => {
           serviceId: service.id,
           paymentType,
           userId: req.user.id,
+          scheduledAt: scheduledAt.toISOString(),
         },
         back_urls: {
           success: `${returnUrl}&mpStatus=success`,
@@ -198,6 +373,8 @@ export const createBookingPreference = async (req, res) => {
           failure: `${returnUrl}&mpStatus=failure`,
         },
         auto_return: 'approved',
+        expires: true,
+        expiration_date_to: holdExpiresAt.toISOString(),
         payment_methods: {
           excluded_payment_types: [
             { id: 'ticket' },
@@ -231,7 +408,10 @@ export const createBookingPreference = async (req, res) => {
 
 export const confirmBookingPayment = async (req, res) => {
   try {
-    const bookingPayment = await prisma.bookingPayment.findUnique({ where: { id: req.params.id } });
+    const bookingPayment = await prisma.bookingPayment.findUnique({
+      where: { id: req.params.id },
+      include: { booking: true, user: true },
+    });
 
     if (!bookingPayment || bookingPayment.userId !== req.user.id) {
       return res.status(404).json({ error: 'Pagamento nao encontrado.' });
@@ -245,9 +425,17 @@ export const confirmBookingPayment = async (req, res) => {
       updated = await markPaymentFromMercadoPago(bookingPayment, mercadoPagoPayment);
     }
 
+    const approved = updated.status === 'approved' && updated.amount >= updated.minimumAmount;
+    let booking = bookingPayment.booking || null;
+
+    if (approved && !booking) {
+      booking = await buildConfirmedBookingFromPayment(updated);
+    }
+
     res.json({
       payment: serializePayment(updated),
-      canSchedule: updated.status === 'approved' && updated.amount >= updated.minimumAmount,
+      booking: serializeBookingSummary(booking),
+      canSchedule: Boolean(booking),
     });
   } catch (error) {
     console.error('Erro ao confirmar pagamento Mercado Pago:', error);
@@ -270,7 +458,14 @@ export const handleMercadoPagoWebhook = async (req, res) => {
     });
 
     if (bookingPayment) {
-      await markPaymentFromMercadoPago(bookingPayment, mercadoPagoPayment);
+      const updated = await markPaymentFromMercadoPago(bookingPayment, mercadoPagoPayment);
+      if (updated.status === 'approved' && updated.amount >= updated.minimumAmount) {
+        try {
+          await buildConfirmedBookingFromPayment(updated);
+        } catch (bookingError) {
+          console.error('Erro ao confirmar agendamento pelo webhook Mercado Pago:', bookingError);
+        }
+      }
     }
 
     res.status(200).json({ received: true });
