@@ -12,6 +12,7 @@ const CAL_USERNAME = import.meta.env.VITE_CAL_USERNAME || 'thallyta-silveira-hxf
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
 const PENDING_PAYMENT_STORAGE_KEY = 'thallytaPendingBookingPaymentId'
 const PREFERRED_SLOT_STORAGE_KEY = 'thallytaPreferredScheduleSlot'
+const BOOKING_CHECKOUT_DRAFT_KEY = 'thallytaBookingCheckoutDraft'
 const CAL_THEME = {
   'cal-bg': '#3d3528',
   'cal-bg-emphasis': '#514735',
@@ -51,6 +52,36 @@ const readPreferredSlot = () => {
     return value ? JSON.parse(value) : null
   } catch {
     return null
+  }
+}
+
+const readCheckoutDraft = () => {
+  try {
+    const value = window.localStorage?.getItem(BOOKING_CHECKOUT_DRAFT_KEY)
+    return value ? JSON.parse(value) : null
+  } catch {
+    return null
+  }
+}
+
+const writeCheckoutDraft = ({ serviceId, paymentType, continueAfterLogin = false }) => {
+  try {
+    window.localStorage?.setItem(BOOKING_CHECKOUT_DRAFT_KEY, JSON.stringify({
+      serviceId,
+      paymentType,
+      continueAfterLogin,
+      updatedAt: Date.now(),
+    }))
+  } catch {
+    // The current in-memory flow still works if storage is unavailable.
+  }
+}
+
+const clearCheckoutDraft = () => {
+  try {
+    window.localStorage?.removeItem(BOOKING_CHECKOUT_DRAFT_KEY)
+  } catch {
+    // Ignore cleanup failures.
   }
 }
 
@@ -95,6 +126,8 @@ export default function Booking() {
   const isCalReadyRef = useRef(false)
   const pendingPaymentChecked = useRef(false)
   const previousUserIdRef = useRef(user?.id || null)
+  const restoredCheckoutDraftRef = useRef(false)
+  const autoProceedAfterLoginRef = useRef(false)
   const bookingSnapshotRef = useRef({
     services: '',
     total: 0,
@@ -121,6 +154,7 @@ export default function Booking() {
     setBookingPayment(null)
     setPreferredSlot(null)
     setIsPaymentUnlocked(false)
+    clearCheckoutDraft()
     clearServices()
   }, [clearServices, setIsBookingDetailsStep, setIsPaymentUnlocked, setIsScheduleStepOpen])
 
@@ -131,6 +165,7 @@ export default function Booking() {
     if (previousUserId && previousUserId !== currentUserId) {
       window.localStorage?.removeItem(PENDING_PAYMENT_STORAGE_KEY)
       window.localStorage?.removeItem(PREFERRED_SLOT_STORAGE_KEY)
+      clearCheckoutDraft()
       resetScheduleState()
     }
 
@@ -196,6 +231,7 @@ export default function Booking() {
           setIsPaymentUnlocked(false)
           window.localStorage?.removeItem(PENDING_PAYMENT_STORAGE_KEY)
           window.localStorage?.removeItem(PREFERRED_SLOT_STORAGE_KEY)
+          clearCheckoutDraft()
           window.dispatchEvent(new Event('booking:updated'))
           setTimeout(() => window.dispatchEvent(new Event('booking:updated')), 3000)
           setTimeout(() => window.dispatchEvent(new Event('booking:updated')), 8000)
@@ -303,6 +339,13 @@ export default function Booking() {
     if (!selectedServices.length) {
       return toast.warn('Escolha pelo menos um serviço.')
     }
+    if (selectedService) {
+      writeCheckoutDraft({
+        serviceId: selectedService.id,
+        paymentType,
+        continueAfterLogin: !user,
+      })
+    }
     if (!user) {
       setLoginOpen(true)
       return toast.info('Entre na sua conta para agendar.')
@@ -334,6 +377,7 @@ export default function Booking() {
       if (data.payment?.id) {
         window.localStorage?.setItem(PENDING_PAYMENT_STORAGE_KEY, data.payment.id)
       }
+      clearCheckoutDraft()
       window.location.href = data.initPoint || data.sandboxInitPoint
     } catch (error) {
       toast.error(error.message)
@@ -347,6 +391,38 @@ export default function Booking() {
     lastScheduleRequest.current = scheduleRequestId
     handleProceed()
   }, [handleProceed, scheduleRequestId])
+
+  useEffect(() => {
+    if (restoredCheckoutDraftRef.current) return
+
+    const draft = readCheckoutDraft()
+    if (!draft?.serviceId) return
+
+    const service = allServices.find((item) => item.id === draft.serviceId)
+    if (!service) {
+      clearCheckoutDraft()
+      return
+    }
+
+    restoredCheckoutDraftRef.current = true
+    addService(service)
+    setPaymentType(draft.paymentType || 'deposit')
+    if (draft.continueAfterLogin) focusBookingSection()
+  }, [addService, focusBookingSection, setPaymentType])
+
+  useEffect(() => {
+    const draft = readCheckoutDraft()
+    if (!user || !draft?.continueAfterLogin || autoProceedAfterLoginRef.current) return
+    if (!selectedService || selectedService.id !== draft.serviceId) return
+
+    autoProceedAfterLoginRef.current = true
+    writeCheckoutDraft({
+      serviceId: selectedService.id,
+      paymentType,
+      continueAfterLogin: false,
+    })
+    handleProceed()
+  }, [handleProceed, paymentType, selectedService, user])
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -457,6 +533,7 @@ export default function Booking() {
     setPreferredSlot(null)
     setIsPaymentUnlocked(false)
     window.localStorage?.removeItem(PREFERRED_SLOT_STORAGE_KEY)
+    clearCheckoutDraft()
   }
 
   const handleConfirmSelectedSlot = useCallback(async () => {
@@ -504,6 +581,7 @@ export default function Booking() {
       clearServices()
       window.localStorage?.removeItem(PENDING_PAYMENT_STORAGE_KEY)
       window.localStorage?.removeItem(PREFERRED_SLOT_STORAGE_KEY)
+      clearCheckoutDraft()
       window.dispatchEvent(new Event('booking:updated'))
       fetchBookings(token)
       toast.success('Agendamento confirmado com sucesso!')

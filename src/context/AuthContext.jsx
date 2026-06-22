@@ -5,6 +5,7 @@ import { isGoogleOAuthRiskBrowser } from '../utils/browser.js'
 const AuthContext = createContext(null)
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
+const BOOKING_CHECKOUT_DRAFT_KEY = 'thallytaBookingCheckoutDraft'
 
 const readToken = () => localStorage.getItem('authToken')
 const parseToken = (token) => {
@@ -62,6 +63,15 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const token = params.get('token')
+    const getPostLoginPath = () => {
+      try {
+        const draft = JSON.parse(localStorage.getItem(BOOKING_CHECKOUT_DRAFT_KEY) || 'null')
+        if (draft?.continueAfterLogin) return '/#agendamento'
+      } catch {
+        return '/'
+      }
+      return '/'
+    }
 
     if (token) {
       localStorage.setItem('authToken', token)
@@ -70,7 +80,7 @@ export function AuthProvider({ children }) {
       setUser(payload)
       fetchMe(token).finally(() => setAuthHydrated(true))
       toast.success(`Bem-vindo(a), ${payload?.name || 'cliente'}!`)
-      window.history.replaceState({}, '', '/')
+      window.history.replaceState({}, '', getPostLoginPath())
       return
     }
 
@@ -165,6 +175,7 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('authToken')
     localStorage.removeItem('thallytaPendingBookingPaymentId')
     localStorage.removeItem('thallytaPreferredScheduleSlot')
+    localStorage.removeItem(BOOKING_CHECKOUT_DRAFT_KEY)
     setUser(null)
     toast.info('Voce saiu da sua conta.')
   }, [])

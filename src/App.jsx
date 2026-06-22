@@ -25,20 +25,32 @@ import { useAuth } from './context/AuthContext.jsx'
 import { useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 
+const BOOKING_CHECKOUT_DRAFT_KEY = 'thallytaBookingCheckoutDraft'
+
 function GoogleAuthCallback() {
   const { } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
   useEffect(() => {
+    const getPostLoginPath = () => {
+      try {
+        const draft = JSON.parse(localStorage.getItem(BOOKING_CHECKOUT_DRAFT_KEY) || 'null')
+        if (draft?.continueAfterLogin) return '/#agendamento'
+      } catch {
+        return '/'
+      }
+      return '/'
+    }
+
     // O AuthContext já lida com o token na URL.
     // Após o processamento, redireciona para home.
     const params = new URLSearchParams(location.search)
     if (!params.get('token')) {
-      navigate('/', { replace: true })
+      navigate(getPostLoginPath(), { replace: true })
     } else {
       // Aguarda 100ms para o AuthContext processar o token
-      setTimeout(() => navigate('/', { replace: true }), 100)
+      setTimeout(() => navigate(getPostLoginPath(), { replace: true }), 100)
     }
   }, [navigate, location])
 
