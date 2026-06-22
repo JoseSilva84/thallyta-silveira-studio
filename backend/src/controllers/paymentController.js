@@ -239,7 +239,7 @@ const buildConfirmedBookingFromPayment = async (payment) => {
 
 export const getPendingSchedulePayment = async (req, res) => {
   try {
-    const payment = await prisma.bookingPayment.findFirst({
+    const payments = await prisma.bookingPayment.findMany({
       where: {
         userId: req.user.id,
         scheduledAt: {
@@ -251,20 +251,35 @@ export const getPendingSchedulePayment = async (req, res) => {
       },
       include: { booking: true, user: true },
       orderBy: { createdAt: 'desc' },
+      take: 10,
     });
 
-    if (!payment) {
+    if (!payments.length) {
       return res.json({ payment: null, canSchedule: false });
     }
 
-    const synced = await syncBookingPaymentWithMercadoPago(payment);
-    const approved = synced.status === 'approved' && synced.amount >= synced.minimumAmount;
-    const booking = payment.booking || (approved ? await buildConfirmedBookingFromPayment(synced) : null);
+    let latestSynced = null;
+
+    for (const payment of payments) {
+      const synced = await syncBookingPaymentWithMercadoPago(payment);
+      latestSynced ||= synced;
+
+      const approved = synced.status === 'approved' && synced.amount >= synced.minimumAmount;
+      const booking = payment.booking || (approved ? await buildConfirmedBookingFromPayment(synced) : null);
+
+      if (booking) {
+        return res.json({
+          payment: serializePayment(synced),
+          booking: serializeBookingSummary(booking),
+          canSchedule: true,
+        });
+      }
+    }
 
     res.json({
-      payment: serializePayment(synced),
-      booking: serializeBookingSummary(booking),
-      canSchedule: Boolean(booking),
+      payment: latestSynced ? serializePayment(latestSynced) : null,
+      booking: null,
+      canSchedule: false,
     });
   } catch (error) {
     console.error('Erro ao buscar pagamento pendente de agendamento:', error);
