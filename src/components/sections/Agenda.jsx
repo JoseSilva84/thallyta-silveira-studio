@@ -7,6 +7,7 @@ import SectionTitle from '../ui/SectionTitle.jsx'
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
 const STUDIO_TIME_ZONE = 'America/Fortaleza'
 const PREFERRED_SLOT_STORAGE_KEY = 'thallytaPreferredScheduleSlot'
+const PENDING_PAYMENT_STORAGE_KEY = 'thallytaPendingBookingPaymentId'
 const MOBILE_DATE_PAGE_SIZE = 3
 const DESKTOP_DATE_PAGE_SIZE = 14
 
@@ -22,6 +23,14 @@ const getServiceCardsScrollTop = (element) => {
 }
 
 const isMobileViewport = () => window.matchMedia('(max-width: 639px)').matches
+
+const hasPendingPaidBooking = () => {
+  try {
+    return Boolean(window.localStorage?.getItem(PENDING_PAYMENT_STORAGE_KEY))
+  } catch {
+    return false
+  }
+}
 
 export default function Agenda() {
   const { selectedServices } = useBooking()
@@ -115,6 +124,18 @@ export default function Agenda() {
 
     window.localStorage?.setItem(PREFERRED_SLOT_STORAGE_KEY, JSON.stringify(payload))
     window.dispatchEvent(new CustomEvent('booking:slot-selected', { detail: payload }))
+
+    if (hasPendingPaidBooking()) {
+      window.history.replaceState(null, '', '#servicos-checkout')
+      window.setTimeout(() => {
+        const checkout = document.getElementById('servicos-checkout')
+        if (checkout) {
+          window.scrollTo({ top: getServiceCardsScrollTop(checkout), behavior: 'smooth' })
+        }
+      }, 80)
+      return
+    }
+
     window.history.replaceState(null, '', '#servicos')
     const serviceCards = document.getElementById('servicos-cards') || document.getElementById('servicos')
     if (serviceCards) {
