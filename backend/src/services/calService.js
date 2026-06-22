@@ -26,6 +26,16 @@ const stringifyCalError = (value) => {
   }
 };
 
+const normalizePhoneNumber = (value) => {
+  const digits = String(value || '').replace(/\D/g, '');
+  if (!digits) return null;
+  return `+${digits.startsWith('55') ? digits : `55${digits}`}`;
+};
+
+const normalizeMetadata = (metadata) => Object.fromEntries(
+  Object.entries(metadata || {}).map(([key, value]) => [key, value == null ? '' : String(value)]),
+);
+
 /**
  * Creates a booking on Cal.com via the API v2.
  *
@@ -38,10 +48,21 @@ const stringifyCalError = (value) => {
  * @param {object} [opts.metadata]     Extra metadata for the booking
  * @returns {{ uid: string, startTime: string, endTime: string|null }}
  */
-export async function createCalBooking({ eventTypeSlug, start, attendeeName, attendeeEmail, notes, metadata = {}, adminCreated = true }) {
+export async function createCalBooking({
+  eventTypeSlug,
+  start,
+  attendeeName,
+  attendeeEmail,
+  attendeePhone,
+  notes,
+  metadata = {},
+  adminCreated = true,
+  lengthInMinutes,
+}) {
   const username = process.env.CAL_USERNAME;
   if (!username) throw new Error('CAL_USERNAME nao configurado no .env.');
 
+  const phoneNumber = normalizePhoneNumber(attendeePhone);
   const body = {
     start,
     eventTypeSlug,
@@ -50,9 +71,16 @@ export async function createCalBooking({ eventTypeSlug, start, attendeeName, att
       name: attendeeName,
       email: attendeeEmail || `manual+${Date.now()}@studio.local`,
       timeZone: 'America/Fortaleza',
+      ...(phoneNumber ? { phoneNumber } : {}),
     },
-    metadata: { ...metadata, adminCreated },
+    metadata: normalizeMetadata({ ...metadata, adminCreated }),
+    allowConflicts: true,
+    allowBookingOutOfBounds: true,
   };
+
+  if (lengthInMinutes) {
+    body.lengthInMinutes = lengthInMinutes;
+  }
 
   console.log('[calService] Criando booking no Cal.com:', { eventTypeSlug, start, attendeeName });
 

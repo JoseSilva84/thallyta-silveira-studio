@@ -2,7 +2,7 @@ import prisma from '../config/prisma.js';
 import { findServiceById, services } from '../data/services.js';
 import { createCalBooking } from './calService.js';
 
-const DEFAULT_SYNC_INTERVAL_MINUTES = 10;
+const DEFAULT_SYNC_INTERVAL_MINUTES = 2;
 const DEFAULT_SYNC_LIMIT = 10;
 
 const minutesToMs = (minutes) => minutes * 60 * 1000;
@@ -74,7 +74,9 @@ export const syncBookingToCalById = async (bookingId) => {
     start: new Date(booking.scheduledAt).toISOString(),
     attendeeName: booking.attendeeName || booking.user?.name || 'Cliente',
     attendeeEmail: booking.attendeeEmail || booking.user?.email,
+    attendeePhone: booking.attendeePhone || booking.user?.whatsappPhone,
     notes,
+    lengthInMinutes: service.durationMin || 60,
     adminCreated: true,
     metadata: {
       bookingId: booking.id,
@@ -120,6 +122,21 @@ export const syncFallbackBookingsToCal = async (bookings) => {
       const updated = await syncBookingToCalById(booking.id);
       updatedById.set(updated.id, updated);
     } catch (error) {
+      const calPayload = {
+        ...(booking.calPayload || {}),
+        calendarFallback: true,
+        calBookingError: error.message || 'Erro ao sincronizar com Cal.com.',
+        lastCalSyncAttemptAt: new Date().toISOString(),
+      };
+      await prisma.booking.update({
+        where: { id: booking.id },
+        data: { calPayload },
+      }).catch((updateError) => {
+        console.error('Erro ao registrar falha de sincronizacao com Cal.com:', {
+          bookingId: booking.id,
+          error: updateError.message,
+        });
+      });
       console.error('Sincronizacao automatica com Cal.com falhou:', {
         bookingId: booking.id,
         calEventId: booking.calEventId,
