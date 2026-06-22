@@ -798,7 +798,18 @@ export default function Booking({ embedded = false } = {}) {
 
                   {/* Resumo e botão */}
                   <div className="rounded-[2rem] border border-gold/20 bg-gradient-to-b from-dark-card/90 to-dark/95 p-6 shadow-2xl backdrop-blur-md md:p-8">
-                    <h3 className="font-display text-2xl">Resumo</h3>
+                    <div className="flex items-center justify-between gap-3">
+                      <h3 className="font-display text-2xl">Resumo</h3>
+                      <button
+                        type="button"
+                        onClick={handleProceed}
+                        disabled={creatingPayment || confirmingPayment}
+                        className="gold-button flex shrink-0 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-[0.68rem] font-bold uppercase tracking-wider shadow-[0_0_16px_rgba(0,0,0,0.25)] disabled:cursor-not-allowed disabled:opacity-60 sm:hidden"
+                      >
+                        {creatingPayment || confirmingPayment ? <FiLoader className="text-base animate-spin" /> : <FiCreditCard className="text-base" />}
+                        {preferredSlot?.start ? 'Pagar' : 'Data'}
+                      </button>
+                    </div>
                     <div className="mt-4 space-y-3 rounded-xl border border-white/5 bg-white/5 p-5 text-sm">
                       <div>
                         <span className="block text-xs font-bold uppercase tracking-wider text-gold-light/80">Serviço Selecionado</span>
