@@ -513,7 +513,10 @@ export default function Booking({ embedded = false } = {}) {
           return
         }
 
-        const query = paymentId ? `?payment_id=${encodeURIComponent(paymentId)}` : ''
+        const confirmParams = new URLSearchParams()
+        if (paymentId) confirmParams.set('payment_id', paymentId)
+        if (preferredSlot?.start) confirmParams.set('start', preferredSlot.start)
+        const query = confirmParams.toString() ? `?${confirmParams.toString()}` : ''
         const res = await fetch(`${API}/payments/booking/${bookingPaymentId}/confirm${query}`, {
           headers: { Authorization: `Bearer ${token}` },
         })
@@ -568,7 +571,10 @@ export default function Booking({ embedded = false } = {}) {
         const storedPaymentId = window.localStorage?.getItem(PENDING_PAYMENT_STORAGE_KEY)
 
         if (storedPaymentId) {
-          const confirmRes = await fetch(`${API}/payments/booking/${storedPaymentId}/confirm`, {
+          const confirmParams = new URLSearchParams()
+          if (preferredSlot?.start) confirmParams.set('start', preferredSlot.start)
+          const query = confirmParams.toString() ? `?${confirmParams.toString()}` : ''
+          const confirmRes = await fetch(`${API}/payments/booking/${storedPaymentId}/confirm${query}`, {
             headers: { Authorization: `Bearer ${token}` },
           })
           const confirmData = await confirmRes.json().catch(() => ({}))

@@ -171,6 +171,45 @@ const getBookingInclude = {
   payment: true,
 };
 
+const attachScheduleToPayment = async (payment, startInput) => {
+  if (!payment || payment.scheduledAt || !startInput) return payment;
+
+  const service = findServiceById(payment.serviceId);
+  if (!service) return payment;
+
+  const scheduledAt = new Date(startInput);
+  if (Number.isNaN(scheduledAt.getTime())) return payment;
+
+  const endTime = new Date(scheduledAt.getTime() + (service.durationMin || 60) * 60 * 1000);
+  const validation = validateBookingWindow(scheduledAt, endTime);
+
+  if (!validation.valid) {
+    const error = new Error(validation.reason);
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (await hasScheduleConflict(prisma, scheduledAt, endTime, { excludePaymentId: payment.id })) {
+    const error = new Error('Este horario nao comporta a duracao desse servico porque interfere em outro agendamento. Escolha outro dia ou horario.');
+    error.statusCode = 409;
+    throw error;
+  }
+
+  return prisma.bookingPayment.update({
+    where: { id: payment.id },
+    data: {
+      scheduledAt,
+      endTime,
+      holdExpiresAt: new Date(Date.now() + PAYMENT_HOLD_MINUTES * 60 * 1000),
+      metadata: {
+        ...(payment.metadata || {}),
+        recoveredScheduleFromClient: true,
+      },
+    },
+    include: { booking: true, user: true },
+  });
+};
+
 const buildConfirmedBookingFromPayment = async (payment) => {
   const hydratedPayment = payment.booking
     ? payment
@@ -535,12 +574,14 @@ export const confirmBookingPayment = async (req, res) => {
 
     let updated = bookingPayment;
     const mercadoPagoPaymentId = getValidId(req.query.payment_id || req.query.collection_id);
+    const recoveredStart = getValidId(req.query.start);
     updated = await syncBookingPaymentWithMercadoPago(bookingPayment, mercadoPagoPaymentId);
 
     const approved = updated.status === 'approved' && updated.amount >= updated.minimumAmount;
     let booking = bookingPayment.booking || null;
 
     if (approved && !booking) {
+      updated = await attachScheduleToPayment(updated, recoveredStart);
       booking = await buildConfirmedBookingFromPayment(updated);
     }
 
