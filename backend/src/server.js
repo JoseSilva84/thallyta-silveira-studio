@@ -12,6 +12,7 @@ import testimonialRoutes from './routes/testimonialRoutes.js';
 import scheduleBlockRoutes from './routes/scheduleBlockRoutes.js';
 import financeRoutes from './routes/financeRoutes.js';
 import { startBookingReminderService } from './services/bookingReminderService.js';
+import { startCalFallbackSyncService } from './services/calSyncService.js';
 
 dotenv.config();
 
@@ -69,4 +70,5 @@ app.get('/api/health', (_req, res) => res.json({ status: 'ok', timestamp: new Da
 app.listen(PORT, () => {
   console.log(`✅ Servidor rodando na porta ${PORT}`);
   startBookingReminderService();
+  startCalFallbackSyncService();
 });

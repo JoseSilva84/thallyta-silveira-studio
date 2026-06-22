@@ -417,6 +417,21 @@ export default function AdminPanel() {
     });
   };
 
+  const handleSyncBookingToCal = async (booking) => {
+    try {
+      const res = await fetch(`${API}/bookings/${booking.id}/sync-cal`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Erro ao enviar para o Cal.com');
+      updateBookingInList(data);
+      toast.success('Agendamento enviado para o Cal.com.');
+    } catch (error) {
+      toast.error(error.message || 'Erro ao enviar para o Cal.com.');
+    }
+  };
+
   const handleSaveTestimonial = async (e) => {
     e.preventDefault();
     const name = testimonialForm.name.trim();
@@ -700,6 +715,7 @@ export default function AdminPanel() {
                 onUndoCompleteService={handleUndoCompleteService}
                 onMarkNoShow={handleMarkNoShow}
                 onMarkRemainingPaid={handleMarkRemainingPaid}
+                onSyncBookingToCal={handleSyncBookingToCal}
               />
             )}
           </div>
@@ -994,7 +1010,7 @@ function showConfirmToast({ message, confirmLabel = 'Confirmar', cancelLabel = '
   });
 }
 
-function BookingsTable({ bookings, fetching, statusFilter, statusBadge, onCompleteService, onUndoCompleteService, onMarkNoShow, onMarkRemainingPaid }) {
+function BookingsTable({ bookings, fetching, statusFilter, statusBadge, onCompleteService, onUndoCompleteService, onMarkNoShow, onMarkRemainingPaid, onSyncBookingToCal }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-gold/20 bg-black/40 backdrop-blur-md">
       {fetching ? (
@@ -1035,12 +1051,14 @@ function BookingsTable({ bookings, fetching, statusFilter, statusBadge, onComple
                     <td className="max-w-[200px] px-4 py-3">
                       <span className="block truncate text-sm text-cream/80" title={booking.service}>{booking.service}</span>
                       {calendarFallback && (
-                        <span
-                          className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-400/10 px-2.5 py-1 text-[0.65rem] font-bold uppercase tracking-wider text-amber-200"
-                          title={booking.calPayload?.calBookingError || 'O agendamento foi salvo no sistema, mas nao foi criado no Cal.com.'}
+                        <button
+                          type="button"
+                          onClick={() => onSyncBookingToCal?.(booking)}
+                          className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-400/10 px-2.5 py-1 text-[0.65rem] font-bold uppercase tracking-wider text-amber-200 transition-colors hover:bg-amber-400/20"
+                          title={booking.calPayload?.calBookingError || 'O sistema tenta enviar automaticamente. Clique apenas se quiser tentar novamente agora.'}
                         >
-                          <FiAlertTriangle className="size-3" /> Revisar Cal.com
-                        </span>
+                          <FiAlertTriangle className="size-3" /> Tentar Cal.com
+                        </button>
                       )}
                     </td>
                     <td className="px-4 py-3 text-sm text-cream/70 whitespace-nowrap">

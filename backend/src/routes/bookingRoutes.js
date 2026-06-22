@@ -9,6 +9,7 @@ import {
   getPublicAgenda,
   markRemainingPaymentPaid,
   markBookingNoShow,
+  syncBookingToCal,
   undoBookingServiceCompletion,
 } from '../controllers/bookingController.js';
 import { verifyAdmin, verifyToken } from '../middleware/authMiddleware.js';
@@ -24,6 +25,7 @@ router.get('/:id', verifyToken, getBookingById);
 router.post('/:id/cancel', verifyToken, cancelBooking);
 router.post('/:id/complete-service', verifyToken, verifyAdmin, completeBookingService);
 router.post('/:id/mark-remaining-paid', verifyToken, verifyAdmin, markRemainingPaymentPaid);
+router.post('/:id/sync-cal', verifyToken, verifyAdmin, syncBookingToCal);
 router.post('/:id/no-show', verifyToken, verifyAdmin, markBookingNoShow);
 router.post('/:id/undo-complete-service', verifyToken, verifyAdmin, undoBookingServiceCompletion);
 

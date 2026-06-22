@@ -1,5 +1,6 @@
 import prisma from '../config/prisma.js';
 import { createCalBooking } from '../services/calService.js';
+import { syncBookingToCalById } from '../services/calSyncService.js';
 import { findServiceById } from '../data/services.js';
 import { notifyBookingCreated } from '../services/whatsappService.js';
 import { buildPublicAgendaDays, validateBookingWindow } from '../utils/bookingHours.js';
@@ -314,6 +315,20 @@ export const getBookingById = async (req, res) => {
 const canAccessBooking = (req, booking) => {
   if (req.user.role === 'ADMIN') return true;
   return booking.userId === req.user.id || booking.attendeeEmail === req.user.email;
+};
+
+export const syncBookingToCal = async (req, res) => {
+  try {
+    if (req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Acesso negado. Apenas administradores.' });
+    }
+
+    const updated = await syncBookingToCalById(req.params.id);
+    res.json(updated);
+  } catch (error) {
+    console.error('Erro ao sincronizar agendamento com Cal.com:', error);
+    res.status(error.statusCode || 502).json({ error: error.message || 'Erro ao sincronizar com Cal.com.' });
+  }
 };
 
 const cancelOnCal = async (booking) => {

@@ -11,20 +11,20 @@ function calHeaders() {
   return {
     'Content-Type': 'application/json',
     Accept: 'application/json',
-    'cal-api-version': process.env.CAL_API_VERSION || '2024-08-13',
+    'cal-api-version': process.env.CAL_API_VERSION || '2026-02-25',
     Authorization: `Bearer ${process.env.CAL_API_KEY}`,
   };
 }
 
 const stringifyCalError = (value) => {
-  if (!value) return ''
-  if (typeof value === 'string') return value
+  if (!value) return '';
+  if (typeof value === 'string') return value;
   try {
-    return JSON.stringify(value)
+    return JSON.stringify(value);
   } catch {
-    return String(value)
+    return String(value);
   }
-}
+};
 
 /**
  * Creates a booking on Cal.com via the API v2.
@@ -53,10 +53,6 @@ export async function createCalBooking({ eventTypeSlug, start, attendeeName, att
     },
     metadata: { ...metadata, adminCreated },
   };
-
-  if (notes) {
-    body.responses = { notes: { value: notes } };
-  }
 
   console.log('[calService] Criando booking no Cal.com:', { eventTypeSlug, start, attendeeName });
 
