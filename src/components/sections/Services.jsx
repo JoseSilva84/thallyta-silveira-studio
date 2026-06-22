@@ -20,7 +20,7 @@ export default function Services() {
   return (
     <section id="servicos" className="premium-section py-10 md:py-14">
       <div className="section-shell">
-        {/* <SectionTitle eyebrow="Serviços" title="Escolha seu próximo cuidado" text="Selecione um serviço, confira o horário escolhido e siga para o pagamento." /> */}
+        <SectionTitle eyebrow="Serviços" title="Escolha seu próximo cuidado" />
         <Reveal>
           <div className="relative">
             <div className="absolute -inset-4 z-0 rounded-[3rem] bg-gradient-to-b from-gold/10 to-transparent opacity-50 blur-2xl"></div>
