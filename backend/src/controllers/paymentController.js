@@ -65,6 +65,35 @@ const mercadoPagoRequest = async (path, options = {}) => {
   return data;
 };
 
+const findMercadoPagoPaymentByExternalReference = async (externalReference) => {
+  if (!externalReference) return null;
+
+  const params = new URLSearchParams({
+    external_reference: externalReference,
+    sort: 'date_created',
+    criteria: 'desc',
+  });
+  const data = await mercadoPagoRequest(`/v1/payments/search?${params.toString()}`);
+  const results = Array.isArray(data?.results) ? data.results : [];
+
+  return results.find((payment) => payment.status === 'approved') || results[0] || null;
+};
+
+const syncBookingPaymentWithMercadoPago = async (bookingPayment, mercadoPagoPaymentId = null) => {
+  if (!bookingPayment) return null;
+  if (bookingPayment.status === 'approved' && bookingPayment.amount >= bookingPayment.minimumAmount) {
+    return bookingPayment;
+  }
+
+  const mercadoPagoPayment = mercadoPagoPaymentId
+    ? await mercadoPagoRequest(`/v1/payments/${mercadoPagoPaymentId}`)
+    : await findMercadoPagoPaymentByExternalReference(bookingPayment.externalReference);
+
+  if (!mercadoPagoPayment?.id) return bookingPayment;
+
+  return markPaymentFromMercadoPago(bookingPayment, mercadoPagoPayment);
+};
+
 const serializePayment = (payment) => ({
   id: payment.id,
   status: payment.status,
@@ -213,20 +242,29 @@ export const getPendingSchedulePayment = async (req, res) => {
     const payment = await prisma.bookingPayment.findFirst({
       where: {
         userId: req.user.id,
-        status: 'approved',
+        scheduledAt: {
+          not: null,
+        },
+        status: {
+          in: ['pending', 'approved'],
+        },
       },
-      include: { booking: true },
-      orderBy: { approvedAt: 'desc' },
+      include: { booking: true, user: true },
+      orderBy: { createdAt: 'desc' },
     });
 
-    if (!payment || payment.amount < payment.minimumAmount) {
+    if (!payment) {
       return res.json({ payment: null, canSchedule: false });
     }
 
+    const synced = await syncBookingPaymentWithMercadoPago(payment);
+    const approved = synced.status === 'approved' && synced.amount >= synced.minimumAmount;
+    const booking = payment.booking || (approved ? await buildConfirmedBookingFromPayment(synced) : null);
+
     res.json({
-      payment: serializePayment(payment),
-      booking: serializeBookingSummary(payment.booking),
-      canSchedule: Boolean(payment.booking),
+      payment: serializePayment(synced),
+      booking: serializeBookingSummary(booking),
+      canSchedule: Boolean(booking),
     });
   } catch (error) {
     console.error('Erro ao buscar pagamento pendente de agendamento:', error);
@@ -425,11 +463,7 @@ export const confirmBookingPayment = async (req, res) => {
 
     let updated = bookingPayment;
     const mercadoPagoPaymentId = getValidId(req.query.payment_id || req.query.collection_id);
-
-    if (mercadoPagoPaymentId) {
-      const mercadoPagoPayment = await mercadoPagoRequest(`/v1/payments/${mercadoPagoPaymentId}`);
-      updated = await markPaymentFromMercadoPago(bookingPayment, mercadoPagoPayment);
-    }
+    updated = await syncBookingPaymentWithMercadoPago(bookingPayment, mercadoPagoPaymentId);
 
     const approved = updated.status === 'approved' && updated.amount >= updated.minimumAmount;
     let booking = bookingPayment.booking || null;

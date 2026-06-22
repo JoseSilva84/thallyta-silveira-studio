@@ -591,6 +591,8 @@ export default function Booking({ embedded = false } = {}) {
     }
 
     restorePendingSchedule()
+    const interval = window.setInterval(restorePendingSchedule, 10000)
+    return () => window.clearInterval(interval)
   }, [bookingConfirmed, fetchBookings, getToken, showCal, showConfirmedBooking, user])
 
   const handleNewBooking = () => {
