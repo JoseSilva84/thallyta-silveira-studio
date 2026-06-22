@@ -116,6 +116,7 @@ export default function Booking() {
   const [isCalFrameLoaded, setIsCalFrameLoaded] = useState(false)
   const [bookingPayment, setBookingPayment] = useState(null)
   const [creatingPayment, setCreatingPayment] = useState(false)
+  const [redirectingToPayment, setRedirectingToPayment] = useState(false)
   const [confirmingPayment, setConfirmingPayment] = useState(false)
   const [preferredSlot, setPreferredSlot] = useState(() => readPreferredSlot())
   const [confirmingSelectedSlot, setConfirmingSelectedSlot] = useState(false)
@@ -152,6 +153,7 @@ export default function Booking() {
     setBookingConfirmed(false)
     setConfirmedSummary(null)
     setBookingPayment(null)
+    setRedirectingToPayment(false)
     setPreferredSlot(null)
     setIsPaymentUnlocked(false)
     clearCheckoutDraft()
@@ -358,6 +360,11 @@ export default function Booking() {
       return toast.info('Entre na sua conta para agendar.')
     }
 
+    const hasSelectedSlot = Boolean(preferredSlot?.start)
+    if (hasSelectedSlot) {
+      setRedirectingToPayment(true)
+      toast.info('Horario selecionado. Redirecionando para o pagamento...')
+    }
     setCreatingPayment(true)
     try {
       const res = await fetch(`${API}/payments/booking-preference`, {
@@ -380,11 +387,12 @@ export default function Booking() {
       clearCheckoutDraft()
       window.location.href = data.initPoint || data.sandboxInitPoint
     } catch (error) {
+      setRedirectingToPayment(false)
       toast.error(error.message)
     } finally {
       setCreatingPayment(false)
     }
-  }, [getToken, paymentType, selectedService, selectedServices.length, setLoginOpen, user])
+  }, [getToken, paymentType, preferredSlot?.start, selectedService, selectedServices.length, setLoginOpen, user])
 
   useEffect(() => {
     if (scheduleRequestId === lastScheduleRequest.current) return
@@ -625,6 +633,23 @@ export default function Booking() {
           <div className="relative">
             <div className="absolute -inset-4 z-0 rounded-[3rem] bg-gradient-to-b from-gold/10 to-transparent opacity-40 blur-2xl"></div>
             <div className="gold-border relative z-10 overflow-hidden rounded-[2.5rem] bg-black/40 p-5 backdrop-blur-xl md:p-8 lg:p-12">
+
+              {redirectingToPayment && (
+                <div className="mb-8 rounded-2xl border border-gold/30 bg-gold/10 p-5 text-center shadow-[0_0_24px_rgba(217,177,92,0.16)]">
+                  <FiLoader className="mx-auto h-8 w-8 animate-spin text-gold-light" />
+                  <h3 className="mt-3 font-display text-2xl font-semibold text-gold-light">
+                    Redirecionando para o pagamento
+                  </h3>
+                  <p className="mt-2 text-sm text-cream/70">
+                    Seu dia e horario ja foram selecionados. Estamos abrindo o Mercado Pago para concluir a reserva.
+                  </p>
+                  {preferredSlot?.start && (
+                    <p className="mt-3 text-sm font-semibold text-cream">
+                      {formatPreferredSlotDate(preferredSlot)} as {preferredSlot.time}
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* Barra de progresso */}
               <div className="mb-10 grid grid-cols-3 gap-3">
