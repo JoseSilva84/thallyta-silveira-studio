@@ -70,7 +70,7 @@ export default function QuickBookingPage() {
   const [confirmedBooking, setConfirmedBooking] = useState(null)
   const [confirmedPayment, setConfirmedPayment] = useState(null)
 
-  const serviceIdForAgenda = selectedService?.id || ''
+  const serviceIdForAgenda = selectedSlot && selectedService?.id ? selectedService.id : ''
   const total = servicePriceValue(selectedService)
   const deposit = Math.round(total * 30) / 100
   const amountToPay = paymentType === 'full' ? total : deposit
@@ -80,7 +80,30 @@ export default function QuickBookingPage() {
   const visibleDays = days.slice(dateStart, dateStart + DATE_PAGE_SIZE)
   const selectedDay = days.find((day) => day.key === selectedDate) || days.find((day) => day.availableSlots.length > 0) || days[0]
   const nextAvailableDay = days.find((day) => day.availableSlots.length > 0 && day.key !== selectedDay?.key)
-  const currentStep = confirmedBooking ? 5 : selectedService ? 4 : user && selectedSlot ? 3 : selectedSlot ? 2 : 1
+  const pageStep = confirmedBooking
+    ? 'confirmed'
+    : !selectedSlot
+      ? 'agenda'
+      : !user
+        ? 'login'
+        : !selectedService
+          ? 'service'
+          : 'summary'
+  const currentStep = pageStep === 'confirmed' ? 5 : pageStep === 'summary' ? 4 : pageStep === 'service' ? 3 : pageStep === 'login' ? 2 : 1
+  const pageTitle = {
+    agenda: 'Escolha seu horario',
+    login: 'Entre para continuar',
+    service: 'Escolha o servico',
+    summary: 'Revise e pague',
+    confirmed: 'Agendamento confirmado',
+  }[pageStep]
+  const pageSubtitle = {
+    agenda: 'Selecione o melhor dia e horario disponivel.',
+    login: 'Acesse sua conta para reservar esse horario.',
+    service: 'Escolha o cuidado que deseja agendar.',
+    summary: 'Confira os dados e escolha como deseja pagar.',
+    confirmed: 'Seu horario foi reservado com sucesso.',
+  }[pageStep]
 
   const fetchAgenda = useCallback(async () => {
     setLoadingAgenda(true)
@@ -123,10 +146,13 @@ export default function QuickBookingPage() {
   }, [])
 
   useEffect(() => {
-    if (selectedDate || !days.length) return
+    if (!days.length || selectedSlot) return
     const firstAvailable = days.find((day) => day.availableSlots.length > 0)
-    setSelectedDate((firstAvailable || days[0]).key)
-  }, [days, selectedDate])
+    const currentDay = days.find((day) => day.key === selectedDate)
+    if (!selectedDate || (firstAvailable && !currentDay?.availableSlots?.length)) {
+      setSelectedDate((firstAvailable || days[0]).key)
+    }
+  }, [days, selectedDate, selectedSlot])
 
   useEffect(() => {
     if (!selectedDate || !days.length) return
@@ -283,9 +309,30 @@ export default function QuickBookingPage() {
     fetchAgenda()
   }
 
+  const goBack = () => {
+    if (pageStep === 'summary') {
+      setSelectedService(null)
+      writeQuickDraft({ slot: selectedSlot, paymentType })
+      return
+    }
+    if (pageStep === 'service' || pageStep === 'login') {
+      setSelectedSlot(null)
+      setSelectedService(null)
+      writeQuickDraft({ paymentType })
+      return
+    }
+    if (pageStep === 'confirmed') {
+      resetFlow()
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-dark text-cream">
-      <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top,rgba(217,177,92,0.18),transparent_34%),linear-gradient(180deg,rgba(15,12,9,0.9),rgba(6,5,4,1))]" />
+    <div className="relative min-h-screen overflow-hidden text-cream">
+      <div className="fixed inset-0 -z-20">
+        <img src="/studio-01.jpeg" alt="" className="h-full w-full object-cover opacity-45 blur-sm scale-105" />
+        <div className="absolute inset-0 bg-gradient-to-b from-dark/82 via-dark/72 to-dark/92" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(217,177,92,0.22),transparent_38%)]" />
+      </div>
 
       <header className="sticky top-0 z-40 border-b border-gold/15 bg-dark/90 backdrop-blur-xl">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-4">
@@ -305,10 +352,15 @@ export default function QuickBookingPage() {
       <main className="mx-auto max-w-5xl px-4 pb-24 pt-6">
         <section className="mb-6">
           <p className="text-xs font-bold uppercase tracking-[0.24em] text-gold-light/70">Direto ao ponto</p>
-          <h1 className="mt-2 font-display text-4xl text-cream md:text-5xl">Escolha seu horario</h1>
+          <h1 className="mt-2 font-display text-4xl text-cream md:text-5xl">{pageTitle}</h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-cream/60">
-            Selecione dia e horario, entre na sua conta, escolha o servico e finalize a reserva com Mercado Pago.
+            {pageSubtitle}
           </p>
+          {pageStep !== 'agenda' && pageStep !== 'confirmed' && (
+            <button type="button" onClick={goBack} className="mt-4 inline-flex items-center gap-2 rounded-xl border border-gold/25 bg-black/25 px-4 py-2 text-sm font-semibold text-gold-light hover:bg-gold/10">
+              <FiArrowLeft /> Voltar
+            </button>
+          )}
         </section>
 
         {confirmingPayment && (
@@ -317,10 +369,9 @@ export default function QuickBookingPage() {
           </div>
         )}
 
-        {confirmedBooking ? (
+        {pageStep === 'confirmed' ? (
           <ConfirmationCard booking={confirmedBooking} payment={confirmedPayment} onNew={resetFlow} />
-        ) : (
-          <>
+        ) : pageStep === 'agenda' ? (
             <section className="gold-border rounded-[2rem] bg-black/35 p-4 backdrop-blur-xl md:p-6">
               <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -412,7 +463,15 @@ export default function QuickBookingPage() {
                     <p className="font-display text-3xl text-cream">Sem horarios livres</p>
                     <p className="mt-2 text-sm text-cream/55">Escolha outra data ou avance para o proximo dia disponivel.</p>
                     {nextAvailableDay && (
-                      <button type="button" onClick={() => setSelectedDate(nextAvailableDay.key)} className="gold-button mt-5 rounded-xl px-5 py-3 text-sm font-bold">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedDate(nextAvailableDay.key)
+                          const index = days.findIndex((day) => day.key === nextAvailableDay.key)
+                          if (index >= 0) setDateStart(Math.floor(index / DATE_PAGE_SIZE) * DATE_PAGE_SIZE)
+                        }}
+                        className="gold-button mt-5 rounded-xl px-5 py-3 text-sm font-bold"
+                      >
                         Proximo dia disponivel
                       </button>
                     )}
@@ -420,7 +479,20 @@ export default function QuickBookingPage() {
                 )}
               </div>
             </section>
-
+        ) : pageStep === 'login' ? (
+          <section className="gold-border mx-auto max-w-2xl rounded-[2rem] bg-black/35 p-5 text-center backdrop-blur-xl md:p-8">
+            <div className="mx-auto flex size-16 items-center justify-center rounded-full border border-gold/30 bg-gold/10 text-gold-light">
+              <FiCheckCircle className="size-8" />
+            </div>
+            <h2 className="mt-5 font-display text-4xl text-gold-light">Horario escolhido</h2>
+            <p className="mt-2 text-sm text-cream/60">
+              {selectedSlot ? `${formatLongDate(new Date(selectedSlot.start))} as ${selectedSlot.time}` : ''}
+            </p>
+            <button type="button" onClick={() => setLoginOpen(true)} className="gold-button mt-6 w-full rounded-xl px-6 py-4 text-sm font-bold uppercase tracking-wider">
+              Entrar para continuar
+            </button>
+          </section>
+        ) : pageStep === 'service' ? (
             <section id="quick-services" className="mt-6 scroll-mt-24 rounded-[2rem] border border-gold/20 bg-black/30 p-4 md:p-6">
               <div className="mb-4 flex items-center gap-3">
                 <FiScissors className="text-gold-light" />
@@ -456,7 +528,7 @@ export default function QuickBookingPage() {
                 })}
               </div>
             </section>
-
+        ) : (
             <section id="quick-summary" className="mt-6 scroll-mt-24 rounded-[2rem] border border-gold/20 bg-gradient-to-b from-dark-card/90 to-dark/95 p-4 md:p-6">
               <div className="mb-5 flex items-center gap-3">
                 <FiCreditCard className="text-gold-light" />
@@ -506,7 +578,6 @@ export default function QuickBookingPage() {
                 {creatingPayment ? 'Abrindo Mercado Pago...' : `Pagar ${selectedService ? money(amountToPay) : ''}`}
               </button>
             </section>
-          </>
         )}
       </main>
       <LoginModal />
