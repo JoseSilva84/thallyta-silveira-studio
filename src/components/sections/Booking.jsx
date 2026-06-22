@@ -690,41 +690,18 @@ export default function Booking({ embedded = false } = {}) {
 
     setConfirmingSelectedSlot(true)
     try {
-      const res = await fetch(`${API}/bookings/paid-create`, {
-        method: 'POST',
+      const confirmParams = new URLSearchParams({ start: preferredSlot.start })
+      const res = await fetch(`${API}/payments/booking/${bookingPayment.id}/confirm?${confirmParams.toString()}`, {
+        method: 'GET',
         headers: {
-          'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          paymentId: bookingPayment.id,
-          start: preferredSlot.start,
-        }),
       })
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || 'Nao foi possivel confirmar o horario.')
+      if (!res.ok) throw new Error(data.error || data.message || 'Nao foi possivel confirmar o horario.')
+      if (!data.booking) throw new Error(data.message || 'Pagamento aprovado, mas o agendamento ainda nao foi criado.')
 
-      const summary = {
-        services: data.service || bookingPayment.service?.name || servicesParam,
-        total: Number(data.estimatedValue || bookingPayment.servicePrice || totalEstimado),
-        name: user?.name || '',
-        email: user?.email || '',
-        whatsapp: user?.whatsappPhone || '',
-        date: preferredSlot.start,
-        time: preferredSlot.time,
-      }
-
-      setConfirmedSummary(summary)
-      setBookingConfirmed(true)
-      setIsBookingDetailsStep(false)
-      setShowCal(false)
-      setBookingPayment(null)
-      setPreferredSlot(null)
-      setIsPaymentUnlocked(false)
-      clearServices()
-      window.localStorage?.removeItem(PENDING_PAYMENT_STORAGE_KEY)
-      window.localStorage?.removeItem(PREFERRED_SLOT_STORAGE_KEY)
-      clearCheckoutDraft()
+      showConfirmedBooking(data.booking, data.payment)
       window.dispatchEvent(new Event('booking:updated'))
       fetchBookings(token)
       toast.success('Agendamento confirmado com sucesso!')
@@ -736,18 +713,11 @@ export default function Booking({ embedded = false } = {}) {
     }
   }, [
     bookingPayment,
-    clearServices,
     fetchBookings,
     getToken,
     preferredSlot,
-    servicesParam,
-    setIsBookingDetailsStep,
-    setIsPaymentUnlocked,
     setLoginOpen,
-    totalEstimado,
-    user?.email,
-    user?.name,
-    user?.whatsappPhone,
+    showConfirmedBooking,
   ])
 
   useEffect(() => {
