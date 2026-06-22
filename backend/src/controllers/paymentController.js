@@ -172,7 +172,7 @@ const getBookingInclude = {
 };
 
 const attachScheduleToPayment = async (payment, startInput) => {
-  if (!payment || payment.scheduledAt || !startInput) return payment;
+  if (!payment || !startInput) return payment;
 
   const service = findServiceById(payment.serviceId);
   if (!service) return payment;
@@ -181,6 +181,18 @@ const attachScheduleToPayment = async (payment, startInput) => {
   if (Number.isNaN(scheduledAt.getTime())) return payment;
 
   const endTime = new Date(scheduledAt.getTime() + (service.durationMin || 60) * 60 * 1000);
+  const currentStart = payment.scheduledAt ? new Date(payment.scheduledAt) : null;
+  const currentEnd = payment.endTime ? new Date(payment.endTime) : null;
+
+  if (
+    currentStart
+    && currentStart.getTime() === scheduledAt.getTime()
+    && currentEnd
+    && currentEnd.getTime() === endTime.getTime()
+  ) {
+    return payment;
+  }
+
   const validation = validateBookingWindow(scheduledAt, endTime);
 
   if (!validation.valid) {
@@ -237,7 +249,9 @@ const buildConfirmedBookingFromPayment = async (payment) => {
 
   const bookingConflict = await findConfirmedScheduleConflict(prisma, scheduledAt, endTime);
   if (bookingConflict) {
-    throw new Error('Este horario acabou de ficar indisponivel. Escolha outro horario.');
+    const error = new Error('Este horario acabou de ficar indisponivel. Escolha outro horario.');
+    error.statusCode = 409;
+    throw error;
   }
 
   const notes = [
@@ -248,24 +262,31 @@ const buildConfirmedBookingFromPayment = async (payment) => {
     '(Agendamento criado automaticamente pelo site apos pagamento)',
   ].filter(Boolean).join('\n');
 
-  const calBooking = await createCalBooking({
-    eventTypeSlug: service.calSlug || 'servicos-gerais',
-    start: scheduledAt.toISOString(),
-    attendeeName: hydratedPayment.user?.name || 'Cliente',
-    attendeeEmail: hydratedPayment.user?.email,
-    notes,
-    adminCreated: false,
-    metadata: {
-      bookingPaymentId: hydratedPayment.id,
-      serviceId: service.id,
-      serviceName: service.name,
-      serviceNames: service.name,
-      estimatedValue: service.price.toFixed(2),
-      attendeeWhatsapp: hydratedPayment.user?.whatsappPhone || '',
-      paymentType: hydratedPayment.paymentType,
-      paidAmount: hydratedPayment.amount.toFixed(2),
-    },
-  });
+  let calBooking;
+  try {
+    calBooking = await createCalBooking({
+      eventTypeSlug: service.calSlug || 'servicos-gerais',
+      start: scheduledAt.toISOString(),
+      attendeeName: hydratedPayment.user?.name || 'Cliente',
+      attendeeEmail: hydratedPayment.user?.email,
+      notes,
+      adminCreated: false,
+      metadata: {
+        bookingPaymentId: hydratedPayment.id,
+        serviceId: service.id,
+        serviceName: service.name,
+        serviceNames: service.name,
+        estimatedValue: service.price.toFixed(2),
+        attendeeWhatsapp: hydratedPayment.user?.whatsappPhone || '',
+        paymentType: hydratedPayment.paymentType,
+        paidAmount: hydratedPayment.amount.toFixed(2),
+      },
+    });
+  } catch (calError) {
+    const error = new Error(`Nao foi possivel reservar no calendario: ${calError.message}`);
+    error.statusCode = 502;
+    throw error;
+  }
 
   const booking = await prisma.booking.upsert({
     where: { calEventId: calBooking.uid },
