@@ -295,27 +295,48 @@ export const getPendingSchedulePayment = async (req, res) => {
     }
 
     let latestSynced = null;
+    let lastSyncError = null;
 
     for (const payment of payments) {
-      const synced = await syncBookingPaymentWithMercadoPago(payment);
-      latestSynced ||= synced;
+      try {
+        const synced = await syncBookingPaymentWithMercadoPago(payment);
+        latestSynced ||= synced;
 
-      const approved = synced.status === 'approved' && synced.amount >= synced.minimumAmount;
-      const booking = payment.booking || (approved ? await buildConfirmedBookingFromPayment(synced) : null);
+        const approved = synced.status === 'approved' && synced.amount >= synced.minimumAmount;
+        const booking = payment.booking || (approved ? await buildConfirmedBookingFromPayment(synced) : null);
 
-      if (booking) {
-        return res.json({
-          payment: serializePayment(synced),
-          booking: serializeBookingSummary(booking),
-          canSchedule: true,
+        if (booking) {
+          return res.json({
+            payment: serializePayment(synced),
+            booking: serializeBookingSummary(booking),
+            canSchedule: true,
+          });
+        }
+      } catch (syncError) {
+        lastSyncError = syncError;
+        console.error('Erro ao sincronizar tentativa de pagamento pendente:', {
+          bookingPaymentId: payment.id,
+          preferenceId: payment.preferenceId,
+          externalReference: payment.externalReference,
+          error: syncError.message,
+          details: syncError.details,
         });
       }
+    }
+
+    if (!latestSynced && lastSyncError) {
+      return res.status(lastSyncError.statusCode || 502).json({
+        error: lastSyncError.message || 'Nao foi possivel consultar o Mercado Pago.',
+      });
     }
 
     res.json({
       payment: latestSynced ? serializePayment(latestSynced) : null,
       booking: null,
       canSchedule: false,
+      message: latestSynced?.status === 'approved'
+        ? 'Pagamento aprovado, mas o agendamento ainda nao foi criado.'
+        : 'Pagamento ainda nao aprovado pelo Mercado Pago.',
     });
   } catch (error) {
     console.error('Erro ao buscar pagamento pendente de agendamento:', error);

@@ -140,6 +140,7 @@ export default function Booking({ embedded = false } = {}) {
   const restoredCheckoutDraftRef = useRef(false)
   const autoProceedAfterLoginRef = useRef(false)
   const confirmingPaymentIdRef = useRef('')
+  const pendingPaymentErrorShownRef = useRef(false)
   const bookingSnapshotRef = useRef({
     services: '',
     total: 0,
@@ -583,6 +584,13 @@ export default function Booking({ embedded = false } = {}) {
           headers: { Authorization: `Bearer ${token}` },
         })
         const data = await res.json().catch(() => ({}))
+        if (!res.ok) {
+          if (!pendingPaymentErrorShownRef.current) {
+            pendingPaymentErrorShownRef.current = true
+            toast.error(data.error || 'Nao foi possivel consultar o pagamento pendente.')
+          }
+          return
+        }
         if (res.ok && data.booking) {
           showConfirmedBooking(data.booking, data.payment)
           fetchBookings(token)
