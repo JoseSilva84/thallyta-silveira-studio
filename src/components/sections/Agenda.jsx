@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { FiCalendar, FiClock, FiRefreshCw } from 'react-icons/fi'
+import { FiCalendar, FiChevronRight, FiClock, FiRefreshCw } from 'react-icons/fi'
 import Reveal from '../ui/Reveal.jsx'
 import SectionTitle from '../ui/SectionTitle.jsx'
 
@@ -133,16 +133,26 @@ export default function Agenda() {
                   ))}
                 </div>
 
-                <div className="agenda-date-strip mt-3 -mx-1 grid grid-flow-col grid-rows-2 gap-2 overflow-x-auto px-1 pb-2 sm:mx-0 sm:grid-flow-row sm:grid-cols-7 sm:grid-rows-none sm:overflow-visible sm:px-0 sm:pb-0">
-                  {days.slice(0, 14).map((day) => (
-                    <DateButton
-                      key={day.key}
-                      day={day}
-                      active={selectedDay?.key === day.key}
-                      loading={loading}
-                      onClick={() => setSelectedDate(day.key)}
-                    />
-                  ))}
+                <div className="agenda-scroll-wrap relative sm:static">
+                  <div className="agenda-date-strip mt-3 -mx-1 grid grid-flow-col grid-rows-2 gap-2 overflow-x-auto px-1 pb-3 sm:mx-0 sm:grid-flow-row sm:grid-cols-7 sm:grid-rows-none sm:overflow-visible sm:px-0 sm:pb-0">
+                    {days.slice(0, 14).map((day) => (
+                      <DateButton
+                        key={day.key}
+                        day={day}
+                        active={selectedDay?.key === day.key}
+                        loading={loading}
+                        onClick={() => setSelectedDate(day.key)}
+                      />
+                    ))}
+                  </div>
+                  <div className="agenda-scroll-cue pointer-events-none absolute inset-y-3 right-[-0.15rem] flex items-center sm:hidden" aria-hidden="true">
+                    <span className="agenda-scroll-cue-icon inline-flex h-9 w-9 items-center justify-center rounded-full border border-gold/35 bg-dark/80 text-gold-light shadow-[0_10px_24px_rgba(0,0,0,0.34)] backdrop-blur-md">
+                      <FiChevronRight />
+                    </span>
+                  </div>
+                  <div className="agenda-scroll-rail pointer-events-none mx-auto mt-1 h-1.5 w-20 rounded-full bg-white/10 sm:hidden" aria-hidden="true">
+                    <span className="agenda-scroll-thumb block h-full w-9 rounded-full bg-gold/70" />
+                  </div>
                 </div>
               </div>
 
