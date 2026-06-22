@@ -88,9 +88,9 @@ export default function Agenda() {
         />
 
         <Reveal>
-          <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4 md:p-6">
+          <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-3 sm:p-4 md:p-6">
             <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div className="flex flex-wrap gap-2 text-sm text-cream/65">
+              <div className="grid grid-cols-2 gap-2 text-[0.78rem] text-cream/65 sm:flex sm:flex-wrap sm:text-sm">
                 <span className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-black/20 px-3 py-2">
                   <FiClock className="text-gold" /> 09h30 as 18h
                 </span>
@@ -116,7 +116,7 @@ export default function Agenda() {
             )}
 
             <div className="grid gap-5 lg:grid-cols-[0.95fr_1fr]">
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+              <div className="rounded-2xl border border-white/10 bg-black/20 p-3 sm:p-4">
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <div>
                     <p className="text-xs font-bold uppercase tracking-wider text-gold-light/70">
@@ -127,13 +127,13 @@ export default function Agenda() {
                   <FiCalendar className="text-2xl text-gold-light" />
                 </div>
 
-                <div className="grid grid-cols-7 gap-2 text-center text-[0.68rem] font-bold uppercase tracking-wider text-cream/35">
+                <div className="hidden grid-cols-7 gap-2 text-center text-[0.68rem] font-bold uppercase tracking-wider text-cream/35 sm:grid">
                   {['S', 'T', 'Q', 'Q', 'S', 'S', 'D'].map((label, index) => (
                     <span key={`${label}-${index}`}>{label}</span>
                   ))}
                 </div>
 
-                <div className="mt-3 grid grid-cols-7 gap-2">
+                <div className="agenda-date-strip mt-3 -mx-1 grid grid-flow-col grid-rows-2 gap-2 overflow-x-auto px-1 pb-2 sm:mx-0 sm:grid-flow-row sm:grid-cols-7 sm:grid-rows-none sm:overflow-visible sm:px-0 sm:pb-0">
                   {days.slice(0, 14).map((day) => (
                     <DateButton
                       key={day.key}
@@ -146,7 +146,7 @@ export default function Agenda() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-gold/20 bg-gradient-to-b from-dark-card/85 to-dark/95 p-5">
+              <div className="rounded-2xl border border-gold/20 bg-gradient-to-b from-dark-card/85 to-dark/95 p-4 sm:p-5">
                 {selectedDay ? (
                   <>
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -223,7 +223,7 @@ function DateButton({ day, active, loading, onClick }) {
       type="button"
       onClick={onClick}
       disabled={loading}
-      className={`min-h-[4.25rem] rounded-xl border p-2 transition-colors disabled:cursor-wait disabled:opacity-60 ${
+      className={`min-h-[4.75rem] w-[4.9rem] shrink-0 rounded-xl border p-2 text-center transition-colors disabled:cursor-wait disabled:opacity-60 sm:w-auto sm:min-h-[4.25rem] ${
         active
           ? 'border-gold bg-gold text-dark shadow-[0_0_18px_rgba(217,177,92,0.25)]'
           : isUnavailable
@@ -234,7 +234,7 @@ function DateButton({ day, active, loading, onClick }) {
     >
       <span className="block text-[0.62rem] font-bold uppercase tracking-wider">{formatShortWeekday(day.date)}</span>
       <span className="mt-1 block font-display text-xl leading-none">{formatDayNumber(day.date)}</span>
-      <span className="mt-1 block text-[0.62rem] font-bold uppercase tracking-wider">
+      <span className="mt-1 block text-[0.58rem] font-bold uppercase leading-tight tracking-wider sm:text-[0.62rem]">
         {day.availableSlots.length > 0 ? `${day.availableSlots.length} vagas` : day.isBusinessDay ? 'lotado' : 'fechado'}
       </span>
     </button>
