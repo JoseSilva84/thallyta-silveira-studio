@@ -61,7 +61,7 @@ const clearQuickDraft = () => {
 }
 
 export default function QuickBookingPage() {
-  const { user, getToken, setLoginOpen } = useAuth()
+  const { user, getToken, setLoginOpen, logout } = useAuth()
   const userSelectedServiceRef = useRef(false)
   const [agendaDays, setAgendaDays] = useState([])
   const [agendaServiceId, setAgendaServiceId] = useState('')
@@ -413,19 +413,30 @@ export default function QuickBookingPage() {
           <div className="min-w-0 flex-1">
             <p className="font-display text-xl leading-tight text-gold-light">Thallyta Silveira</p>
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-cream/45">Agendamento rápido</p>
-            <button
-              type="button"
-              onClick={() => !user && setLoginOpen(true)}
-              className={`mt-2 max-w-full truncate rounded-full border px-3 py-1 text-[0.68rem] font-bold uppercase tracking-wider ${
-                user
-                  ? needsWhatsapp
-                    ? 'border-amber-300/30 bg-amber-300/10 text-amber-100'
-                    : 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100'
-                  : 'border-gold/25 bg-black/20 text-gold-light'
-              }`}
-            >
-              {user ? (needsWhatsapp ? 'Logado - falta WhatsApp' : `Logado: ${user.name || user.email}`) : 'Nao logado - entrar'}
-            </button>
+            <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => !user && setLoginOpen(true)}
+                className={`max-w-full truncate rounded-full border px-3 py-1 text-[0.68rem] font-bold uppercase tracking-wider ${
+                  user
+                    ? needsWhatsapp
+                      ? 'border-amber-300/30 bg-amber-300/10 text-amber-100'
+                      : 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100'
+                    : 'border-gold/25 bg-black/20 text-gold-light'
+                }`}
+              >
+                {user ? (needsWhatsapp ? 'Logado - falta WhatsApp' : `Logado: ${user.name || user.email}`) : 'Nao logado - entrar'}
+              </button>
+              {user && (
+                <button
+                  type="button"
+                  onClick={logout}
+                  className="rounded-full border border-red-300/25 bg-red-500/10 px-3 py-1 text-[0.68rem] font-bold uppercase tracking-wider text-red-100 transition-colors hover:bg-red-500/20"
+                >
+                  Sair
+                </button>
+              )}
+            </div>
           </div>
           <div className="flex size-11 shrink-0 items-center justify-center rounded-full border border-gold/30 bg-gold/10 font-display text-lg text-gold-light">
             {currentStep}
