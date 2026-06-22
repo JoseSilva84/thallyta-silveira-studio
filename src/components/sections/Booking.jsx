@@ -734,7 +734,7 @@ export default function Booking({ embedded = false } = {}) {
     }
   }, [servicesParam, totalEstimado, user?.email, user?.name, user?.whatsappPhone])
 
-  const shouldRenderEmbedded = !embedded || selectedServices.length > 0 || preferredSlot || bookingPayment || bookingConfirmed || creatingPayment || confirmingPayment
+  const shouldRenderEmbedded = !embedded || selectedServices.length > 0 || bookingPayment || bookingConfirmed || creatingPayment || confirmingPayment
   if (!shouldRenderEmbedded) return null
 
   return (

@@ -125,7 +125,7 @@ export default function Agenda() {
     window.localStorage?.setItem(PREFERRED_SLOT_STORAGE_KEY, JSON.stringify(payload))
     window.dispatchEvent(new CustomEvent('booking:slot-selected', { detail: payload }))
 
-    if (hasPendingPaidBooking()) {
+    if (hasPendingPaidBooking() || selectedServices.length > 0) {
       window.history.replaceState(null, '', '#servicos-checkout')
       window.setTimeout(() => {
         const checkout = document.getElementById('servicos-checkout')
@@ -141,7 +141,7 @@ export default function Agenda() {
     if (serviceCards) {
       window.scrollTo({ top: getServiceCardsScrollTop(serviceCards), behavior: 'smooth' })
     }
-  }, [])
+  }, [selectedServices])
 
   const selectDate = useCallback((dateKey) => {
     setSelectedDate(dateKey)
