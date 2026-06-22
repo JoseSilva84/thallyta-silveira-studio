@@ -66,7 +66,7 @@ export function AuthProvider({ children }) {
     const getPostLoginPath = () => {
       try {
         const draft = JSON.parse(localStorage.getItem(BOOKING_CHECKOUT_DRAFT_KEY) || 'null')
-        if (draft?.continueAfterLogin) return '/#agendamento'
+        if (draft?.continueAfterLogin) return '/#servicos'
       } catch {
         return '/'
       }

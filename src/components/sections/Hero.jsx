@@ -52,7 +52,7 @@ export default function Hero() {
             Cabeleireira e nail designer em Jaguaribe, com atendimento especializado em cabelos, alongamento de unhas e cuidados de beleza.
           </p>
           <div className="mt-6 flex flex-col sm:justify-center gap-3 sm:flex-row md:justify-start">
-            <a href="#agendamento" className="gold-button inline-flex items-center justify-center gap-2 rounded-md px-6 py-3 font-bold">
+            <a href="#servicos" className="gold-button inline-flex items-center justify-center gap-2 rounded-md px-6 py-3 font-bold">
               Começar Agendamento <FiArrowRight />
             </a>
             <a href="#sobre" className="tap-gold inline-flex items-center justify-center rounded-md border border-gold/40 bg-white/10 px-6 py-3 font-bold text-gold-light backdrop-blur hover:bg-white/15">

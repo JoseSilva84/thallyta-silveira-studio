@@ -97,7 +97,7 @@ function EmptyState() {
       <p className="mx-auto mt-2 max-w-md text-sm text-cream/60">
         Quando voce reservar um horario, ele aparece aqui para acompanhar ou cancelar.
       </p>
-      <Link to="/#agendamento" className="gold-button mt-6 inline-flex items-center gap-2 rounded-lg px-5 py-3 text-sm font-bold uppercase tracking-wider">
+      <Link to="/#servicos" className="gold-button mt-6 inline-flex items-center gap-2 rounded-lg px-5 py-3 text-sm font-bold uppercase tracking-wider">
         <FiCalendar /> Agendar agora
       </Link>
     </div>

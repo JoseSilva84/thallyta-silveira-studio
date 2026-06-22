@@ -15,10 +15,9 @@ import {
 
 const links = [
   ['Início', '#inicio'],
-  ['Serviços', '#servicos'],
   ['Galeria', '#galeria'],
   ['Agenda', '#agenda'],
-  ['Agendamento', '#agendamento'],
+  ['Serviços', '#servicos'],
   ['Fidelidade', '#fidelidade'],
   ['Dúvidas', '#duvidas'],
   ['Localização', '#localizacao'],
@@ -26,9 +25,9 @@ const links = [
 
 const mobileLinks = [
   ['Home', '#inicio', FiHome],
-  ['Serviços', '#servicos', FiGrid],
+  ['Galeria', '#galeria', FiGrid],
   ['Agenda', '#agenda', FiCalendar],
-  ['Agendar', '#agendamento', FiCalendar],
+  ['Serviços', '#servicos', FiCalendar],
   ['Perfil', '#fidelidade', FiUser],
 ]
 

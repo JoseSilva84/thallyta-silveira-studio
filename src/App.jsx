@@ -2,14 +2,12 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import Navbar from './components/layout/Navbar.jsx'
 import Footer from './components/layout/Footer.jsx'
 import FloatingButtons from './components/layout/FloatingButtons.jsx'
-import FloatingCart from './components/ui/FloatingCart.jsx'
 import Hero from './components/sections/Hero.jsx'
 import About from './components/sections/About.jsx'
 import Services from './components/sections/Services.jsx'
 import Gallery from './components/sections/Gallery.jsx'
 import Testimonials from './components/sections/Testimonials.jsx'
 import Agenda from './components/sections/Agenda.jsx'
-import Booking from './components/sections/Booking.jsx'
 import Loyalty from './components/sections/Loyalty.jsx'
 import Location from './components/sections/Location.jsx'
 import Duvidas from './components/sections/Duvidas.jsx'
@@ -36,7 +34,7 @@ function GoogleAuthCallback() {
     const getPostLoginPath = () => {
       try {
         const draft = JSON.parse(localStorage.getItem(BOOKING_CHECKOUT_DRAFT_KEY) || 'null')
-        if (draft?.continueAfterLogin) return '/#agendamento'
+        if (draft?.continueAfterLogin) return '/#servicos'
       } catch {
         return '/'
       }
@@ -68,18 +66,16 @@ function Home() {
       <main>
         <Hero />
         <About />
-        <Services />
         <Gallery />
         <Testimonials />
         <Agenda />
-        <Booking />
+        <Services />
         <Loyalty />
         <Duvidas />
         <Location />
       </main>
       <Footer />
       <FloatingButtons />
-      <FloatingCart />
     </>
   )
 }

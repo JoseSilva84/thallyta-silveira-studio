@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { FiPlus, FiChevronDown } from 'react-icons/fi'
 
-export default function ServiceCard({ service, onAdd }) {
+export default function ServiceCard({ service, onAdd, actionLabel = 'Adicionar' }) {
   const hasVariants = Array.isArray(service.variants) && service.variants.length > 0
   const [selectedVariant, setSelectedVariant] = useState(hasVariants ? service.variants[0] : null)
 
@@ -80,7 +80,7 @@ export default function ServiceCard({ service, onAdd }) {
           className="gold-button mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold shadow-[0_0_20px_rgba(0,0,0,0.3)] transition-all group-hover:shadow-[0_0_20px_rgba(217,177,92,0.2)]"
         >
           <FiPlus className="text-lg" aria-hidden="true" />
-          Adicionar
+          {actionLabel}
         </button>
       </div>
     </article>

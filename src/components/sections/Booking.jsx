@@ -95,7 +95,7 @@ const formatPreferredSlotDate = (slot) => {
   })
 }
 
-export default function Booking() {
+export default function Booking({ embedded = false } = {}) {
   const { user, setLoginOpen, getToken } = useAuth()
   const {
     selectedServices,
@@ -136,13 +136,14 @@ export default function Booking() {
     email: '',
     whatsapp: '',
   })
+  const bookingHash = embedded ? '#servicos' : '#agendamento'
 
   const focusBookingSection = useCallback(() => {
-    window.history.replaceState(null, '', '#agendamento')
+    window.history.replaceState(null, '', bookingHash)
     requestAnimationFrame(() => {
       sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     })
-  }, [])
+  }, [bookingHash])
 
   const resetScheduleState = useCallback(() => {
     isCalReadyRef.current = false
@@ -341,6 +342,10 @@ export default function Booking() {
     if (!selectedServices.length) {
       return toast.warn('Escolha pelo menos um serviço.')
     }
+    if (!preferredSlot?.start) {
+      document.getElementById('agenda')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      return toast.info('Escolha o dia e horario na agenda para continuar.')
+    }
     if (selectedService) {
       writeCheckoutDraft({
         serviceId: selectedService.id,
@@ -444,7 +449,7 @@ export default function Booking() {
     if (!token) return
 
     const cleanPaymentParams = () => {
-      window.history.replaceState(null, '', `${window.location.pathname}#agendamento`)
+      window.history.replaceState(null, '', `${window.location.pathname}${bookingHash}`)
     }
 
     const confirmPayment = async () => {
@@ -484,7 +489,7 @@ export default function Booking() {
     }
 
     confirmPayment()
-  }, [focusBookingSection, getToken, openScheduleFromPayment, user])
+  }, [bookingHash, focusBookingSection, getToken, openScheduleFromPayment, user])
 
   useEffect(() => {
     if (!user) {
@@ -625,10 +630,13 @@ export default function Booking() {
     }
   }, [servicesParam, totalEstimado, user?.email, user?.name, user?.whatsappPhone])
 
+  const shouldRenderEmbedded = !embedded || selectedServices.length > 0 || preferredSlot || bookingPayment || bookingConfirmed || creatingPayment || confirmingPayment
+  if (!shouldRenderEmbedded) return null
+
   return (
-    <section ref={sectionRef} id="agendamento" className="premium-section py-16 md:py-20">
-      <div className="section-shell">
-        <SectionTitle eyebrow="Agendamento" title="Reserve seu horário" text="Monte seu atendimento em poucos passos." />
+    <section ref={sectionRef} id={embedded ? 'servicos-checkout' : 'agendamento'} className={embedded ? 'mt-10 scroll-mt-28' : 'premium-section py-16 md:py-20'}>
+      <div className={embedded ? '' : 'section-shell'}>
+        {!embedded && <SectionTitle eyebrow="Agendamento" title="Reserve seu horário" text="Monte seu atendimento em poucos passos." />}
         <Reveal>
           <div className="relative">
             <div className="absolute -inset-4 z-0 rounded-[3rem] bg-gradient-to-b from-gold/10 to-transparent opacity-40 blur-2xl"></div>
@@ -750,6 +758,7 @@ export default function Booking() {
               ) : !showCal ? (
                 /* ─── PASSO 1: Seleção de Serviços ─── */
                 <div className="space-y-8">
+                  {!embedded && (
                   <section aria-labelledby="booking-services">
                     <h3 id="booking-services" className="mb-4 font-display text-3xl">1. Escolha seu serviço</h3>
                     <p className="mb-6 text-cream/60 text-sm">Selecione um serviço por agendamento para abrir a agenda com a duração correta.</p>
@@ -785,6 +794,7 @@ export default function Booking() {
                       })}
                     </div>
                   </section>
+                  )}
 
                   {/* Resumo e botão */}
                   <div className="rounded-[2rem] border border-gold/20 bg-gradient-to-b from-dark-card/90 to-dark/95 p-6 shadow-2xl backdrop-blur-md md:p-8">
@@ -845,7 +855,7 @@ export default function Booking() {
                       className="gold-button mt-6 flex w-full items-center justify-center gap-2 rounded-xl px-5 py-4 text-sm font-bold uppercase tracking-wider shadow-[0_0_20px_rgba(0,0,0,0.3)] transition-all hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(217,177,92,0.25)] disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {creatingPayment || confirmingPayment ? <FiLoader className="text-lg animate-spin" /> : <FiCreditCard className="text-lg" />}
-                      {creatingPayment ? 'Abrindo Mercado Pago...' : confirmingPayment ? 'Confirmando pagamento...' : 'Pagar e Liberar Agenda'}
+                      {creatingPayment ? 'Abrindo Mercado Pago...' : confirmingPayment ? 'Confirmando pagamento...' : preferredSlot?.start ? 'Pagar e Reservar' : 'Escolher Data e Horario'}
                     </button>
                   </div>
                 </div>
