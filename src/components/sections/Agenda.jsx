@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { FiCalendar, FiChevronLeft, FiChevronRight, FiClock, FiRefreshCw } from 'react-icons/fi'
+import { useBooking } from '../../context/BookingContext.jsx'
 import Reveal from '../ui/Reveal.jsx'
 import SectionTitle from '../ui/SectionTitle.jsx'
 
@@ -23,6 +24,7 @@ const getServiceCardsScrollTop = (element) => {
 const isMobileViewport = () => window.matchMedia('(max-width: 639px)').matches
 
 export default function Agenda() {
+  const { selectedServices } = useBooking()
   const [bookings, setBookings] = useState([])
   const [availabilityDays, setAvailabilityDays] = useState([])
   const [loading, setLoading] = useState(false)
@@ -31,12 +33,15 @@ export default function Agenda() {
   const [mobileDateStart, setMobileDateStart] = useState(0)
   const [desktopDateStart, setDesktopDateStart] = useState(0)
   const timeCardRef = useRef(null)
+  const selectedService = selectedServices[0] || null
 
   const fetchAgenda = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
-      const res = await fetch(`${API}/bookings/public-agenda?days=30`)
+      const params = new URLSearchParams({ days: '30' })
+      if (selectedService?.id) params.set('serviceId', selectedService.id)
+      const res = await fetch(`${API}/bookings/public-agenda?${params.toString()}`)
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || 'Erro ao carregar agenda.')
       setBookings(Array.isArray(data.bookings) ? data.bookings : [])
@@ -46,7 +51,7 @@ export default function Agenda() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [selectedService?.id])
 
   useEffect(() => {
     fetchAgenda()

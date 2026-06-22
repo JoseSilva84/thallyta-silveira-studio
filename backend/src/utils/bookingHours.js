@@ -115,9 +115,10 @@ const bookingOverlapsSlot = (booking, slotStart, slotEnd) => {
   return bookingStart < slotEnd && bookingEnd > slotStart;
 };
 
-export const buildPublicAgendaDays = (bookings, daysCount, nowInput = new Date()) => {
+export const buildPublicAgendaDays = (bookings, daysCount, nowInput = new Date(), slotDurationMinutes = SLOT_INTERVAL_MINUTES) => {
   const todayKey = getStudioDateTime(nowInput).dateKey;
   const minimumClientStart = new Date(nowInput.getTime() + MIN_CLIENT_LEAD_TIME_MINUTES * 60 * 1000);
+  const candidateDurationMinutes = Math.max(Number(slotDurationMinutes) || SLOT_INTERVAL_MINUTES, SLOT_INTERVAL_MINUTES);
   const windows = [
     [OPEN_MINUTES, LAST_MORNING_SLOT_START + SLOT_INTERVAL_MINUTES],
     [LUNCH_END_MINUTES, LAST_AFTERNOON_SLOT_START + SLOT_INTERVAL_MINUTES],
@@ -135,9 +136,10 @@ export const buildPublicAgendaDays = (bookings, daysCount, nowInput = new Date()
       for (const [windowStart, windowEnd] of windows) {
         for (let minutes = windowStart; minutes + SLOT_INTERVAL_MINUTES <= windowEnd; minutes += SLOT_INTERVAL_MINUTES) {
           const slotStart = localSlotToDate(dateKey, minutes);
-          const slotEnd = new Date(slotStart.getTime() + SLOT_INTERVAL_MINUTES * 60 * 1000);
+          const slotEnd = new Date(slotStart.getTime() + candidateDurationMinutes * 60 * 1000);
 
           if (slotStart <= minimumClientStart) continue;
+          if (!validateBookingWindow(slotStart, slotEnd).valid) continue;
           if (dayBookings.some((booking) => bookingOverlapsSlot(booking, slotStart, slotEnd))) continue;
 
           availableSlots.push({

@@ -47,6 +47,8 @@ export const getPublicAgenda = async (req, res) => {
     const days = Math.min(Math.max(Number(req.query.days) || 30, 1), 90);
     const now = new Date();
     const until = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+    const selectedService = req.query.serviceId ? findServiceById(req.query.serviceId) : null;
+    const slotDurationMinutes = selectedService?.durationMin || 30;
 
     const bookings = await prisma.booking.findMany({
       where: {
@@ -106,7 +108,9 @@ export const getPublicAgenda = async (req, res) => {
     res.json({
       generatedAt: now.toISOString(),
       days,
-      agendaDays: buildPublicAgendaDays(occupiedTimes, days, now),
+      serviceId: selectedService?.id || null,
+      slotDurationMinutes,
+      agendaDays: buildPublicAgendaDays(occupiedTimes, days, now, slotDurationMinutes),
       bookings: bookings.map((booking) => ({
         id: booking.id,
         service: booking.service,

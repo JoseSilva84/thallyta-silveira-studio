@@ -397,7 +397,7 @@ export const createBookingPreference = async (req, res) => {
     });
 
     if (await hasScheduleConflict(prisma, scheduledAt, endTime, { now })) {
-      return res.status(409).json({ error: 'Este horario acabou de ficar indisponivel. Escolha outro horario.' });
+      return res.status(409).json({ error: 'Este horario nao comporta a duracao desse servico porque interfere em outro agendamento. Escolha outro dia ou horario.' });
     }
 
     const servicePrice = roundMoney(service.price);
