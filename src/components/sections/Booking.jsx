@@ -150,7 +150,6 @@ export default function Booking({ embedded = false } = {}) {
   const confirmingPaymentIdRef = useRef('')
   const pendingPaymentErrorShownRef = useRef(false)
   const recoveredPaymentPromptedRef = useRef('')
-  const autoConfirmSlotRef = useRef('')
   const bookingSnapshotRef = useRef({
     services: '',
     total: 0,
@@ -752,16 +751,6 @@ export default function Booking({ embedded = false } = {}) {
   ])
 
   useEffect(() => {
-    if (!bookingPayment || !preferredSlot?.start || bookingConfirmed || confirmingSelectedSlot) return
-
-    const autoConfirmKey = `${bookingPayment.id}:${preferredSlot.start}`
-    if (autoConfirmSlotRef.current === autoConfirmKey) return
-
-    autoConfirmSlotRef.current = autoConfirmKey
-    handleConfirmSelectedSlot()
-  }, [bookingConfirmed, bookingPayment, confirmingSelectedSlot, handleConfirmSelectedSlot, preferredSlot?.start])
-
-  useEffect(() => {
     bookingSnapshotRef.current = {
       services: servicesParam,
       total: totalEstimado,
@@ -884,10 +873,13 @@ export default function Booking({ embedded = false } = {}) {
                 </div>
 
               ) : bookingPayment && preferredSlot ? (
-                <PaidSlotAutoConfirmation
+                <SelectedSlotConfirmation
                   bookingPayment={bookingPayment}
                   preferredSlot={preferredSlot}
+                  selectedServices={selectedServices}
                   confirming={confirmingSelectedSlot}
+                  onConfirm={handleConfirmSelectedSlot}
+                  onChooseCalendar={() => document.getElementById('agenda')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
                 />
               ) : bookingPayment ? (
                 <PaidSchedulePrompt
