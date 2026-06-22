@@ -12,6 +12,7 @@ export default function Agenda() {
   const [availabilityDays, setAvailabilityDays] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [selectedDay, setSelectedDay] = useState(null)
 
   const fetchAgenda = useCallback(async () => {
     setLoading(true)
@@ -111,7 +112,7 @@ export default function Agenda() {
 
             <div className="mt-6">
               {view === 'calendar' ? (
-                <AgendaCalendar days={days} loading={loading} />
+                <AgendaCalendar days={days} loading={loading} onOpenDay={setSelectedDay} />
               ) : (
                 <AgendaList days={days} loading={loading} />
               )}
@@ -119,11 +120,14 @@ export default function Agenda() {
           </div>
         </Reveal>
       </div>
+      {selectedDay && (
+        <AgendaDayModal day={selectedDay} onClose={() => setSelectedDay(null)} />
+      )}
     </section>
   )
 }
 
-function AgendaCalendar({ days, loading }) {
+function AgendaCalendar({ days, loading, onOpenDay }) {
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-7">
       {days.map((day) => (
@@ -149,7 +153,7 @@ function AgendaCalendar({ days, loading }) {
             ) : (
               <>
                 <p className="mb-2 text-xs font-bold uppercase tracking-wider text-emerald-200/80">Disponiveis</p>
-                <AvailableSlots slots={day.availableSlots} compact />
+                <AvailableSlots slots={day.availableSlots} compact onOpenMore={() => onOpenDay(day)} />
               </>
             )}
           </div>
@@ -169,23 +173,13 @@ function AgendaCalendar({ days, loading }) {
           )}
 
           {(day.bookings.length > 0 || day.availableSlots.length > 6) && (
-            <div className="pointer-events-none absolute left-1/2 top-full z-30 mt-3 hidden w-72 -translate-x-1/2 rounded-xl border border-gold/25 bg-dark-card p-4 text-sm shadow-2xl group-hover:block">
-              <p className="mb-3 font-display text-lg text-gold-light">{formatLongDate(day.date)}</p>
-              {day.isBusinessDay && (
-                <div className="mb-4">
-                  <p className="mb-2 text-xs font-bold uppercase tracking-wider text-emerald-200/80">Disponiveis</p>
-                  <AvailableSlots slots={day.availableSlots} />
-                </div>
-              )}
-              {day.bookings.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs font-bold uppercase tracking-wider text-amber-100/80">Ocupados</p>
-                  {day.bookings.map((booking) => (
-                    <AgendaTime key={booking.id} booking={booking} showService />
-                  ))}
-                </div>
-              )}
-            </div>
+            <button
+              type="button"
+              onClick={() => onOpenDay(day)}
+              className="mt-4 w-full rounded-lg border border-gold/25 bg-gold/10 px-3 py-2 text-xs font-bold uppercase tracking-wider text-gold-light transition-colors hover:bg-gold/20"
+            >
+              Ver todos os horarios
+            </button>
           )}
         </div>
       ))}
@@ -236,7 +230,7 @@ function AgendaList({ days, loading }) {
   )
 }
 
-function AvailableSlots({ slots, compact = false }) {
+function AvailableSlots({ slots, compact = false, onOpenMore }) {
   if (!slots?.length) {
     return <p className="text-sm text-cream/45">Sem horarios livres.</p>
   }
@@ -250,11 +244,80 @@ function AvailableSlots({ slots, compact = false }) {
           {slot.time}
         </span>
       ))}
-      {compact && slots.length > visibleSlots.length && (
-        <span className="rounded-md border border-gold/20 bg-gold/10 px-2 py-1 text-xs font-semibold text-gold-light">
+      {compact && slots.length > visibleSlots.length && onOpenMore && (
+        <button
+          type="button"
+          onClick={onOpenMore}
+          className="rounded-md border border-gold/20 bg-gold/10 px-2 py-1 text-xs font-semibold text-gold-light transition-colors hover:bg-gold/20"
+          aria-label={`Ver mais ${slots.length - visibleSlots.length} horarios disponiveis`}
+        >
           +{slots.length - visibleSlots.length}
-        </span>
+        </button>
       )}
+    </div>
+  )
+}
+
+function AgendaDayModal({ day, onClose }) {
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') onClose()
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
+  return (
+    <div
+      className="fixed inset-0 z-[90] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="agenda-day-modal-title"
+      onClick={onClose}
+    >
+      <div
+        className="max-h-[85vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-gold/30 bg-dark-card p-6 shadow-2xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider text-gold-light/70">{formatWeekday(day.date)}</p>
+            <h3 id="agenda-day-modal-title" className="mt-1 font-display text-3xl text-gold-light">
+              {formatLongDate(day.date)}
+            </h3>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg border border-white/10 px-3 py-2 text-sm font-semibold text-cream/70 transition-colors hover:border-gold/30 hover:text-gold-light"
+          >
+            Fechar
+          </button>
+        </div>
+
+        <div className="mt-6 space-y-6">
+          <section>
+            <p className="mb-3 text-xs font-bold uppercase tracking-wider text-emerald-200/80">Horarios disponiveis</p>
+            {day.isBusinessDay ? (
+              <AvailableSlots slots={day.availableSlots} />
+            ) : (
+              <p className="text-sm text-cream/55">Studio fechado.</p>
+            )}
+          </section>
+
+          {day.bookings.length > 0 && (
+            <section>
+              <p className="mb-3 text-xs font-bold uppercase tracking-wider text-amber-100/80">Horarios ocupados</p>
+              <div className="space-y-2 rounded-xl border border-white/10 bg-black/25 p-4">
+                {day.bookings.map((booking) => (
+                  <AgendaTime key={booking.id} booking={booking} showService />
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
