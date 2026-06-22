@@ -595,6 +595,11 @@ export default function Booking({ embedded = false } = {}) {
           showConfirmedBooking(data.booking, data.payment)
           fetchBookings(token)
           toast.success('Agendamento confirmado com sucesso!')
+          return
+        }
+        if (data.message && !pendingPaymentErrorShownRef.current) {
+          pendingPaymentErrorShownRef.current = true
+          toast.info(data.message)
         }
       } catch (error) {
         console.error('Erro ao recuperar pagamento aprovado sem horario:', error)
