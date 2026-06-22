@@ -7,7 +7,7 @@ const API = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
 const STUDIO_TIME_ZONE = 'America/Fortaleza'
 const PREFERRED_SLOT_STORAGE_KEY = 'thallytaPreferredScheduleSlot'
 const MOBILE_DATE_PAGE_SIZE = 3
-const DESKTOP_DATE_PAGE_SIZE = 7
+const DESKTOP_DATE_PAGE_SIZE = 14
 
 export default function Agenda() {
   const [bookings, setBookings] = useState([])
@@ -196,12 +196,18 @@ export default function Agenda() {
                   </div>
                 </div>
 
-                <div className="mt-3 hidden sm:grid sm:grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] sm:items-stretch sm:gap-3">
+                <div className="hidden grid-cols-7 gap-2 text-center text-[0.68rem] font-bold uppercase tracking-wider text-cream/35 sm:grid">
+                  {['S', 'T', 'Q', 'Q', 'S', 'S', 'D'].map((label, index) => (
+                    <span key={`${label}-${index}`}>{label}</span>
+                  ))}
+                </div>
+
+                <div className="mt-3 hidden sm:grid sm:grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] sm:items-center sm:gap-3">
                   <button
                     type="button"
                     onClick={() => showDateGroup(-1, DESKTOP_DATE_PAGE_SIZE, desktopDateStart, setDesktopDateStart)}
                     disabled={!canShowPreviousDesktopDates}
-                    className="inline-flex h-full min-h-[4.25rem] items-center justify-center rounded-xl border border-gold/25 bg-black/25 text-gold-light transition-colors hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-35"
+                    className="inline-flex h-12 items-center justify-center rounded-xl border border-gold/25 bg-black/25 text-gold-light transition-colors hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-35"
                     aria-label="Ver datas anteriores"
                   >
                     <FiChevronLeft />
@@ -223,7 +229,7 @@ export default function Agenda() {
                     type="button"
                     onClick={() => showDateGroup(1, DESKTOP_DATE_PAGE_SIZE, desktopDateStart, setDesktopDateStart)}
                     disabled={!canShowNextDesktopDates}
-                    className="inline-flex h-full min-h-[4.25rem] items-center justify-center rounded-xl border border-gold/25 bg-black/25 text-gold-light transition-colors hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-35"
+                    className="inline-flex h-12 items-center justify-center rounded-xl border border-gold/25 bg-black/25 text-gold-light transition-colors hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-35"
                     aria-label="Ver mais datas"
                   >
                     <FiChevronRight />
