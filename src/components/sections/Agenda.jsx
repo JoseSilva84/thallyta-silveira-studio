@@ -9,6 +9,17 @@ const PREFERRED_SLOT_STORAGE_KEY = 'thallytaPreferredScheduleSlot'
 const MOBILE_DATE_PAGE_SIZE = 3
 const DESKTOP_DATE_PAGE_SIZE = 14
 
+const getServiceCardsScrollTop = (element) => {
+  if (!element) return 0
+  const headerOffset = window.matchMedia('(min-width: 1024px)').matches
+    ? 92
+    : window.matchMedia('(min-width: 768px)').matches
+      ? 72
+      : 24
+
+  return Math.max(element.getBoundingClientRect().top + window.scrollY - headerOffset, 0)
+}
+
 export default function Agenda() {
   const [bookings, setBookings] = useState([])
   const [availabilityDays, setAvailabilityDays] = useState([])
@@ -97,7 +108,10 @@ export default function Agenda() {
     window.localStorage?.setItem(PREFERRED_SLOT_STORAGE_KEY, JSON.stringify(payload))
     window.dispatchEvent(new CustomEvent('booking:slot-selected', { detail: payload }))
     window.history.replaceState(null, '', '#servicos')
-    document.getElementById('servicos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    const serviceCards = document.getElementById('servicos-cards') || document.getElementById('servicos')
+    if (serviceCards) {
+      window.scrollTo({ top: getServiceCardsScrollTop(serviceCards), behavior: 'smooth' })
+    }
   }, [])
 
   const showDateGroup = useCallback((direction, pageSize, dateStart, setDateStart) => {

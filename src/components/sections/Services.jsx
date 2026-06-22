@@ -24,7 +24,7 @@ export default function Services() {
         <Reveal>
           <div className="relative">
             <div className="absolute -inset-4 z-0 rounded-[3rem] bg-gradient-to-b from-gold/10 to-transparent opacity-50 blur-2xl"></div>
-            <div className="gold-border relative z-10 rounded-[2.5rem] bg-black/40 p-5 backdrop-blur-xl sm:p-8 lg:p-10">
+            <div id="servicos-cards" className="gold-border relative z-10 scroll-mt-8 rounded-[2.5rem] bg-black/40 p-5 backdrop-blur-xl sm:p-8 md:scroll-mt-20 lg:p-10">
               <div className="mb-10 flex flex-wrap justify-center gap-3">
                 {serviceGroups.map((item) => (
                   <button
