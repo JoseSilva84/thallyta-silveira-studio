@@ -105,6 +105,14 @@ const formatPreferredSlotTime = (slot) => {
   })
 }
 
+const getErrorMessage = (error, fallback = 'Ocorreu um erro. Tente novamente.') => {
+  if (!error) return fallback
+  if (typeof error === 'string') return error
+  if (typeof error.message === 'string' && error.message && error.message !== '[object Object]') return error.message
+  if (typeof error.error === 'string') return error.error
+  return fallback
+}
+
 export default function Booking({ embedded = false } = {}) {
   const { user, setLoginOpen, getToken } = useAuth()
   const {
@@ -722,7 +730,7 @@ export default function Booking({ embedded = false } = {}) {
       fetchBookings(token)
       toast.success('Agendamento confirmado com sucesso!')
     } catch (error) {
-      toast.error(error.message)
+      toast.error(getErrorMessage(error, 'Nao foi possivel confirmar o horario.'))
       window.dispatchEvent(new Event('booking:updated'))
     } finally {
       setConfirmingSelectedSlot(false)
@@ -875,7 +883,18 @@ export default function Booking({ embedded = false } = {}) {
                   </div>
                 </div>
 
-              ) : !showCal || bookingPayment ? (
+              ) : bookingPayment && preferredSlot ? (
+                <PaidSlotAutoConfirmation
+                  bookingPayment={bookingPayment}
+                  preferredSlot={preferredSlot}
+                  confirming={confirmingSelectedSlot}
+                />
+              ) : bookingPayment ? (
+                <PaidSchedulePrompt
+                  bookingPayment={bookingPayment}
+                  onChooseAgenda={() => document.getElementById('agenda')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                />
+              ) : !showCal ? (
                 /* ─── PASSO 1: Seleção de Serviços ─── */
                 <div className="space-y-8">
                   {!embedded && (
@@ -1147,6 +1166,68 @@ function SelectedSlotConfirmation({ bookingPayment, preferredSlot, selectedServi
         >
           Escolher outro horario
         </button>
+      </div>
+    </div>
+  )
+}
+
+function PaidSchedulePrompt({ bookingPayment, onChooseAgenda }) {
+  return (
+    <div className="mx-auto max-w-2xl space-y-6 text-center">
+      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-emerald-300/30 bg-emerald-300/10 text-emerald-100">
+        <FiCheckCircle className="h-8 w-8" />
+      </div>
+      <div>
+        <h3 className="font-display text-3xl text-gold-light">Pagamento aprovado</h3>
+        <p className="mt-2 text-sm leading-6 text-cream/65">
+          Agora escolha um dia e horario disponivel na agenda do site para concluir o agendamento.
+        </p>
+      </div>
+      <div className="rounded-2xl border border-gold/20 bg-black/25 p-5 text-left">
+        <span className="block text-xs font-bold uppercase tracking-wider text-gold-light/80">Servico pago</span>
+        <span className="mt-1 block font-medium text-cream">{bookingPayment?.service?.name || 'Servico selecionado'}</span>
+        <span className="mt-3 block text-xs font-bold uppercase tracking-wider text-gold-light/80">Valor pago</span>
+        <span className="mt-1 block font-display text-2xl text-gold-light">
+          R$ {Number(bookingPayment?.amount || 0).toFixed(2).replace('.', ',')}
+        </span>
+      </div>
+      <button
+        type="button"
+        onClick={onChooseAgenda}
+        className="gold-button inline-flex items-center justify-center gap-2 rounded-xl px-6 py-4 text-sm font-bold uppercase tracking-wider"
+      >
+        <FiCalendar /> Escolher dia e horario
+      </button>
+    </div>
+  )
+}
+
+function PaidSlotAutoConfirmation({ bookingPayment, preferredSlot, confirming }) {
+  return (
+    <div className="mx-auto max-w-2xl space-y-6 text-center">
+      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-gold/30 bg-gold/10 text-gold-light">
+        {confirming ? <FiLoader className="h-8 w-8 animate-spin" /> : <FiCheckCircle className="h-8 w-8" />}
+      </div>
+      <div>
+        <h3 className="font-display text-3xl text-gold-light">
+          {confirming ? 'Confirmando seu agendamento' : 'Preparando confirmacao'}
+        </h3>
+        <p className="mt-2 text-sm leading-6 text-cream/65">
+          Seu pagamento ja foi aprovado. Estamos registrando esse horario no calendario do studio.
+        </p>
+      </div>
+      <div className="rounded-2xl border border-gold/20 bg-black/25 p-5 text-left">
+        <div>
+          <span className="block text-xs font-bold uppercase tracking-wider text-gold-light/80">Servico</span>
+          <span className="mt-1 block font-medium text-cream">{bookingPayment?.service?.name || 'Servico selecionado'}</span>
+        </div>
+        <div className="mt-4 h-px bg-gradient-to-r from-transparent via-gold/20 to-transparent"></div>
+        <div className="mt-4">
+          <span className="block text-xs font-bold uppercase tracking-wider text-gold-light/80">Horario escolhido</span>
+          <span className="mt-1 block font-medium text-cream">
+            {formatPreferredSlotDate(preferredSlot)} as {formatPreferredSlotTime(preferredSlot)}
+          </span>
+        </div>
       </div>
     </div>
   )

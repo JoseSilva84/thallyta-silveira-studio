@@ -24,6 +24,14 @@ const clearPreferredSlot = () => {
   window.dispatchEvent(new CustomEvent('booking:slot-selected', { detail: null }))
 }
 
+const getErrorMessage = (error, fallback = 'Ocorreu um erro. Tente novamente.') => {
+  if (!error) return fallback
+  if (typeof error === 'string') return error
+  if (typeof error.message === 'string' && error.message && error.message !== '[object Object]') return error.message
+  if (typeof error.error === 'string') return error.error
+  return fallback
+}
+
 const isSlotAvailableForService = async (service, preferredSlot) => {
   if (!service?.id || !preferredSlot?.start) return true
 
@@ -31,7 +39,7 @@ const isSlotAvailableForService = async (service, preferredSlot) => {
   const res = await fetch(`${API}/bookings/public-agenda?${params.toString()}`)
   const data = await res.json().catch(() => ({}))
 
-  if (!res.ok) throw new Error(data.error || 'Nao foi possivel validar esse horario.')
+  if (!res.ok) throw new Error(getErrorMessage(data, 'Nao foi possivel validar esse horario.'))
 
   const selectedStart = new Date(preferredSlot.start).getTime()
   return (data.agendaDays || []).some((day) =>
@@ -63,7 +71,7 @@ export default function Services() {
         document.getElementById('servicos-checkout')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
       }, 80)
     } catch (error) {
-      toast.error(error.message || 'Nao foi possivel validar esse horario.')
+      toast.error(getErrorMessage(error, 'Nao foi possivel validar esse horario.'))
     } finally {
       setValidatingServiceId('')
     }
