@@ -9,7 +9,7 @@ import { findConfirmedScheduleConflict, hasScheduleConflict } from '../utils/sch
 const MERCADO_PAGO_API = 'https://api.mercadopago.com';
 const PRODUCTION_FRONTEND_URL = 'https://www.thallytasilveira.com.br';
 const MINIMUM_PERCENTAGE = 0.3;
-const PAYMENT_HOLD_MINUTES = 12;
+const PAYMENT_HOLD_MINUTES = 30;
 
 const getFrontendUrl = () => {
   if (process.env.PUBLIC_FRONTEND_URL) return process.env.PUBLIC_FRONTEND_URL.replace(/\/$/, '');
