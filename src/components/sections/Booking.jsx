@@ -72,6 +72,7 @@ export default function Booking() {
   const lastBookingSuccessAt = useRef(0)
   const isCalReadyRef = useRef(false)
   const pendingPaymentChecked = useRef(false)
+  const previousUserIdRef = useRef(user?.id || null)
   const bookingSnapshotRef = useRef({
     services: '',
     total: 0,
@@ -86,6 +87,31 @@ export default function Booking() {
       sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     })
   }, [])
+
+  const resetScheduleState = useCallback(() => {
+    isCalReadyRef.current = false
+    pendingPaymentChecked.current = false
+    setIsBookingDetailsStep(false)
+    setIsScheduleStepOpen(false)
+    setShowCal(false)
+    setBookingConfirmed(false)
+    setConfirmedSummary(null)
+    setBookingPayment(null)
+    setIsPaymentUnlocked(false)
+    clearServices()
+  }, [clearServices, setIsBookingDetailsStep, setIsPaymentUnlocked, setIsScheduleStepOpen])
+
+  useEffect(() => {
+    const previousUserId = previousUserIdRef.current
+    const currentUserId = user?.id || null
+
+    if (previousUserId && previousUserId !== currentUserId) {
+      window.localStorage?.removeItem(PENDING_PAYMENT_STORAGE_KEY)
+      resetScheduleState()
+    }
+
+    previousUserIdRef.current = currentUserId
+  }, [resetScheduleState, user?.id])
 
   // Inicializa a API do Cal.com embed e escuta o evento de booking concluído
   useEffect(() => {

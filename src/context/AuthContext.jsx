@@ -163,6 +163,7 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(() => {
     localStorage.removeItem('authToken')
+    localStorage.removeItem('thallytaPendingBookingPaymentId')
     setUser(null)
     toast.info('Voce saiu da sua conta.')
   }, [])
