@@ -202,12 +202,12 @@ export default function Agenda() {
                   ))}
                 </div>
 
-                <div className="mt-3 hidden sm:grid sm:grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] sm:items-center sm:gap-3">
+                <div className="relative mt-3 hidden sm:block">
                   <button
                     type="button"
                     onClick={() => showDateGroup(-1, DESKTOP_DATE_PAGE_SIZE, desktopDateStart, setDesktopDateStart)}
                     disabled={!canShowPreviousDesktopDates}
-                    className="inline-flex h-12 items-center justify-center rounded-xl border border-gold/25 bg-black/25 text-gold-light transition-colors hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-35"
+                    className="absolute left-[-0.65rem] top-1/2 z-10 inline-flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-xl border border-gold/25 bg-black/35 text-gold-light shadow-[0_10px_24px_rgba(0,0,0,0.22)] backdrop-blur-sm transition-colors hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-35"
                     aria-label="Ver datas anteriores"
                   >
                     <FiChevronLeft />
@@ -229,7 +229,7 @@ export default function Agenda() {
                     type="button"
                     onClick={() => showDateGroup(1, DESKTOP_DATE_PAGE_SIZE, desktopDateStart, setDesktopDateStart)}
                     disabled={!canShowNextDesktopDates}
-                    className="inline-flex h-12 items-center justify-center rounded-xl border border-gold/25 bg-black/25 text-gold-light transition-colors hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-35"
+                    className="absolute right-[-0.65rem] top-1/2 z-10 inline-flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-xl border border-gold/25 bg-black/35 text-gold-light shadow-[0_10px_24px_rgba(0,0,0,0.22)] backdrop-blur-sm transition-colors hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-35"
                     aria-label="Ver mais datas"
                   >
                     <FiChevronRight />
