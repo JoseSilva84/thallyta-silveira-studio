@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { FiCalendar, FiEdit2, FiGrid, FiHome, FiMenu, FiUser, FiX, FiLogOut, FiPhone } from 'react-icons/fi'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import LoginModal from '../auth/LoginModal.jsx'
 import UserProfile from '../auth/UserProfile.jsx'
 import UserAvatar from '../auth/UserAvatar.jsx'
@@ -86,6 +86,7 @@ export default function Navbar() {
   const [phoneError, setPhoneError] = useState('')
   const { user, isAdmin, setLoginOpen, logout, loading, updateWhatsapp } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
 
   useEffect(() => {
     const updateStatus = () => setStudioStatus(getStudioOpenStatus())
@@ -118,6 +119,21 @@ export default function Navbar() {
     }
   }, [])
 
+  useEffect(() => {
+    if (location.pathname !== '/' || !location.hash) return
+
+    const id = location.hash.slice(1)
+    const scrollToHashSection = () => {
+      const element = document.getElementById(id)
+      if (!element) return
+      window.scrollTo({ top: getAnchorScrollTop(element), behavior: 'smooth' })
+      setActiveSection(id)
+    }
+
+    const timeout = window.setTimeout(scrollToHashSection, 80)
+    return () => window.clearTimeout(timeout)
+  }, [location.hash, location.pathname])
+
   const isActive = (href) => activeSection === href.slice(1)
   const statusDotClass = studioStatus.isOpen ? 'bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.75)]' : 'bg-red-400 shadow-[0_0_10px_rgba(248,113,113,0.55)]'
   const statusTextClass = studioStatus.isOpen ? 'text-emerald-200' : 'text-red-200'
@@ -129,7 +145,9 @@ export default function Navbar() {
     const id = href?.startsWith('#') ? href.slice(1) : ''
     const element = id ? document.getElementById(id) : null
     if (!element) {
+      event.preventDefault()
       afterScroll?.()
+      if (id) navigate(`/${href}`)
       return
     }
 
