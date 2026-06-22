@@ -262,7 +262,8 @@ const buildConfirmedBookingFromPayment = async (payment) => {
     '(Agendamento criado automaticamente pelo site apos pagamento)',
   ].filter(Boolean).join('\n');
 
-  let calBooking;
+  let calBooking = null;
+  let calBookingError = null;
   try {
     calBooking = await createCalBooking({
       eventTypeSlug: service.calSlug || 'servicos-gerais',
@@ -283,13 +284,17 @@ const buildConfirmedBookingFromPayment = async (payment) => {
       },
     });
   } catch (calError) {
-    const error = new Error(`Nao foi possivel reservar no calendario: ${calError.message}`);
-    error.statusCode = 502;
-    throw error;
+    calBookingError = calError.message || 'Erro desconhecido ao criar no Cal.com.';
+    console.error('Erro ao criar booking pago no Cal.com; salvando agendamento local:', {
+      bookingPaymentId: hydratedPayment.id,
+      serviceId: service.id,
+      start: scheduledAt.toISOString(),
+      error: calBookingError,
+    });
   }
 
   const booking = await prisma.booking.upsert({
-    where: { calEventId: calBooking.uid },
+    where: { calEventId: calBooking?.uid || `site-payment-${hydratedPayment.id}` },
     update: {
       userId: hydratedPayment.userId,
       service: service.name,
@@ -302,11 +307,17 @@ const buildConfirmedBookingFromPayment = async (payment) => {
       attendeeEmail: hydratedPayment.user?.email || null,
       attendeePhone: hydratedPayment.user?.whatsappPhone || null,
       location: 'Presencial',
-      calPayload: { siteCreated: true, autoConfirmedAfterPayment: true, calBooking },
+      calPayload: {
+        siteCreated: true,
+        autoConfirmedAfterPayment: true,
+        calBooking,
+        calBookingError,
+        calendarFallback: !calBooking,
+      },
       paymentId: hydratedPayment.id,
     },
     create: {
-      calEventId: calBooking.uid,
+      calEventId: calBooking?.uid || `site-payment-${hydratedPayment.id}`,
       userId: hydratedPayment.userId,
       service: service.name,
       estimatedValue: service.price,
@@ -318,7 +329,13 @@ const buildConfirmedBookingFromPayment = async (payment) => {
       attendeeEmail: hydratedPayment.user?.email || null,
       attendeePhone: hydratedPayment.user?.whatsappPhone || null,
       location: 'Presencial',
-      calPayload: { siteCreated: true, autoConfirmedAfterPayment: true, calBooking },
+      calPayload: {
+        siteCreated: true,
+        autoConfirmedAfterPayment: true,
+        calBooking,
+        calBookingError,
+        calendarFallback: !calBooking,
+      },
       paymentId: hydratedPayment.id,
     },
     include: getBookingInclude,

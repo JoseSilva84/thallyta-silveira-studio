@@ -16,6 +16,16 @@ function calHeaders() {
   };
 }
 
+const stringifyCalError = (value) => {
+  if (!value) return ''
+  if (typeof value === 'string') return value
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return String(value)
+  }
+}
+
 /**
  * Creates a booking on Cal.com via the API v2.
  *
@@ -60,7 +70,7 @@ export async function createCalBooking({ eventTypeSlug, start, attendeeName, att
 
   if (!response.ok) {
     console.error('[calService] Cal.com createBooking error:', JSON.stringify(data));
-    throw new Error(data?.message || data?.error || `Cal.com retornou HTTP ${response.status}`);
+    throw new Error(stringifyCalError(data?.message || data?.error || data) || `Cal.com retornou HTTP ${response.status}`);
   }
 
   const booking = data?.data ?? data;
