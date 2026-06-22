@@ -94,18 +94,28 @@ const findMercadoPagoPaymentByPreference = async (preferenceId) => {
   return mercadoPagoRequest(`/v1/payments/${fallback.id}`);
 };
 
+const isMercadoPagoPaymentApproved = (payment) => payment?.status === 'approved';
+
 const syncBookingPaymentWithMercadoPago = async (bookingPayment, mercadoPagoPaymentId = null) => {
   if (!bookingPayment) return null;
   if (bookingPayment.status === 'approved' && bookingPayment.amount >= bookingPayment.minimumAmount) {
     return bookingPayment;
   }
 
-  const mercadoPagoPayment = mercadoPagoPaymentId
-    ? await mercadoPagoRequest(`/v1/payments/${mercadoPagoPaymentId}`)
-    : (
-        await findMercadoPagoPaymentByExternalReference(bookingPayment.externalReference)
-        || await findMercadoPagoPaymentByPreference(bookingPayment.preferenceId)
-      );
+  let mercadoPagoPayment = null;
+
+  if (mercadoPagoPaymentId) {
+    mercadoPagoPayment = await mercadoPagoRequest(`/v1/payments/${mercadoPagoPaymentId}`);
+  } else {
+    const byExternalReference = await findMercadoPagoPaymentByExternalReference(bookingPayment.externalReference);
+    const byPreference = isMercadoPagoPaymentApproved(byExternalReference)
+      ? null
+      : await findMercadoPagoPaymentByPreference(bookingPayment.preferenceId);
+
+    mercadoPagoPayment = isMercadoPagoPaymentApproved(byPreference)
+      ? byPreference
+      : byExternalReference || byPreference;
+  }
 
   if (!mercadoPagoPayment?.id) return bookingPayment;
 
@@ -518,19 +528,38 @@ export const confirmBookingPayment = async (req, res) => {
 
 export const handleMercadoPagoWebhook = async (req, res) => {
   try {
-    const paymentId = getValidId(req.query.id || req.body?.data?.id || req.body?.id);
+    const resourceId = getValidId(req.query.id || req.body?.data?.id || req.body?.id);
     const type = req.query.type || req.body?.type || req.body?.topic;
 
-    if (!paymentId || (type && type !== 'payment')) {
+    if (!resourceId || (type && !['payment', 'merchant_order'].includes(type))) {
       return res.status(200).json({ received: true });
     }
 
-    const mercadoPagoPayment = await mercadoPagoRequest(`/v1/payments/${paymentId}`);
-    const bookingPayment = await prisma.bookingPayment.findUnique({
-      where: { externalReference: mercadoPagoPayment.external_reference },
+    let mercadoPagoPayment = null;
+    let merchantOrder = null;
+
+    if (type === 'merchant_order') {
+      merchantOrder = await mercadoPagoRequest(`/merchant_orders/${resourceId}`);
+      const payments = Array.isArray(merchantOrder?.payments) ? merchantOrder.payments : [];
+      const payment = payments.find((item) => item.status === 'approved') || payments[0];
+      if (payment?.id) {
+        mercadoPagoPayment = await mercadoPagoRequest(`/v1/payments/${payment.id}`);
+      }
+    } else {
+      mercadoPagoPayment = await mercadoPagoRequest(`/v1/payments/${resourceId}`);
+    }
+
+    const bookingPayment = await prisma.bookingPayment.findFirst({
+      where: {
+        OR: [
+          mercadoPagoPayment?.external_reference ? { externalReference: mercadoPagoPayment.external_reference } : null,
+          merchantOrder?.external_reference ? { externalReference: merchantOrder.external_reference } : null,
+          merchantOrder?.preference_id ? { preferenceId: merchantOrder.preference_id } : null,
+        ].filter(Boolean),
+      },
     });
 
-    if (bookingPayment) {
+    if (bookingPayment && mercadoPagoPayment) {
       const updated = await markPaymentFromMercadoPago(bookingPayment, mercadoPagoPayment);
       if (updated.status === 'approved' && updated.amount >= updated.minimumAmount) {
         try {
