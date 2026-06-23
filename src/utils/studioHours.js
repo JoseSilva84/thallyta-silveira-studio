@@ -15,17 +15,14 @@ export const getStudioOpenStatus = () => {
   const minute = Number(value('minute'))
   const minutesNow = hour * 60 + minute
   const isWeekday = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].includes(weekday)
-  const opensAt = 9 * 60 + 30
-  const lunchStartsAt = 13 * 60
-  const lunchEndsAt = 14 * 60 + 30
-  const closesAt = 18 * 60
-  const isLunchBreak = minutesNow >= lunchStartsAt && minutesNow < lunchEndsAt
-  const isOpen = isWeekday && minutesNow >= opensAt && minutesNow < closesAt && !isLunchBreak
+  const opensAt = 8 * 60          // 08:00
+  const closesAt = 19 * 60         // 19:00 (cobre o último horário de 18:30)
+  const isOpen = isWeekday && minutesNow >= opensAt && minutesNow < closesAt
 
   return {
     isOpen,
     label: isOpen ? 'Atendimento aberto' : 'Atendimento fechado',
     shortLabel: isOpen ? 'Aberto agora' : 'Fechado agora',
-    detail: 'Segunda a sexta, 09:30 as 18:00, pausa 13:00 as 14:30',
+    detail: 'Segunda a sexta, 08:00 às 19:00',
   }
 }

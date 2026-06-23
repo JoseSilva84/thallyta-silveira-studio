@@ -1,14 +1,17 @@
 const STUDIO_TIME_ZONE = 'America/Fortaleza';
 
-const OPEN_MINUTES = 9 * 60 + 30;
-const LUNCH_START_MINUTES = 13 * 60;
-const LUNCH_END_MINUTES = 14 * 60 + 30;
-const CLOSE_MINUTES = 18 * 60;
+const FIXED_SLOTS = [
+  { hour: 8, minute: 0 },   // 08:00
+  { hour: 10, minute: 30 }, // 10:30
+  { hour: 14, minute: 30 }, // 14:30
+  { hour: 16, minute: 30 }, // 16:30
+  { hour: 18, minute: 30 }, // 18:30
+];
+const FIXED_SLOT_MINUTES = new Set(FIXED_SLOTS.map(s => s.hour * 60 + s.minute));
+const OPEN_MINUTES = 8 * 60;        // 08:00
+const CLOSE_MINUTES = 19 * 60;      // 19:00 (cobre o último slot de 18:30)
 const SLOT_INTERVAL_MINUTES = 30;
 const MIN_CLIENT_LEAD_TIME_MINUTES = 120;
-const LAST_MORNING_SLOT_START = 12 * 60;
-const LAST_AFTERNOON_SLOT_START = 17 * 60;
-const BLOCKED_START_MINUTES = new Set([12 * 60 + 30, 17 * 60 + 30]);
 const BUSINESS_WEEKDAYS = new Set(['Mon', 'Tue', 'Wed', 'Thu', 'Fri']);
 
 const dateTimeFormatter = new Intl.DateTimeFormat('en-US', {
@@ -56,19 +59,15 @@ export const validateBookingWindow = (startInput, endInput) => {
   }
 
   if (startLocal.minutes < OPEN_MINUTES) {
-    return { valid: false, reason: 'O atendimento comeca a partir das 09h30.' };
+    return { valid: false, reason: 'O atendimento comeca a partir das 08h00.' };
   }
 
   if (endLocal.minutes > CLOSE_MINUTES) {
-    return { valid: false, reason: 'O atendimento encerra as 18h00.' };
+    return { valid: false, reason: 'O atendimento encerra as 19h00.' };
   }
 
-  if (startLocal.minutes < LUNCH_END_MINUTES && endLocal.minutes > LUNCH_START_MINUTES) {
-    return { valid: false, reason: 'O horario de 13h00 as 14h30 nao esta disponivel para agendamento.' };
-  }
-
-  if (BLOCKED_START_MINUTES.has(startLocal.minutes)) {
-    return { valid: false, reason: 'Este horario nao esta disponivel para inicio de agendamento.' };
+  if (!FIXED_SLOT_MINUTES.has(startLocal.minutes)) {
+    return { valid: false, reason: 'Este horario nao esta disponivel para agendamento.' };
   }
 
   return { valid: true };
@@ -119,10 +118,6 @@ export const buildPublicAgendaDays = (bookings, daysCount, nowInput = new Date()
   const todayKey = getStudioDateTime(nowInput).dateKey;
   const minimumClientStart = new Date(nowInput.getTime() + MIN_CLIENT_LEAD_TIME_MINUTES * 60 * 1000);
   const candidateDurationMinutes = Math.max(Number(slotDurationMinutes) || SLOT_INTERVAL_MINUTES, SLOT_INTERVAL_MINUTES);
-  const windows = [
-    [OPEN_MINUTES, LAST_MORNING_SLOT_START + SLOT_INTERVAL_MINUTES],
-    [LUNCH_END_MINUTES, LAST_AFTERNOON_SLOT_START + SLOT_INTERVAL_MINUTES],
-  ];
 
   return Array.from({ length: daysCount }, (_, index) => {
     const dateKey = addDaysToDateKey(todayKey, index);
@@ -133,20 +128,19 @@ export const buildPublicAgendaDays = (bookings, daysCount, nowInput = new Date()
     const availableSlots = [];
 
     if (isBusinessDay) {
-      for (const [windowStart, windowEnd] of windows) {
-        for (let minutes = windowStart; minutes + SLOT_INTERVAL_MINUTES <= windowEnd; minutes += SLOT_INTERVAL_MINUTES) {
-          const slotStart = localSlotToDate(dateKey, minutes);
-          const slotEnd = new Date(slotStart.getTime() + candidateDurationMinutes * 60 * 1000);
+      for (const { hour, minute } of FIXED_SLOTS) {
+        const minutes = hour * 60 + minute;
+        const slotStart = localSlotToDate(dateKey, minutes);
+        const slotEnd = new Date(slotStart.getTime() + candidateDurationMinutes * 60 * 1000);
 
-          if (slotStart <= minimumClientStart) continue;
-          if (!validateBookingWindow(slotStart, slotEnd).valid) continue;
-          if (dayBookings.some((booking) => bookingOverlapsSlot(booking, slotStart, slotEnd))) continue;
+        if (slotStart <= minimumClientStart) continue;
+        if (!validateBookingWindow(slotStart, slotEnd).valid) continue;
+        if (dayBookings.some((booking) => bookingOverlapsSlot(booking, slotStart, slotEnd))) continue;
 
-          availableSlots.push({
-            time: minutesToTime(minutes),
-            start: slotStart.toISOString(),
-          });
-        }
+        availableSlots.push({
+          time: minutesToTime(minutes),
+          start: slotStart.toISOString(),
+        });
       }
     }
 
@@ -158,4 +152,4 @@ export const buildPublicAgendaDays = (bookings, daysCount, nowInput = new Date()
   });
 };
 
-export const businessHoursLabel = 'segunda a sexta, 09h30 as 18h00, com pausa de 13h00 as 14h30';
+export const businessHoursLabel = 'segunda a sexta, 08:00 às 19:00';
