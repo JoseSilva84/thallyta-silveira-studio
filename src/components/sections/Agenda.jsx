@@ -333,9 +333,9 @@ export default function Agenda() {
                         </>
                       ) : (
                         <div className="rounded-xl border border-white/10 bg-black/20 p-5 text-center">
-                          <p className="font-display text-2xl text-cream">Sem horarios livres</p>
+                          <p className="font-display text-2xl text-cream">Sem horários livres</p>
                           <p className="mt-2 text-sm text-cream/55">
-                            Escolha outra data ou avance para o proximo dia disponivel.
+                            Escolha outra data ou avance para o próximo dia disponível.
                           </p>
                           {nextAvailableDay && (
                             <button
