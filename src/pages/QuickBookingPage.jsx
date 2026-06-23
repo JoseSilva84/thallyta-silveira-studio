@@ -500,7 +500,7 @@ export default function QuickBookingPage() {
         ) : pageStep === 'intro' ? (
           <section className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
             <div className="overflow-hidden rounded-[2rem] border border-gold/20 bg-black/35 backdrop-blur-xl">
-              <img src="/img/2.png" alt="Thallyta Silveira" className="h-80 w-full object-cover object-center sm:h-[28rem]" />
+              <img src="/img/2.png" alt="Thallyta Silveira" className="h-80 w-full object-contain object-center sm:h-[28rem]" />
             </div>
             <div className="gold-border rounded-[2rem] bg-black/45 p-5 backdrop-blur-xl md:p-8">
               <p className="text-xs font-bold uppercase tracking-[0.24em] text-gold-light/70">Studio de beleza</p>
@@ -526,7 +526,7 @@ export default function QuickBookingPage() {
                 }}
                 className="gold-button mt-6 flex w-full items-center justify-center gap-2 rounded-xl px-6 py-4 font-bold uppercase tracking-wider"
               >
-                Ver servicos <FiChevronRight />
+                Ver serviços <FiChevronRight />
               </button>
               <Link to="/meus-agendamentos" className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-gold/25 px-6 py-3 text-sm font-semibold text-gold-light transition-colors hover:bg-gold/10">
                 <FiCalendar /> Área do meu agendamento
@@ -736,11 +736,6 @@ export default function QuickBookingPage() {
                 </div>
               )}
 
-              {!selectedSlot && (
-                <div className="mt-6 rounded-2xl border border-amber-300/25 bg-amber-300/10 p-4 text-sm text-amber-100">
-                  Escolha um dia e horário antes de selecionar o serviço.
-                </div>
-              )}
             </section>
         ) : (
             <section id="quick-summary" className="mt-6 scroll-mt-24 rounded-[2rem] border border-gold/20 bg-gradient-to-b from-dark-card/90 to-dark/95 p-4 md:p-6">
