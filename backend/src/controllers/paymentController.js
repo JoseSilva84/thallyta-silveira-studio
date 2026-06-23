@@ -10,6 +10,7 @@ const MERCADO_PAGO_API = 'https://api.mercadopago.com';
 const PRODUCTION_FRONTEND_URL = 'https://www.thallytasilveira.com.br';
 const MINIMUM_PERCENTAGE = 0.3;
 const PAYMENT_HOLD_MINUTES = 30;
+const BIRTHDAY_REWARD_STATUSES = ['pending', 'sent'];
 
 const getFrontendUrl = () => {
   if (process.env.PUBLIC_FRONTEND_URL) return process.env.PUBLIC_FRONTEND_URL.replace(/\/$/, '');
@@ -35,6 +36,93 @@ const getSafeReturnPath = (value) => {
 };
 
 const roundMoney = (value) => Math.round(value * 100) / 100;
+
+const getCurrentStudioYear = () => Number(new Intl.DateTimeFormat('en-US', {
+  timeZone: 'America/Fortaleza',
+  year: 'numeric',
+}).format(new Date()));
+
+const getCurrentStudioDateParts = () => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Fortaleza',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+  }).formatToParts(new Date());
+
+  const get = (type) => Number(parts.find((part) => part.type === type)?.value);
+  return {
+    year: get('year'),
+    month: get('month'),
+    day: get('day'),
+  };
+};
+
+const isBirthdayToday = (dateOfBirth, today) => {
+  if (!dateOfBirth) return false;
+  const birthDate = new Date(dateOfBirth);
+  return birthDate.getUTCMonth() + 1 === today.month && birthDate.getUTCDate() === today.day;
+};
+
+const getAvailableBirthdayReward = async (userId) => {
+  if (!userId) return null;
+  const today = getCurrentStudioDateParts();
+
+  const reward = await prisma.birthdayReward.findFirst({
+    where: {
+      userId,
+      year: today.year,
+      status: { in: BIRTHDAY_REWARD_STATUSES },
+    },
+    orderBy: { createdAt: 'asc' },
+  });
+  if (reward) return reward;
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, dateOfBirth: true },
+  });
+
+  if (!isBirthdayToday(user?.dateOfBirth, today)) return null;
+
+  return prisma.birthdayReward.upsert({
+    where: {
+      userId_year: {
+        userId,
+        year: today.year,
+      },
+    },
+    update: {},
+    create: {
+      userId,
+      year: today.year,
+      amount: Number.parseFloat(process.env.BIRTHDAY_REWARD_AMOUNT || '30') || 30,
+      status: 'pending',
+    },
+  });
+};
+
+const getBirthdayRewardDiscount = (reward, servicePrice) => {
+  if (!reward) return 0;
+  return roundMoney(Math.min(Number(reward.amount || 0), servicePrice));
+};
+
+const redeemBirthdayRewardFromPayment = async (bookingPayment) => {
+  const rewardId = bookingPayment?.metadata?.birthdayReward?.id;
+  if (!rewardId) return;
+
+  await prisma.birthdayReward.updateMany({
+    where: {
+      id: rewardId,
+      userId: bookingPayment.userId,
+      status: { in: BIRTHDAY_REWARD_STATUSES },
+    },
+    data: {
+      status: 'redeemed',
+      error: null,
+    },
+  });
+};
 
 const getValidId = (value) => {
   if (!value) return null;
@@ -154,6 +242,7 @@ const serializePayment = (payment) => ({
   endTime: payment.endTime,
   holdExpiresAt: payment.holdExpiresAt,
   approvedAt: payment.approvedAt,
+  birthdayReward: payment.metadata?.birthdayReward || null,
 });
 
 const serializeBookingSummary = (booking) => {
@@ -267,6 +356,9 @@ const buildConfirmedBookingFromPayment = async (payment) => {
   const notes = [
     `Servico: ${service.name}`,
     `Valor: R$ ${service.price.toFixed(2)}`,
+    hydratedPayment.metadata?.birthdayReward?.discount
+      ? `Beneficio aniversario: -R$ ${Number(hydratedPayment.metadata.birthdayReward.discount).toFixed(2)}`
+      : null,
     `Pagamento: ${hydratedPayment.paymentType === 'full' ? 'valor total' : 'entrada'}`,
     hydratedPayment.user?.whatsappPhone ? `WhatsApp: ${hydratedPayment.user.whatsappPhone}` : null,
     '(Agendamento criado automaticamente pelo site apos pagamento)',
@@ -442,7 +534,7 @@ const markPaymentFromMercadoPago = async (bookingPayment, mercadoPagoPayment) =>
   }
 
   const status = mercadoPagoPayment.status || 'pending';
-  return prisma.bookingPayment.update({
+  const updated = await prisma.bookingPayment.update({
     where: { id: bookingPayment.id },
     data: {
       status,
@@ -461,6 +553,37 @@ const markPaymentFromMercadoPago = async (bookingPayment, mercadoPagoPayment) =>
       },
     },
   });
+
+  if (status === 'approved') {
+    await redeemBirthdayRewardFromPayment(updated);
+  }
+
+  return updated;
+};
+
+export const getBirthdayRewardPreview = async (req, res) => {
+  try {
+    const service = findServiceById(req.query.serviceId);
+    const reward = await getAvailableBirthdayReward(req.user.id);
+    const servicePrice = service ? roundMoney(service.price) : null;
+    const discount = servicePrice !== null ? getBirthdayRewardDiscount(reward, servicePrice) : Number(reward?.amount || 0);
+
+    res.json({
+      available: Boolean(reward && discount > 0),
+      reward: reward ? {
+        id: reward.id,
+        year: reward.year,
+        amount: reward.amount,
+        status: reward.status,
+      } : null,
+      discount,
+      servicePrice,
+      payableServicePrice: servicePrice !== null ? roundMoney(Math.max(servicePrice - discount, 0)) : null,
+    });
+  } catch (error) {
+    console.error('Erro ao buscar premio de aniversario:', error);
+    res.status(500).json({ error: 'Erro ao buscar premio de aniversario.' });
+  }
 };
 
 export const createBookingPreference = async (req, res) => {
@@ -518,8 +641,11 @@ export const createBookingPreference = async (req, res) => {
     }
 
     const servicePrice = roundMoney(service.price);
-    const minimumAmount = roundMoney(servicePrice * MINIMUM_PERCENTAGE);
-    const amount = paymentType === 'full' ? servicePrice : minimumAmount;
+    const birthdayReward = await getAvailableBirthdayReward(req.user.id);
+    const birthdayDiscount = getBirthdayRewardDiscount(birthdayReward, servicePrice);
+    const payableServicePrice = roundMoney(Math.max(servicePrice - birthdayDiscount, 0));
+    const minimumAmount = roundMoney(payableServicePrice * MINIMUM_PERCENTAGE);
+    const amount = paymentType === 'full' ? payableServicePrice : minimumAmount;
     const externalReference = `booking_${randomUUID()}`;
     const holdExpiresAt = new Date(now.getTime() + PAYMENT_HOLD_MINUTES * 60 * 1000);
 
@@ -538,11 +664,55 @@ export const createBookingPreference = async (req, res) => {
         holdExpiresAt,
         metadata: {
           minimumPercentage: MINIMUM_PERCENTAGE,
-          remainingAmount: paymentType === 'full' ? 0 : roundMoney(servicePrice - amount),
+          originalServicePrice: servicePrice,
+          payableServicePrice,
+          birthdayReward: birthdayReward && birthdayDiscount > 0 ? {
+            id: birthdayReward.id,
+            year: birthdayReward.year,
+            amount: birthdayReward.amount,
+            discount: birthdayDiscount,
+          } : null,
+          remainingAmount: paymentType === 'full' ? 0 : roundMoney(payableServicePrice - amount),
           holdMinutes: PAYMENT_HOLD_MINUTES,
         },
       },
     });
+
+    if (amount <= 0) {
+      const approvedPayment = await prisma.bookingPayment.update({
+        where: { id: bookingPayment.id },
+        data: {
+          status: 'approved',
+          approvedAt: new Date(),
+          metadata: {
+            ...(bookingPayment.metadata || {}),
+            minimumPercentage: MINIMUM_PERCENTAGE,
+            originalServicePrice: servicePrice,
+            payableServicePrice,
+            birthdayReward: birthdayReward && birthdayDiscount > 0 ? {
+              id: birthdayReward.id,
+              year: birthdayReward.year,
+              amount: birthdayReward.amount,
+              discount: birthdayDiscount,
+            } : null,
+            remainingAmount: 0,
+            holdMinutes: PAYMENT_HOLD_MINUTES,
+            fullyCoveredByBirthdayReward: true,
+          },
+        },
+        include: { booking: true, user: true },
+      });
+
+      await redeemBirthdayRewardFromPayment(approvedPayment);
+      const booking = await buildConfirmedBookingFromPayment(approvedPayment);
+
+      return res.status(201).json({
+        payment: serializePayment(approvedPayment),
+        booking: serializeBookingSummary(booking),
+        canSchedule: Boolean(booking),
+        message: 'Beneficio de aniversario aplicado. Agendamento confirmado sem pagamento.',
+      });
+    }
 
     const frontendUrl = getFrontendUrl();
     const safeReturnPath = getSafeReturnPath(returnPath);
@@ -554,7 +724,7 @@ export const createBookingPreference = async (req, res) => {
         items: [
           {
             id: service.id,
-            title: `${service.name} - ${paymentType === 'full' ? 'pagamento total' : 'entrada de 30%'}`,
+            title: `${service.name} - ${paymentType === 'full' ? 'pagamento total' : 'entrada de 30%'}${birthdayDiscount > 0 ? ' com desconto aniversario' : ''}`,
             quantity: 1,
             currency_id: 'BRL',
             unit_price: amount,
@@ -571,6 +741,9 @@ export const createBookingPreference = async (req, res) => {
           paymentType,
           userId: req.user.id,
           scheduledAt: scheduledAt.toISOString(),
+          birthdayRewardId: birthdayReward?.id || '',
+          birthdayDiscount,
+          payableServicePrice,
         },
         back_urls: {
           success: `${returnUrl}&mpStatus=success`,

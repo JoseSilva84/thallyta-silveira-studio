@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { FiCalendar, FiMail, FiLock, FiUser, FiEye, FiEyeOff, FiPhone } from 'react-icons/fi'
+import { FiArrowLeft, FiCalendar, FiMail, FiLock, FiUser, FiEye, FiEyeOff, FiPhone } from 'react-icons/fi'
 import { FcGoogle } from 'react-icons/fc'
 import { useAuth } from '../context/AuthContext'
 import { formatBrazilWhatsappInput, normalizeBrazilWhatsapp, onlyDigits } from '../utils/phone'
@@ -30,6 +30,14 @@ export default function RegisterPage() {
       ...f,
       [name]: name === 'whatsappPhone' ? formatBrazilWhatsappInput(value) : value,
     }))
+  }
+
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1)
+      return
+    }
+    navigate(getPostRegisterPath())
   }
 
   const handleSubmit = async (e) => {
@@ -68,6 +76,10 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen bg-dark flex items-center justify-center p-4">
       <div className="w-full max-w-md">
+        <button type="button" onClick={handleBack} className="mb-8 inline-flex items-center gap-2 text-sm text-cream/50 transition-colors hover:text-gold">
+          <FiArrowLeft /> Voltar
+        </button>
+
         {/* Logo */}
         <div className="text-center mb-8">
           <Link to="/" className="font-display text-5xl font-bold text-gold-light">TS</Link>

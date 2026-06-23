@@ -84,12 +84,15 @@ export default function QuickBookingPage() {
   const [confirmedBooking, setConfirmedBooking] = useState(null)
   const [confirmedPayment, setConfirmedPayment] = useState(null)
   const [activeServiceGroup, setActiveServiceGroup] = useState(serviceGroups[0]?.id || '')
+  const [birthdayRewardPreview, setBirthdayRewardPreview] = useState(null)
 
   const serviceIdForAgenda = selectedService?.id || ''
   const total = servicePriceValue(selectedService)
-  const deposit = Math.round(total * 30) / 100
-  const amountToPay = paymentType === 'full' ? total : deposit
-  const remaining = paymentType === 'full' ? 0 : Math.max(total - deposit, 0)
+  const birthdayDiscount = selectedService ? Number(birthdayRewardPreview?.discount || 0) : 0
+  const payableTotal = Math.max(total - birthdayDiscount, 0)
+  const deposit = Math.round(payableTotal * 30) / 100
+  const amountToPay = paymentType === 'full' ? payableTotal : deposit
+  const remaining = paymentType === 'full' ? 0 : Math.max(payableTotal - deposit, 0)
   const needsWhatsapp = Boolean(user?.id && user.role !== 'ADMIN' && !user.whatsappPhone)
 
   const days = useMemo(() => buildAgendaDays(bookings, agendaDays), [agendaDays, bookings])
@@ -170,6 +173,34 @@ export default function QuickBookingPage() {
   useEffect(() => {
     fetchAgenda()
   }, [fetchAgenda])
+
+  useEffect(() => {
+    const token = getToken()
+    if (!user || !selectedService?.id || !token) {
+      setBirthdayRewardPreview(null)
+      return
+    }
+
+    let cancelled = false
+    const fetchBirthdayRewardPreview = async () => {
+      try {
+        const params = new URLSearchParams({ serviceId: selectedService.id })
+        const res = await fetch(`${API}/payments/birthday-reward-preview?${params.toString()}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) throw new Error(data.error || 'Erro ao buscar premio.')
+        if (!cancelled) setBirthdayRewardPreview(data.available ? data : null)
+      } catch {
+        if (!cancelled) setBirthdayRewardPreview(null)
+      }
+    }
+
+    fetchBirthdayRewardPreview()
+    return () => {
+      cancelled = true
+    }
+  }, [getToken, selectedService?.id, user])
 
   useEffect(() => {
     const interval = window.setInterval(fetchAgenda, 30000)
@@ -378,7 +409,16 @@ export default function QuickBookingPage() {
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || 'Erro ao iniciar pagamento.')
+      if (data.booking) {
+        setConfirmedBooking(data.booking)
+        setConfirmedPayment(data.payment || null)
+        clearQuickDraft()
+        window.localStorage?.removeItem(PENDING_PAYMENT_STORAGE_KEY)
+        toast.success(data.message || 'Agendamento confirmado com sucesso!')
+        return
+      }
       if (data.payment?.id) window.localStorage?.setItem(PENDING_PAYMENT_STORAGE_KEY, data.payment.id)
+      if (!data.initPoint && !data.sandboxInitPoint) throw new Error('Mercado Pago nao retornou um link de pagamento.')
       window.location.href = data.initPoint || data.sandboxInitPoint
     } catch (error) {
       toast.error(error.message || 'Erro ao iniciar pagamento.')
@@ -756,6 +796,17 @@ export default function QuickBookingPage() {
                 <SummaryItem label="Cliente" value={user?.name || 'Entre na sua conta'} icon={<FiCheckCircle />} />
               </div>
 
+              {pageStep === 'payment' && birthdayDiscount > 0 && (
+                <div className="mt-5 rounded-2xl border border-emerald-300/25 bg-emerald-400/10 p-4 text-sm text-emerald-50">
+                  <span className="block text-xs font-bold uppercase tracking-wider text-emerald-200">Beneficio de aniversario aplicado</span>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                    <span>Valor original: <strong>{money(total)}</strong></span>
+                    <span>Desconto: <strong>-{money(birthdayDiscount)}</strong></span>
+                    <span>Total com abatimento: <strong>{money(payableTotal)}</strong></span>
+                  </div>
+                </div>
+              )}
+
               {pageStep === 'payment' && selectedService && (
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
                   <button
@@ -773,7 +824,7 @@ export default function QuickBookingPage() {
                     className={`rounded-xl border p-4 text-left transition-colors ${paymentType === 'full' ? 'border-gold bg-gold/15 text-gold-light' : 'border-white/10 bg-black/20 text-cream/70'}`}
                   >
                     <span className="block text-xs font-bold uppercase tracking-wider">Pagar tudo</span>
-                    <span className="mt-1 block font-display text-2xl">{money(total)}</span>
+                    <span className="mt-1 block font-display text-2xl">{money(payableTotal)}</span>
                     <span className="mt-1 block text-xs text-cream/45">Sem restante no atendimento.</span>
                   </button>
                 </div>
@@ -787,7 +838,7 @@ export default function QuickBookingPage() {
                   className="gold-button mt-6 flex w-full items-center justify-center gap-2 rounded-xl px-6 py-4 font-bold uppercase tracking-wider disabled:cursor-not-allowed disabled:opacity-55"
                 >
                   {creatingPayment ? <FiLoader className="animate-spin" /> : <FiCreditCard />}
-                  {creatingPayment ? 'Abrindo Mercado Pago...' : `Pagar ${selectedService ? money(amountToPay) : ''}`}
+                  {creatingPayment ? 'Abrindo Mercado Pago...' : amountToPay <= 0 ? 'Confirmar com beneficio' : `Pagar ${selectedService ? money(amountToPay) : ''}`}
                 </button>
               ) : (
                 <button
@@ -837,6 +888,7 @@ function ConfirmationCard({ booking, payment, onNew }) {
         <SummaryLine label="Data e horário" value={`${formatLongDate(new Date(booking.scheduledAt))} as ${formatTime(booking.scheduledAt)}`} />
         <SummaryLine label="Cliente" value={booking.attendeeName || '-'} />
         <SummaryLine label="Valor" value={money(booking.estimatedValue)} />
+        {payment?.birthdayReward?.discount && <SummaryLine label="Beneficio aniversario" value={`-${money(payment.birthdayReward.discount)}`} />}
         {payment && <SummaryLine label="Pago" value={money(payment.amount)} />}
       </div>
       <button type="button" onClick={onNew} className="gold-button mt-6 inline-flex items-center gap-2 rounded-xl px-6 py-4 text-sm font-bold uppercase tracking-wider">
