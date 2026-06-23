@@ -26,9 +26,14 @@ const faqs = [
     content: 'A cada visita e serviço finalizado no studio, você recebe um selo no seu cartão fidelidade digital (disponível na sua conta aqui no site). Ao completar 10 selos, você desbloqueia uma recompensa especial!'
   },
   {
-    title: 'Como agendar um serviço pelo site?',
+    title: 'Como agendar um serviço pelo site no computador?',
     content: 'É muito simples! Basta criar uma conta, escolher o serviço desejado na seção "Agendamento", efetuar o pagamento da reserva e, em seguida, escolher a melhor data e horário no calendário. Veja o passo a passo no vídeo abaixo.',
     videoId: 'xjNpbfRoxRQ'
+  },
+  {
+    title: 'Como agendar um serviço pelo site pelo celular?',
+    content: 'É muito simples! Basta criar uma conta, escolher o serviço desejado na seção "Agendamento", efetuar o pagamento da reserva e, em seguida, escolher a melhor data e horário no calendário. Veja o passo a passo pelo celular no vídeo abaixo.',
+    videoId: 'iKVF98z3gI8'
   },
   {
     title: 'Como posso ver os meus agendamentos e os selos fidelidade?',
