@@ -316,7 +316,7 @@ export default function Agenda() {
                       ) : selectedDay.availableSlots.length > 0 ? (
                         <>
                           <p className="mb-3 text-xs font-bold uppercase tracking-wider text-emerald-200/80">
-                            Horarios disponiveis
+                            Horários disponíveis
                           </p>
                           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3">
                             {selectedDay.availableSlots.map((slot) => (
@@ -423,7 +423,7 @@ const getDayBadgeClass = (day) => {
 
 const getDayBadgeLabel = (day) => {
   if (!day.isBusinessDay) return 'Fechado'
-  if (day.availableSlots.length) return `${day.availableSlots.length} horario(s)`
+  if (day.availableSlots.length) return `${day.availableSlots.length} horário(s)`
   return 'Lotado'
 }
 
