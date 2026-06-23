@@ -431,7 +431,7 @@ export default function QuickBookingPage() {
   return (
     <div className="relative min-h-screen overflow-hidden text-cream">
       <div className="fixed inset-0 -z-20">
-        <img src="/studio-01.jpeg" alt="" className="h-full w-full object-cover opacity-45 blur-sm scale-105" />
+        <img src="/img/studio-06.jpeg" alt="" className="h-full w-full object-cover opacity-45 blur-sm scale-105" />
         <div className="absolute inset-0 bg-gradient-to-b from-dark/82 via-dark/72 to-dark/92" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(217,177,92,0.22),transparent_38%)]" />
       </div>
@@ -500,7 +500,7 @@ export default function QuickBookingPage() {
         ) : pageStep === 'intro' ? (
           <section className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
             <div className="overflow-hidden rounded-[2rem] border border-gold/20 bg-black/35 backdrop-blur-xl">
-              <img src="/studio-01.jpeg" alt="Thallyta Silveira" className="h-80 w-full object-cover object-top sm:h-[28rem]" />
+              <img src="/img/studio-06.jpeg" alt="Thallyta Silveira" className="h-80 w-full object-cover object-center sm:h-[28rem]" />
             </div>
             <div className="gold-border rounded-[2rem] bg-black/45 p-5 backdrop-blur-xl md:p-8">
               <p className="text-xs font-bold uppercase tracking-[0.24em] text-gold-light/70">Studio de beleza</p>

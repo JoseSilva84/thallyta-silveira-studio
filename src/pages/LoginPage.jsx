@@ -4,6 +4,18 @@ import { FiArrowLeft, FiMail, FiLock, FiEye, FiEyeOff } from 'react-icons/fi'
 import { FcGoogle } from 'react-icons/fc'
 import { useAuth } from '../context/AuthContext'
 
+const QUICK_BOOKING_DRAFT_KEY = 'thallytaQuickBookingDraft'
+
+const getPostLoginPath = () => {
+  try {
+    const quickDraft = JSON.parse(localStorage.getItem(QUICK_BOOKING_DRAFT_KEY) || 'null')
+    if (quickDraft?.slot || quickDraft?.serviceId) return '/agendar'
+  } catch {
+    return '/'
+  }
+  return '/'
+}
+
 export default function LoginPage() {
   const { login, loginWithGoogle, loading } = useAuth()
   const navigate = useNavigate()
@@ -23,17 +35,25 @@ export default function LoginPage() {
     e.preventDefault()
     setError('')
     const result = await login({ email: form.email, password: form.password })
-    if (result.ok) navigate('/')
+    if (result.ok) navigate(getPostLoginPath())
     else setError(result.error)
+  }
+
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1)
+      return
+    }
+    navigate('/agendar')
   }
 
   return (
     <div className="min-h-screen bg-dark flex items-center justify-center p-4 relative">
       <div className="w-full max-w-md">
         {/* Botão Voltar */}
-        <Link to="/" className="inline-flex items-center gap-2 text-sm text-cream/50 hover:text-gold mb-8 transition-colors">
-          <FiArrowLeft /> Voltar para o site
-        </Link>
+        <button type="button" onClick={handleBack} className="mb-8 inline-flex items-center gap-2 text-sm text-cream/50 transition-colors hover:text-gold">
+          <FiArrowLeft /> Voltar
+        </button>
 
         {/* Logo */}
         <div className="text-center mb-8">
