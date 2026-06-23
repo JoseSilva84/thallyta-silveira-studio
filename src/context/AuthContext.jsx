@@ -7,6 +7,7 @@ const AuthContext = createContext(null)
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
 const BOOKING_CHECKOUT_DRAFT_KEY = 'thallytaBookingCheckoutDraft'
 const QUICK_BOOKING_DRAFT_KEY = 'thallytaQuickBookingDraft'
+const POST_LOGIN_PATH_KEY = 'thallytaPostLoginPath'
 
 const readToken = () => localStorage.getItem('authToken')
 const parseToken = (token) => {
@@ -65,6 +66,15 @@ export function AuthProvider({ children }) {
     const params = new URLSearchParams(window.location.search)
     const token = params.get('token')
     const getPostLoginPath = () => {
+      try {
+        const storedPath = localStorage.getItem(POST_LOGIN_PATH_KEY)
+        if (storedPath?.startsWith('/')) {
+          localStorage.removeItem(POST_LOGIN_PATH_KEY)
+          return storedPath
+        }
+      } catch {
+        return '/'
+      }
       try {
         const quickDraft = JSON.parse(localStorage.getItem(QUICK_BOOKING_DRAFT_KEY) || 'null')
         if (quickDraft?.slot) return '/agendar'
@@ -138,11 +148,13 @@ export function AuthProvider({ children }) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Credenciais invalidas.')
       localStorage.setItem('authToken', data.token)
+      const postLoginPath = localStorage.getItem(POST_LOGIN_PATH_KEY)
+      if (postLoginPath?.startsWith('/')) localStorage.removeItem(POST_LOGIN_PATH_KEY)
       setUser(data.user)
       setAuthHydrated(true)
       setLoginOpen(false)
       toast.success(`Bem-vinda, ${data.user.name}!`)
-      return { ok: true }
+      return { ok: true, redirectTo: postLoginPath?.startsWith('/') ? postLoginPath : null }
     } catch (error) {
       toast.error(error.message)
       return { ok: false, error: error.message }

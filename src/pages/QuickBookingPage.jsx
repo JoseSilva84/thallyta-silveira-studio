@@ -427,6 +427,15 @@ export default function QuickBookingPage() {
     }
   }
 
+  const openMyBookings = () => {
+    try {
+      window.localStorage?.setItem('thallytaPostLoginPath', '/meus-agendamentos')
+    } catch {
+      // Navigation still works without storage.
+    }
+    navigate('/meus-agendamentos')
+  }
+
   const resetFlow = () => {
     setIntroDone(false)
     setSummaryAccepted(false)
@@ -549,7 +558,7 @@ export default function QuickBookingPage() {
             </div>
             <div className="gold-border flex h-full flex-col rounded-[2rem] bg-black/45 p-5 backdrop-blur-xl md:p-8">
               <p className="text-xs font-bold uppercase tracking-[0.24em] text-gold-light/70">Studio de beleza</p>
-              <h2 className="mt-3 font-display text-4xl text-gold-light">Reserve seu atendimento com Thallyta</h2>
+              <h2 className="mt-3 font-display text-4xl text-gold-light">Agendamento</h2>
               <div className="mt-6 grid gap-3 text-sm text-cream/70">
                 <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
                   <FiClock className="mb-2 text-gold-light" />
@@ -570,9 +579,9 @@ export default function QuickBookingPage() {
               >
                 Ver serviços <FiChevronRight />
               </button>
-              <Link to="/meus-agendamentos" className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-gold/25 px-6 py-3 text-sm font-semibold text-gold-light transition-colors hover:bg-gold/10">
+              <button type="button" onClick={openMyBookings} className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-gold/25 px-6 py-3 text-sm font-semibold text-gold-light transition-colors hover:bg-gold/10">
                 <FiCalendar /> Área do meu agendamento
-              </Link>
+              </button>
             </div>
           </section>
         ) : pageStep === 'agenda' ? (
@@ -731,9 +740,9 @@ export default function QuickBookingPage() {
                 Continuar para pagamento
               </button>
             )}
-            <Link to="/meus-agendamentos" className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-gold/25 px-6 py-3 text-sm font-semibold text-gold-light transition-colors hover:bg-gold/10">
+            <button type="button" onClick={openMyBookings} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-gold/25 px-6 py-3 text-sm font-semibold text-gold-light transition-colors hover:bg-gold/10">
               <FiCalendar /> Entrar na área do meu agendamento
-            </Link>
+            </button>
           </section>
         ) : pageStep === 'service' ? (
             <section id="quick-services" className="gold-border mt-6 scroll-mt-24 rounded-[2.5rem] bg-black/40 p-5 backdrop-blur-xl sm:p-8 lg:p-10">

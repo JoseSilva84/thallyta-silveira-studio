@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { FiArrowLeft, FiMail, FiLock, FiEye, FiEyeOff } from 'react-icons/fi'
 import { FcGoogle } from 'react-icons/fc'
 import { useAuth } from '../context/AuthContext'
@@ -19,6 +19,7 @@ const getPostLoginPath = () => {
 export default function LoginPage() {
   const { login, loginWithGoogle, loading } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const [searchParams] = useSearchParams()
   const [showPass, setShowPass] = useState(false)
   const [form, setForm] = useState({ email: '', password: '' })
@@ -35,7 +36,7 @@ export default function LoginPage() {
     e.preventDefault()
     setError('')
     const result = await login({ email: form.email, password: form.password })
-    if (result.ok) navigate(getPostLoginPath())
+    if (result.ok) navigate(result.redirectTo || location.state?.from || getPostLoginPath())
     else setError(result.error)
   }
 
