@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import {
   FiArrowLeft,
@@ -10,10 +10,13 @@ import {
   FiClock,
   FiCreditCard,
   FiLoader,
+  FiMapPin,
   FiRefreshCw,
   FiScissors,
+  FiUser,
   FiX,
 } from 'react-icons/fi'
+import { FcGoogle } from 'react-icons/fc'
 import { allServices, serviceGroups } from '../data/services.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import LoginModal from '../components/auth/LoginModal.jsx'
@@ -61,8 +64,11 @@ const clearQuickDraft = () => {
 }
 
 export default function QuickBookingPage() {
-  const { user, getToken, setLoginOpen, logout } = useAuth()
+  const { user, getToken, setLoginOpen, logout, loginWithGoogle } = useAuth()
+  const navigate = useNavigate()
   const userSelectedServiceRef = useRef(false)
+  const [introDone, setIntroDone] = useState(false)
+  const [summaryAccepted, setSummaryAccepted] = useState(false)
   const [agendaDays, setAgendaDays] = useState([])
   const [agendaServiceId, setAgendaServiceId] = useState('')
   const [bookings, setBookings] = useState([])
@@ -79,7 +85,7 @@ export default function QuickBookingPage() {
   const [confirmedPayment, setConfirmedPayment] = useState(null)
   const [activeServiceGroup, setActiveServiceGroup] = useState(serviceGroups[0]?.id || '')
 
-  const serviceIdForAgenda = selectedSlot && selectedService?.id ? selectedService.id : ''
+  const serviceIdForAgenda = selectedService?.id || ''
   const total = servicePriceValue(selectedService)
   const deposit = Math.round(total * 30) / 100
   const amountToPay = paymentType === 'full' ? total : deposit
@@ -93,24 +99,40 @@ export default function QuickBookingPage() {
   const activeGroup = serviceGroups.find((item) => item.id === activeServiceGroup) || serviceGroups[0]
   const pageStep = confirmedBooking
     ? 'confirmed'
-    : !selectedSlot
-      ? 'agenda'
-      : !user
-        ? 'login'
-        : !selectedService
-          ? 'service'
-          : 'summary'
-  const currentStep = pageStep === 'confirmed' ? 5 : pageStep === 'summary' ? 4 : pageStep === 'service' ? 3 : pageStep === 'login' ? 2 : 1
+    : !introDone
+      ? 'intro'
+      : !selectedService
+        ? 'service'
+        : !selectedSlot
+          ? 'agenda'
+          : !summaryAccepted
+            ? 'summary'
+            : (!user || needsWhatsapp)
+              ? 'login'
+              : 'payment'
+  const currentStep = {
+    intro: 1,
+    service: 2,
+    agenda: 3,
+    summary: 4,
+    login: 5,
+    payment: 6,
+    confirmed: 7,
+  }[pageStep]
   const pageTitle = {
+    intro: 'Agenda Thallyta Silveira',
+    payment: 'Pagamento',
     agenda: 'Escolha seu horário',
-    login: 'Entre para continuar',
+    login: 'Identifique seus dados',
     service: 'Escolha o serviço',
     summary: 'Revise e pague',
     confirmed: 'Agendamento confirmado',
   }[pageStep]
   const pageSubtitle = {
+    intro: 'Comece pela apresentacao, escolha o servico, selecione data e horario, revise tudo e finalize no Mercado Pago.',
+    payment: 'Escolha a forma de pagamento e siga para o Mercado Pago.',
     agenda: 'Selecione o melhor dia e horário disponível.',
-    login: 'Acesse sua conta para reservar esse horario.',
+    login: 'Entre, crie seu cadastro ou use o Google para manter seus agendamentos e selos no mesmo email.',
     service: 'Escolha o cuidado que deseja agendar.',
     summary: 'Confira os dados e escolha como deseja pagar.',
     confirmed: 'Seu horario foi reservado com sucesso.',
@@ -173,14 +195,19 @@ export default function QuickBookingPage() {
     if (draft.slot) {
       setSelectedSlot(draft.slot)
       setSelectedDate(draft.slot.date || '')
+      setIntroDone(true)
     }
 
     if (draft.serviceId) {
       const service = allServices.find((item) => item.id === draft.serviceId)
-      if (service) setSelectedService(service)
+      if (service) {
+        setSelectedService(service)
+        setIntroDone(true)
+      }
     }
 
     if (draft.paymentType) setPaymentType(draft.paymentType)
+    if (draft.summaryAccepted) setSummaryAccepted(true)
   }, [])
 
   useEffect(() => {
@@ -306,27 +333,18 @@ export default function QuickBookingPage() {
 
   const continueAfterSlot = () => {
     if (!selectedSlot) return toast.info('Escolha um horario para continuar.')
-    if (!user) {
-      writeQuickDraft({ slot: selectedSlot, serviceId: selectedService?.id || '', paymentType })
-      setLoginOpen(true)
-      return
-    }
-    if (needsWhatsapp) {
-      toast.info('Informe seu WhatsApp para continuar.')
-      return
-    }
-    document.getElementById('quick-services')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    writeQuickDraft({ slot: selectedSlot, serviceId: selectedService?.id || '', paymentType })
+    setSummaryAccepted(false)
+    document.querySelector('main')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
   const chooseService = (service) => {
-    if (needsWhatsapp) {
-      toast.info('Informe seu WhatsApp para continuar.')
-      return
-    }
     userSelectedServiceRef.current = true
     setSelectedService(service)
-    writeQuickDraft({ slot: selectedSlot, serviceId: service.id, paymentType })
-    window.setTimeout(() => document.getElementById('quick-summary')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80)
+    setSelectedSlot(null)
+    setSummaryAccepted(false)
+    writeQuickDraft({ serviceId: service.id, paymentType })
+    window.setTimeout(() => document.querySelector('main')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80)
   }
 
   const startPayment = async () => {
@@ -370,6 +388,8 @@ export default function QuickBookingPage() {
   }
 
   const resetFlow = () => {
+    setIntroDone(false)
+    setSummaryAccepted(false)
     setSelectedSlot(null)
     setSelectedService(null)
     setPaymentType('deposit')
@@ -381,15 +401,26 @@ export default function QuickBookingPage() {
   }
 
   const goBack = () => {
-    if (pageStep === 'summary') {
-      setSelectedService(null)
-      writeQuickDraft({ slot: selectedSlot, paymentType })
+    if (pageStep === 'payment' || pageStep === 'login') {
+      setSummaryAccepted(false)
+      writeQuickDraft({ slot: selectedSlot, serviceId: selectedService?.id || '', paymentType })
       return
     }
-    if (pageStep === 'service' || pageStep === 'login') {
+    if (pageStep === 'summary') {
       setSelectedSlot(null)
+      setSummaryAccepted(false)
+      writeQuickDraft({ serviceId: selectedService?.id || '', paymentType })
+      return
+    }
+    if (pageStep === 'agenda') {
       setSelectedService(null)
+      setSelectedSlot(null)
+      setSummaryAccepted(false)
       writeQuickDraft({ paymentType })
+      return
+    }
+    if (pageStep === 'service') {
+      setIntroDone(false)
       return
     }
     if (pageStep === 'confirmed') {
@@ -451,7 +482,7 @@ export default function QuickBookingPage() {
           <p className="mt-2 max-w-2xl text-sm leading-6 text-cream/60">
             {pageSubtitle}
           </p>
-          {pageStep !== 'agenda' && pageStep !== 'confirmed' && (
+          {pageStep !== 'intro' && pageStep !== 'confirmed' && (
             <button type="button" onClick={goBack} className="mt-4 inline-flex items-center gap-2 rounded-xl border border-gold/25 bg-black/25 px-4 py-2 text-sm font-semibold text-gold-light hover:bg-gold/10">
               <FiArrowLeft /> Voltar
             </button>
@@ -466,6 +497,42 @@ export default function QuickBookingPage() {
 
         {pageStep === 'confirmed' ? (
           <ConfirmationCard booking={confirmedBooking} payment={confirmedPayment} onNew={resetFlow} />
+        ) : pageStep === 'intro' ? (
+          <section className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
+            <div className="overflow-hidden rounded-[2rem] border border-gold/20 bg-black/35 backdrop-blur-xl">
+              <img src="/studio-01.jpeg" alt="Thallyta Silveira" className="h-80 w-full object-cover object-top sm:h-[28rem]" />
+            </div>
+            <div className="gold-border rounded-[2rem] bg-black/45 p-5 backdrop-blur-xl md:p-8">
+              <p className="text-xs font-bold uppercase tracking-[0.24em] text-gold-light/70">Studio de beleza</p>
+              <h2 className="mt-3 font-display text-4xl text-gold-light">Reserve seu atendimento com Thallyta</h2>
+              <p className="mt-4 text-sm leading-6 text-cream/65">
+                O agendamento acontece em etapas: servico, data e horario, resumo, cadastro, pagamento no Mercado Pago e confirmacao final.
+              </p>
+              <div className="mt-6 grid gap-3 text-sm text-cream/70">
+                <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
+                  <FiClock className="mb-2 text-gold-light" />
+                  Horarios carregados conforme a duracao do servico escolhido.
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
+                  <FiMapPin className="mb-2 text-gold-light" />
+                  Atendimento presencial no Studio Thallyta Silveira.
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIntroDone(true)
+                  writeQuickDraft({ serviceId: selectedService?.id || '', slot: selectedSlot || null, paymentType })
+                }}
+                className="gold-button mt-6 flex w-full items-center justify-center gap-2 rounded-xl px-6 py-4 font-bold uppercase tracking-wider"
+              >
+                Ver servicos <FiChevronRight />
+              </button>
+              <Link to="/meus-agendamentos" className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-gold/25 px-6 py-3 text-sm font-semibold text-gold-light transition-colors hover:bg-gold/10">
+                <FiCalendar /> Area do meu agendamento
+              </Link>
+            </div>
+          </section>
         ) : pageStep === 'agenda' ? (
             <section className="gold-border rounded-[2rem] bg-black/35 p-4 backdrop-blur-xl md:p-6">
               <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -575,17 +642,56 @@ export default function QuickBookingPage() {
               </div>
             </section>
         ) : pageStep === 'login' ? (
-          <section className="gold-border mx-auto max-w-2xl rounded-[2rem] bg-black/35 p-5 text-center backdrop-blur-xl md:p-8">
+          <section className="gold-border mx-auto max-w-2xl rounded-[2rem] bg-black/35 p-5 backdrop-blur-xl md:p-8">
             <div className="mx-auto flex size-16 items-center justify-center rounded-full border border-gold/30 bg-gold/10 text-gold-light">
-              <FiCheckCircle className="size-8" />
+              <FiUser className="size-8" />
             </div>
-            <h2 className="mt-5 font-display text-4xl text-gold-light">Horario escolhido</h2>
-            <p className="mt-2 text-sm text-cream/60">
-              {selectedSlot ? `${formatLongDate(new Date(selectedSlot.start))} as ${selectedSlot.time}` : ''}
+            <h2 className="mt-5 text-center font-display text-4xl text-gold-light">Meus dados</h2>
+            <p className="mt-2 text-center text-sm leading-6 text-cream/60">
+              Use o mesmo email que voce ja cadastrou para manter seus agendamentos e selos na mesma conta.
             </p>
-            <button type="button" onClick={() => setLoginOpen(true)} className="gold-button mt-6 w-full rounded-xl px-6 py-4 text-sm font-bold uppercase tracking-wider">
-              Entrar para continuar
-            </button>
+            {needsWhatsapp && (
+              <div className="mt-5 rounded-2xl border border-amber-300/25 bg-amber-300/10 p-4 text-sm text-amber-100">
+                Falta informar seu WhatsApp. Complete o telefone no aviso aberto para seguir ao pagamento.
+              </div>
+            )}
+            {!user ? (
+              <div className="mt-6 grid gap-3">
+                <button type="button" onClick={() => setLoginOpen(true)} className="gold-button w-full rounded-xl px-6 py-4 text-sm font-bold uppercase tracking-wider">
+                  Entrar com email e senha
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    writeQuickDraft({ slot: selectedSlot, serviceId: selectedService?.id || '', paymentType, summaryAccepted: true })
+                    navigate('/register')
+                  }}
+                  className="w-full rounded-xl border border-gold/25 px-6 py-4 text-sm font-bold uppercase tracking-wider text-gold-light transition-colors hover:bg-gold/10"
+                >
+                  Criar cadastro
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    writeQuickDraft({ slot: selectedSlot, serviceId: selectedService?.id || '', paymentType, summaryAccepted: true })
+                    loginWithGoogle()
+                  }}
+                  className="flex w-full items-center justify-center gap-3 rounded-xl border border-white/10 bg-white px-6 py-4 text-sm font-bold text-zinc-900 transition-colors hover:bg-gray-100"
+                >
+                  <FcGoogle /> Entrar com Google
+                </button>
+                <p className="text-center text-xs leading-5 text-cream/45">
+                  No navegador do Instagram, Facebook ou outro app, o Google pode bloquear o login. O aviso vai orientar a abrir no Chrome ou Safari.
+                </p>
+              </div>
+            ) : (
+              <button type="button" onClick={() => setSummaryAccepted(true)} disabled={needsWhatsapp} className="gold-button mt-6 w-full rounded-xl px-6 py-4 text-sm font-bold uppercase tracking-wider disabled:opacity-50">
+                Continuar para pagamento
+              </button>
+            )}
+            <Link to="/meus-agendamentos" className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-gold/25 px-6 py-3 text-sm font-semibold text-gold-light transition-colors hover:bg-gold/10">
+              <FiCalendar /> Entrar na area do meu agendamento
+            </Link>
           </section>
         ) : pageStep === 'service' ? (
             <section id="quick-services" className="gold-border mt-6 scroll-mt-24 rounded-[2.5rem] bg-black/40 p-5 backdrop-blur-xl sm:p-8 lg:p-10">
@@ -596,13 +702,6 @@ export default function QuickBookingPage() {
                   <h2 className="font-display text-3xl text-gold-light">Escolha o cuidado</h2>
                 </div>
               </div>
-              {!user && (
-                <div className="mb-4 rounded-xl border border-gold/20 bg-gold/10 p-4 text-sm text-cream/75">
-                  Entre na sua conta para escolher o servico e finalizar a reserva.
-                  <button type="button" onClick={() => setLoginOpen(true)} className="ml-2 font-bold text-gold-light underline">Entrar agora</button>
-                </div>
-              )}
-
               <div className="mb-8 flex flex-wrap justify-center gap-3">
                 {serviceGroups.map((group) => (
                   <button
@@ -625,7 +724,7 @@ export default function QuickBookingPage() {
                   <ServiceCard
                     key={service.id}
                     service={{ ...service, group: activeGroup.label }}
-                    onAdd={(chosenService) => (user ? chooseService({ ...chosenService, group: activeGroup.label }) : setLoginOpen(true))}
+                    onAdd={(chosenService) => chooseService({ ...chosenService, group: activeGroup.label })}
                     actionLabel={selectedService?.id === service.id ? 'Selecionado' : 'Escolher'}
                   />
                 ))}
@@ -646,10 +745,10 @@ export default function QuickBookingPage() {
         ) : (
             <section id="quick-summary" className="mt-6 scroll-mt-24 rounded-[2rem] border border-gold/20 bg-gradient-to-b from-dark-card/90 to-dark/95 p-4 md:p-6">
               <div className="mb-5 flex items-center gap-3">
-                <FiCreditCard className="text-gold-light" />
+                {pageStep === 'payment' ? <FiCreditCard className="text-gold-light" /> : <FiCheckCircle className="text-gold-light" />}
                 <div>
                   <p className="text-xs font-bold uppercase tracking-wider text-gold-light/70">Resumo</p>
-                  <h2 className="font-display text-3xl text-gold-light">Revise e pague</h2>
+                  <h2 className="font-display text-3xl text-gold-light">{pageStep === 'payment' ? 'Revise e pague' : 'Confira antes de continuar'}</h2>
                 </div>
               </div>
 
@@ -660,7 +759,7 @@ export default function QuickBookingPage() {
                 <SummaryItem label="Cliente" value={user?.name || 'Entre na sua conta'} icon={<FiCheckCircle />} />
               </div>
 
-              {selectedService && (
+              {pageStep === 'payment' && selectedService && (
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
                   <button
                     type="button"
@@ -683,15 +782,29 @@ export default function QuickBookingPage() {
                 </div>
               )}
 
-              <button
-                type="button"
-                onClick={startPayment}
-                disabled={creatingPayment || !selectedSlot || !selectedService || !user}
-                className="gold-button mt-6 flex w-full items-center justify-center gap-2 rounded-xl px-6 py-4 font-bold uppercase tracking-wider disabled:cursor-not-allowed disabled:opacity-55"
-              >
-                {creatingPayment ? <FiLoader className="animate-spin" /> : <FiCreditCard />}
-                {creatingPayment ? 'Abrindo Mercado Pago...' : `Pagar ${selectedService ? money(amountToPay) : ''}`}
-              </button>
+              {pageStep === 'payment' ? (
+                <button
+                  type="button"
+                  onClick={startPayment}
+                  disabled={creatingPayment || !selectedSlot || !selectedService || !user}
+                  className="gold-button mt-6 flex w-full items-center justify-center gap-2 rounded-xl px-6 py-4 font-bold uppercase tracking-wider disabled:cursor-not-allowed disabled:opacity-55"
+                >
+                  {creatingPayment ? <FiLoader className="animate-spin" /> : <FiCreditCard />}
+                  {creatingPayment ? 'Abrindo Mercado Pago...' : `Pagar ${selectedService ? money(amountToPay) : ''}`}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    writeQuickDraft({ slot: selectedSlot, serviceId: selectedService?.id || '', paymentType, summaryAccepted: true })
+                    setSummaryAccepted(true)
+                    document.querySelector('main')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                  }}
+                  className="gold-button mt-6 flex w-full items-center justify-center gap-2 rounded-xl px-6 py-4 font-bold uppercase tracking-wider"
+                >
+                  {user && !needsWhatsapp ? 'Continuar para pagamento' : 'Continuar para cadastro'} <FiChevronRight />
+                </button>
+              )}
             </section>
         )}
       </main>

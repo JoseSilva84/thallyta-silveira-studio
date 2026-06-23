@@ -5,6 +5,18 @@ import { FcGoogle } from 'react-icons/fc'
 import { useAuth } from '../context/AuthContext'
 import { formatBrazilWhatsappInput, normalizeBrazilWhatsapp, onlyDigits } from '../utils/phone'
 
+const QUICK_BOOKING_DRAFT_KEY = 'thallytaQuickBookingDraft'
+
+const getPostRegisterPath = () => {
+  try {
+    const quickDraft = JSON.parse(localStorage.getItem(QUICK_BOOKING_DRAFT_KEY) || 'null')
+    if (quickDraft?.slot || quickDraft?.serviceId) return '/agendar'
+  } catch {
+    return '/'
+  }
+  return '/'
+}
+
 export default function RegisterPage() {
   const { register, loginWithGoogle, loading } = useAuth()
   const navigate = useNavigate()
@@ -43,7 +55,7 @@ export default function RegisterPage() {
       password: form.password,
       whatsappPhone: normalizeBrazilWhatsapp(form.whatsappPhone),
     })
-    if (result.ok) navigate('/')
+    if (result.ok) navigate(getPostRegisterPath())
     else setError(result.error)
   }
 

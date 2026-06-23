@@ -34,6 +34,10 @@ export default function GoogleBrowserWarning() {
           Abra o site diretamente no Chrome ou Safari e toque novamente em “Entrar com Google”.
         </p>
 
+        <p className="mt-2 text-sm leading-6 text-cream/70">
+          Se voce esta no navegador do Instagram ou em um navegador interno/secundario, use o botao abaixo para abrir no Google Chrome.
+        </p>
+
         <div className="mt-6 space-y-3">
           {isAndroid && (
             <button
@@ -63,4 +67,3 @@ export default function GoogleBrowserWarning() {
     </div>
   )
 }
-
