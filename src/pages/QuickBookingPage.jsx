@@ -129,13 +129,13 @@ export default function QuickBookingPage() {
     confirmed: 'Agendamento confirmado',
   }[pageStep]
   const pageSubtitle = {
-    intro: 'Comece pela apresentacao, escolha o servico, selecione data e horario, revise tudo e finalize no Mercado Pago.',
+    intro: 'Comece pela apresentação, escolha o serviço, selecione data e horário, revise tudo e finalize no Mercado Pago.',
     payment: 'Escolha a forma de pagamento e siga para o Mercado Pago.',
     agenda: 'Selecione o melhor dia e horário disponível.',
     login: 'Entre, crie seu cadastro ou use o Google para manter seus agendamentos e selos no mesmo email.',
     service: 'Escolha o cuidado que deseja agendar.',
     summary: 'Confira os dados e escolha como deseja pagar.',
-    confirmed: 'Seu horario foi reservado com sucesso.',
+    confirmed: 'Seu horário foi reservado com sucesso.',
   }[pageStep]
 
   const fetchAgenda = useCallback(async () => {
@@ -506,12 +506,12 @@ export default function QuickBookingPage() {
               <p className="text-xs font-bold uppercase tracking-[0.24em] text-gold-light/70">Studio de beleza</p>
               <h2 className="mt-3 font-display text-4xl text-gold-light">Reserve seu atendimento com Thallyta</h2>
               <p className="mt-4 text-sm leading-6 text-cream/65">
-                O agendamento acontece em etapas: servico, data e horario, resumo, cadastro, pagamento no Mercado Pago e confirmacao final.
+                O agendamento acontece em etapas: serviço, data e horário, resumo, cadastro, pagamento no Mercado Pago e confirmação final.
               </p>
               <div className="mt-6 grid gap-3 text-sm text-cream/70">
                 <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
                   <FiClock className="mb-2 text-gold-light" />
-                  Horarios carregados conforme a duracao do servico escolhido.
+                  Horários carregados conforme a duração do serviço escolhido.
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
                   <FiMapPin className="mb-2 text-gold-light" />
@@ -529,7 +529,7 @@ export default function QuickBookingPage() {
                 Ver servicos <FiChevronRight />
               </button>
               <Link to="/meus-agendamentos" className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-gold/25 px-6 py-3 text-sm font-semibold text-gold-light transition-colors hover:bg-gold/10">
-                <FiCalendar /> Area do meu agendamento
+                <FiCalendar /> Área do meu agendamento
               </Link>
             </div>
           </section>
@@ -538,7 +538,7 @@ export default function QuickBookingPage() {
               <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-wider text-gold-light/70">Agenda</p>
-                  <h2 className="font-display text-3xl text-gold-light">Dia e horario</h2>
+                  <h2 className="font-display text-3xl text-gold-light">Dia e horário</h2>
                 </div>
                 <button
                   type="button"
@@ -690,7 +690,7 @@ export default function QuickBookingPage() {
               </button>
             )}
             <Link to="/meus-agendamentos" className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-gold/25 px-6 py-3 text-sm font-semibold text-gold-light transition-colors hover:bg-gold/10">
-              <FiCalendar /> Entrar na area do meu agendamento
+              <FiCalendar /> Entrar na área do meu agendamento
             </Link>
           </section>
         ) : pageStep === 'service' ? (
