@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { FiEye, FiEyeOff, FiX } from 'react-icons/fi'
 import { FcGoogle } from 'react-icons/fc'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext.jsx'
 
 export default function LoginModal() {
@@ -10,12 +10,30 @@ export default function LoginModal() {
   const { register, handleSubmit } = useForm({ defaultValues: { email: '', password: '' } })
   const [showPass, setShowPass] = useState(false)
   const navigate = useNavigate()
+  const location = useLocation()
 
   if (!loginOpen) return null
 
+  const rememberCurrentPath = () => {
+    try {
+      const currentPath = `${location.pathname}${location.search}${location.hash}`
+      if (currentPath.startsWith('/')) window.localStorage?.setItem('thallytaPostLoginPath', currentPath)
+    } catch {
+      // Login flow still works without storage.
+    }
+  }
+
   const handleGoToRegister = () => {
+    rememberCurrentPath()
     setLoginOpen(false)
     navigate('/register')
+  }
+
+  const handleLogin = async (values) => {
+    const result = await login(values)
+    if (result?.ok && result.redirectTo) {
+      navigate(result.redirectTo)
+    }
   }
 
   return (
@@ -37,7 +55,7 @@ export default function LoginModal() {
         </button>
         <p className="text-xs uppercase tracking-[0.3em] text-gold-light mt-2">Entrar</p>
         <h2 className="mt-2 font-display text-4xl font-semibold">Sua área de beleza</h2>
-        <form className="mt-6 space-y-4" onSubmit={handleSubmit(login)}>
+        <form className="mt-6 space-y-4" onSubmit={handleSubmit(handleLogin)}>
           <label className="block text-sm text-cream/80">
             Email
             <input
@@ -73,7 +91,10 @@ export default function LoginModal() {
         </form>
         <button
           type="button"
-          onClick={loginWithGoogle}
+          onClick={() => {
+            rememberCurrentPath()
+            loginWithGoogle()
+          }}
           className="tap-gold mt-3 flex w-full items-center justify-center gap-3 rounded-md border border-dark-border bg-white px-5 py-3 text-sm font-bold text-zinc-900 transition-colors hover:bg-gray-100"
         >
           <FcGoogle />

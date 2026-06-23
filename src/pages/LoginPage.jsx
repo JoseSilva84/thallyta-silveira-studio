@@ -5,6 +5,7 @@ import { FcGoogle } from 'react-icons/fc'
 import { useAuth } from '../context/AuthContext'
 
 const QUICK_BOOKING_DRAFT_KEY = 'thallytaQuickBookingDraft'
+const POST_LOGIN_PATH_KEY = 'thallytaPostLoginPath'
 
 const getPostLoginPath = () => {
   try {
@@ -31,6 +32,15 @@ export default function LoginPage() {
     : 'Falha ao entrar com o Google. Tente novamente.'
 
   const handleChange = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }))
+
+  const rememberLoginDestination = () => {
+    const destination = location.state?.from || getPostLoginPath()
+    try {
+      if (destination?.startsWith('/')) localStorage.setItem(POST_LOGIN_PATH_KEY, destination)
+    } catch {
+      // Google login still works without storage.
+    }
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -74,7 +84,10 @@ export default function LoginPage() {
 
           {/* Google */}
           <button
-            onClick={loginWithGoogle}
+            onClick={() => {
+              rememberLoginDestination()
+              loginWithGoogle()
+            }}
             className="w-full flex items-center justify-center gap-3 rounded-xl border border-white/10 bg-white/5 py-3 text-sm font-semibold text-cream transition-all hover:bg-white/10 hover:border-white/20 mb-4"
           >
             <FcGoogle size={20} />
@@ -134,7 +147,7 @@ export default function LoginPage() {
 
           <p className="text-center text-cream/40 text-sm mt-6">
             Não tem conta?{' '}
-            <Link to="/register" className="text-gold hover:text-gold-light font-semibold">
+            <Link to="/register" onClick={rememberLoginDestination} className="text-gold hover:text-gold-light font-semibold">
               Criar conta
             </Link>
           </p>

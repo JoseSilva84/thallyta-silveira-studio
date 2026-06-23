@@ -6,8 +6,18 @@ import { useAuth } from '../context/AuthContext'
 import { formatBrazilWhatsappInput, normalizeBrazilWhatsapp, onlyDigits } from '../utils/phone'
 
 const QUICK_BOOKING_DRAFT_KEY = 'thallytaQuickBookingDraft'
+const POST_LOGIN_PATH_KEY = 'thallytaPostLoginPath'
 
 const getPostRegisterPath = () => {
+  try {
+    const storedPath = localStorage.getItem(POST_LOGIN_PATH_KEY)
+    if (storedPath?.startsWith('/')) {
+      localStorage.removeItem(POST_LOGIN_PATH_KEY)
+      return storedPath
+    }
+  } catch {
+    return '/'
+  }
   try {
     const quickDraft = JSON.parse(localStorage.getItem(QUICK_BOOKING_DRAFT_KEY) || 'null')
     if (quickDraft?.slot || quickDraft?.serviceId) return '/agendar'

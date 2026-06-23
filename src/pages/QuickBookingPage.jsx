@@ -383,7 +383,7 @@ export default function QuickBookingPage() {
     if (!selectedService) return toast.info('Escolha um servico.')
     const token = getToken()
     if (!token) {
-      setLoginOpen(true)
+      openLoginFromQuickBooking()
       return
     }
     if (needsWhatsapp) {
@@ -434,6 +434,15 @@ export default function QuickBookingPage() {
       // Navigation still works without storage.
     }
     navigate('/meus-agendamentos')
+  }
+
+  const openLoginFromQuickBooking = () => {
+    try {
+      window.localStorage?.setItem('thallytaPostLoginPath', '/agendar')
+    } catch {
+      // Login still works without storage.
+    }
+    setLoginOpen(true)
   }
 
   const resetFlow = () => {
@@ -496,7 +505,7 @@ export default function QuickBookingPage() {
             <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={() => !user && setLoginOpen(true)}
+                onClick={() => !user && openLoginFromQuickBooking()}
                 className={`max-w-full truncate rounded-full border px-3 py-1 text-[0.68rem] font-bold uppercase tracking-wider ${
                   user
                     ? needsWhatsapp
@@ -708,7 +717,7 @@ export default function QuickBookingPage() {
             )}
             {!user ? (
               <div className="mt-6 grid gap-3">
-                <button type="button" onClick={() => setLoginOpen(true)} className="gold-button w-full rounded-xl px-6 py-4 text-sm font-bold uppercase tracking-wider">
+                <button type="button" onClick={openLoginFromQuickBooking} className="gold-button w-full rounded-xl px-6 py-4 text-sm font-bold uppercase tracking-wider">
                   Entrar com email e senha
                 </button>
                 <button
