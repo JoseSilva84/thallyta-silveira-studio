@@ -27,6 +27,7 @@ const generateToken = (user) => {
       email: user.email,
       role: user.role,
       avatarUrl: user.avatarUrl,
+      dateOfBirth: user.dateOfBirth,
       whatsappPhone: user.whatsappPhone,
     },
     process.env.JWT_SECRET,
@@ -39,6 +40,7 @@ const baseUserSelect = {
   name: true,
   email: true,
   role: true,
+  dateOfBirth: true,
   whatsappPhone: true,
   whatsappOptIn: true,
   whatsappUpdatedAt: true,
@@ -50,8 +52,21 @@ const userSelect = {
   avatarUrl: true,
 };
 
-const isMissingAvatarColumn = (error) =>
-  error?.code === 'P2022' && String(error?.meta?.column || '').includes('avatarUrl');
+const legacyUserSelect = {
+  id: true,
+  name: true,
+  email: true,
+  role: true,
+  whatsappPhone: true,
+  whatsappOptIn: true,
+  whatsappUpdatedAt: true,
+  createdAt: true,
+};
+
+const isMissingOptionalUserColumn = (error) => {
+  const column = String(error?.meta?.column || '');
+  return error?.code === 'P2022' && (column.includes('avatarUrl') || column.includes('dateOfBirth'));
+};
 
 const findPublicUser = async (userId) => {
   try {
@@ -60,11 +75,11 @@ const findPublicUser = async (userId) => {
       select: userSelect,
     });
   } catch (error) {
-    if (!isMissingAvatarColumn(error)) throw error;
+    if (!isMissingOptionalUserColumn(error)) throw error;
     console.warn('Coluna avatarUrl ainda não foi migrada; perfil carregado sem foto.');
     return prisma.user.findUnique({
       where: { id: userId },
-      select: baseUserSelect,
+      select: legacyUserSelect,
     });
   }
 };
@@ -82,12 +97,42 @@ const normalizeWhatsappPhone = (value) => {
   return withCountryCode;
 };
 
+const normalizeDateOfBirth = (value) => {
+  const rawValue = String(value || '').trim();
+  if (!rawValue) return null;
+
+  const match = rawValue.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) {
+    throw new Error('Informe uma data de nascimento valida.');
+  }
+
+  const [, year, month, day] = match;
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+  const isSameDate =
+    date.getUTCFullYear() === Number(year)
+    && date.getUTCMonth() === Number(month) - 1
+    && date.getUTCDate() === Number(day);
+
+  if (!isSameDate) {
+    throw new Error('Informe uma data de nascimento valida.');
+  }
+
+  const today = new Date();
+  const todayUtc = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+  if (date > todayUtc) {
+    throw new Error('A data de nascimento nao pode ser futura.');
+  }
+
+  return date;
+};
+
 const publicUser = (user) => ({
   id: user.id,
   name: user.name,
   email: user.email,
   role: user.role,
   avatarUrl: user.avatarUrl,
+  dateOfBirth: user.dateOfBirth,
   whatsappPhone: user.whatsappPhone,
   whatsappOptIn: user.whatsappOptIn,
   whatsappUpdatedAt: user.whatsappUpdatedAt,
@@ -95,7 +140,7 @@ const publicUser = (user) => ({
 
 export const register = async (req, res) => {
   try {
-    const { name, email, password, whatsappPhone } = req.body;
+    const { name, email, password, whatsappPhone, dateOfBirth } = req.body;
     const normalizedName = String(name || '').trim();
     const normalizedEmail = String(email || '').trim().toLowerCase();
 
@@ -116,6 +161,7 @@ export const register = async (req, res) => {
     if (!normalizedWhatsapp) {
       return res.status(400).json({ error: 'Informe um WhatsApp válido com DDD.' });
     }
+    const normalizedDateOfBirth = normalizeDateOfBirth(dateOfBirth);
     const passwordHash = await bcrypt.hash(password, 12);
 
     const user = await prisma.user.create({
@@ -125,6 +171,7 @@ export const register = async (req, res) => {
         passwordHash,
         role: 'CLIENT',
         whatsappPhone: normalizedWhatsapp,
+        dateOfBirth: normalizedDateOfBirth,
         whatsappOptIn: Boolean(normalizedWhatsapp),
         whatsappUpdatedAt: normalizedWhatsapp ? new Date() : null,
       },
@@ -134,7 +181,7 @@ export const register = async (req, res) => {
     res.status(201).json({ token, user: publicUser(user) });
   } catch (error) {
     console.error('Erro no registro:', error);
-    if (error.message?.includes('WhatsApp')) {
+    if (error.message?.includes('WhatsApp') || error.message?.includes('nascimento')) {
       return res.status(400).json({ error: error.message });
     }
     res.status(500).json({ error: 'Erro interno ao criar conta.' });

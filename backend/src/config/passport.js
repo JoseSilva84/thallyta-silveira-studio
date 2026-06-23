@@ -11,6 +11,7 @@ const googleUserSelect = {
   email: true,
   role: true,
   googleId: true,
+  dateOfBirth: true,
   whatsappPhone: true,
   whatsappOptIn: true,
   whatsappUpdatedAt: true,

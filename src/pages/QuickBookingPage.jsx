@@ -129,7 +129,7 @@ export default function QuickBookingPage() {
     confirmed: 'Agendamento confirmado',
   }[pageStep]
   const pageSubtitle = {
-    intro: 'Comece pela apresentação, escolha o serviço, selecione data e horário, revise tudo e finalize no Mercado Pago.',
+    intro: '',
     payment: 'Escolha a forma de pagamento e siga para o Mercado Pago.',
     agenda: 'Selecione o melhor dia e horário disponível.',
     login: 'Entre, crie seu cadastro ou use o Google para manter seus agendamentos e selos no mesmo email.',
@@ -479,9 +479,11 @@ export default function QuickBookingPage() {
         <section className="mb-6">
           <p className="text-xs font-bold uppercase tracking-[0.24em] text-gold-light/70">Direto ao ponto</p>
           <h1 className="mt-2 font-display text-4xl text-cream md:text-5xl">{pageTitle}</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-cream/60">
-            {pageSubtitle}
-          </p>
+          {pageSubtitle && (
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-cream/60">
+              {pageSubtitle}
+            </p>
+          )}
           {pageStep !== 'intro' && pageStep !== 'confirmed' && (
             <button type="button" onClick={goBack} className="mt-4 inline-flex items-center gap-2 rounded-xl border border-gold/25 bg-black/25 px-4 py-2 text-sm font-semibold text-gold-light hover:bg-gold/10">
               <FiArrowLeft /> Voltar
@@ -499,8 +501,8 @@ export default function QuickBookingPage() {
           <ConfirmationCard booking={confirmedBooking} payment={confirmedPayment} onNew={resetFlow} />
         ) : pageStep === 'intro' ? (
           <section className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
-            <div className="overflow-hidden rounded-[2rem] border border-gold/20 bg-black/35 backdrop-blur-xl">
-              <img src="/img/2.png" alt="Thallyta Silveira" className="h-80 w-full object-contain object-center sm:h-[28rem]" />
+            <div className="flex h-80 items-center justify-center overflow-hidden rounded-[2rem] border border-gold/20 bg-black/35 backdrop-blur-xl sm:h-[28rem]">
+              <img src="/img/2.png" alt="Thallyta Silveira" className="h-full w-auto max-w-none object-contain object-center" />
             </div>
             <div className="gold-border rounded-[2rem] bg-black/45 p-5 backdrop-blur-xl md:p-8">
               <p className="text-xs font-bold uppercase tracking-[0.24em] text-gold-light/70">Studio de beleza</p>

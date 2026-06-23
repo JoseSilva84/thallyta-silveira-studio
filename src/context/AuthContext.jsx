@@ -98,13 +98,13 @@ export function AuthProvider({ children }) {
     }
   }, [fetchMe])
 
-  const register = useCallback(async ({ name, email, password, whatsappPhone }) => {
+  const register = useCallback(async ({ name, email, password, whatsappPhone, dateOfBirth }) => {
     setLoading(true)
     try {
       const res = await fetch(`${API}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password, whatsappPhone }),
+        body: JSON.stringify({ name, email, password, whatsappPhone, dateOfBirth }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Erro ao criar conta.')

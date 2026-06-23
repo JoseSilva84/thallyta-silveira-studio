@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { FiMail, FiLock, FiUser, FiEye, FiEyeOff, FiPhone } from 'react-icons/fi'
+import { FiCalendar, FiMail, FiLock, FiUser, FiEye, FiEyeOff, FiPhone } from 'react-icons/fi'
 import { FcGoogle } from 'react-icons/fc'
 import { useAuth } from '../context/AuthContext'
 import { formatBrazilWhatsappInput, normalizeBrazilWhatsapp, onlyDigits } from '../utils/phone'
@@ -21,7 +21,7 @@ export default function RegisterPage() {
   const { register, loginWithGoogle, loading } = useAuth()
   const navigate = useNavigate()
   const [showPass, setShowPass] = useState(false)
-  const [form, setForm] = useState({ name: '', email: '', whatsappPhone: '', password: '', confirm: '' })
+  const [form, setForm] = useState({ name: '', email: '', whatsappPhone: '', dateOfBirth: '', password: '', confirm: '' })
   const [error, setError] = useState('')
 
   const handleChange = (e) => {
@@ -49,11 +49,17 @@ export default function RegisterPage() {
       return
     }
 
+    if (form.dateOfBirth && new Date(`${form.dateOfBirth}T00:00:00`) > new Date()) {
+      setError('A data de nascimento nao pode ser futura.')
+      return
+    }
+
     const result = await register({
       name: form.name,
       email: form.email,
       password: form.password,
       whatsappPhone: normalizeBrazilWhatsapp(form.whatsappPhone),
+      dateOfBirth: form.dateOfBirth || null,
     })
     if (result.ok) navigate(getPostRegisterPath())
     else setError(result.error)
@@ -133,6 +139,24 @@ export default function RegisterPage() {
                 required
                 className="w-full rounded-xl border border-white/10 bg-white/5 py-3 pl-11 pr-4 text-sm text-cream placeholder-cream/30 outline-none focus:border-gold/50 focus:ring-1 focus:ring-gold/20 transition"
               />
+            </div>
+
+            {/* Data de nascimento */}
+            <div>
+              <div className="relative">
+                <FiCalendar className="absolute left-4 top-1/2 -translate-y-1/2 text-gold/50" />
+                <input
+                  type="date"
+                  name="dateOfBirth"
+                  value={form.dateOfBirth}
+                  onChange={handleChange}
+                  max={new Date().toISOString().slice(0, 10)}
+                  className="w-full rounded-xl border border-white/10 bg-white/5 py-3 pl-11 pr-4 text-sm text-cream placeholder-cream/30 outline-none focus:border-gold/50 focus:ring-1 focus:ring-gold/20 transition"
+                />
+              </div>
+              <p className="mt-2 text-xs leading-5 text-cream/40">
+                Opcional. Usaremos para parabens no WhatsApp e premios de aniversario, como um servico gratis de ate R$ 30,00.
+              </p>
             </div>
 
             {/* Senha */}

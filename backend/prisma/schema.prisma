@@ -23,6 +23,7 @@ model User {
   role         Role      @default(CLIENT)
   googleId     String?   @unique
   avatarUrl    String?
+  dateOfBirth  DateTime?
   whatsappPhone String?
   whatsappOptIn Boolean   @default(false)
   whatsappUpdatedAt DateTime?
