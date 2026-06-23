@@ -318,6 +318,12 @@ export default function QuickBookingPage() {
           return
         }
 
+        if (mpStatus === 'failure' && paymentId) {
+          toast.error('Pagamento recusado. Seu cartao pode estar sem limite ou houve um problema com a operadora. Escolha outro cartao ou forma de pagamento para tentar novamente.')
+          window.history.replaceState(null, '', '/agendar')
+          return
+        }
+
         const confirmParams = new URLSearchParams()
         if (paymentId) confirmParams.set('payment_id', paymentId)
         if (selectedSlot?.start) confirmParams.set('start', selectedSlot.start)

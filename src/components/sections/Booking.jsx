@@ -550,6 +550,13 @@ export default function Booking({ embedded = false } = {}) {
           return
         }
 
+        if (mpStatus === 'failure' && paymentId) {
+          toast.error('Pagamento recusado. Seu cartao pode estar sem limite ou houve um problema com a operadora. Escolha outro cartao ou forma de pagamento para tentar novamente.')
+          confirmingPaymentIdRef.current = null
+          cleanPaymentParams()
+          return
+        }
+
         const confirmParams = new URLSearchParams()
         if (paymentId) confirmParams.set('payment_id', paymentId)
         if (preferredSlot?.start) confirmParams.set('start', preferredSlot.start)

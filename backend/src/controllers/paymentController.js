@@ -750,7 +750,7 @@ export const createBookingPreference = async (req, res) => {
           pending: `${returnUrl}&mpStatus=pending`,
           failure: `${returnUrl}&mpStatus=failure`,
         },
-        auto_return: 'approved',
+        auto_return: 'all',
         expires: true,
         expiration_date_to: holdExpiresAt.toISOString(),
         payment_methods: {
