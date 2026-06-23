@@ -9,7 +9,7 @@ const FIXED_SLOTS = [
 ];
 const FIXED_SLOT_MINUTES = new Set(FIXED_SLOTS.map(s => s.hour * 60 + s.minute));
 const OPEN_MINUTES = 8 * 60;        // 08:00
-const CLOSE_MINUTES = 19 * 60;      // 19:00 (cobre o último slot de 18:30)
+const LAST_START_MINUTES = 18 * 60 + 30; // 18:30
 const SLOT_INTERVAL_MINUTES = 30;
 const MIN_CLIENT_LEAD_TIME_MINUTES = 120;
 const BUSINESS_WEEKDAYS = new Set(['Mon', 'Tue', 'Wed', 'Thu', 'Fri']);
@@ -62,12 +62,12 @@ export const validateBookingWindow = (startInput, endInput) => {
     return { valid: false, reason: 'O atendimento comeca a partir das 08h00.' };
   }
 
-  if (endLocal.minutes > CLOSE_MINUTES) {
-    return { valid: false, reason: 'O atendimento encerra as 19h00.' };
-  }
-
   if (!FIXED_SLOT_MINUTES.has(startLocal.minutes)) {
     return { valid: false, reason: 'Este horario nao esta disponivel para agendamento.' };
+  }
+
+  if (startLocal.minutes > LAST_START_MINUTES) {
+    return { valid: false, reason: 'O ultimo horario disponivel para iniciar atendimento e 18h30.' };
   }
 
   return { valid: true };
