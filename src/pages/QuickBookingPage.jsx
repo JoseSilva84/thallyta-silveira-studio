@@ -500,16 +500,16 @@ export default function QuickBookingPage() {
         {pageStep === 'confirmed' ? (
           <ConfirmationCard booking={confirmedBooking} payment={confirmedPayment} onNew={resetFlow} />
         ) : pageStep === 'intro' ? (
-          <section className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
-            <div className="flex h-80 items-center justify-center overflow-hidden rounded-[2rem] border border-gold/20 bg-black/35 backdrop-blur-xl sm:h-[28rem]">
-              <img src="/img/2.png" alt="Thallyta Silveira" className="h-full w-auto max-w-none object-contain object-center" />
+          <section className="grid items-stretch gap-5 lg:grid-cols-[1.05fr_0.95fr]">
+            <div className="relative h-[24rem] overflow-hidden rounded-[2rem] border border-gold/20 bg-gradient-to-br from-gold/15 via-black/35 to-dark/80 backdrop-blur-xl sm:h-[32rem] lg:h-auto lg:min-h-full">
+              <div className="absolute inset-x-0 bottom-0 top-8 sm:top-10 lg:top-8">
+                <img src="/img/2.png" alt="Thallyta Silveira" className="mx-auto h-full w-auto max-w-none object-contain object-bottom drop-shadow-[0_24px_45px_rgba(0,0,0,0.42)]" />
+              </div>
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/35 to-transparent" />
             </div>
-            <div className="gold-border rounded-[2rem] bg-black/45 p-5 backdrop-blur-xl md:p-8">
+            <div className="gold-border flex h-full flex-col rounded-[2rem] bg-black/45 p-5 backdrop-blur-xl md:p-8">
               <p className="text-xs font-bold uppercase tracking-[0.24em] text-gold-light/70">Studio de beleza</p>
               <h2 className="mt-3 font-display text-4xl text-gold-light">Reserve seu atendimento com Thallyta</h2>
-              <p className="mt-4 text-sm leading-6 text-cream/65">
-                O agendamento acontece em etapas: serviço, data e horário, resumo, cadastro, pagamento no Mercado Pago e confirmação final.
-              </p>
               <div className="mt-6 grid gap-3 text-sm text-cream/70">
                 <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
                   <FiClock className="mb-2 text-gold-light" />
@@ -526,7 +526,7 @@ export default function QuickBookingPage() {
                   setIntroDone(true)
                   writeQuickDraft({ serviceId: selectedService?.id || '', slot: selectedSlot || null, paymentType })
                 }}
-                className="gold-button mt-6 flex w-full items-center justify-center gap-2 rounded-xl px-6 py-4 font-bold uppercase tracking-wider"
+                className="gold-button mt-auto flex w-full items-center justify-center gap-2 rounded-xl px-6 py-4 font-bold uppercase tracking-wider"
               >
                 Ver serviços <FiChevronRight />
               </button>

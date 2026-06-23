@@ -32,6 +32,7 @@ model User {
   bookings     Booking[]
   bookingPayments BookingPayment[]
   financeExpenses FinanceExpense[]
+  birthdayRewards BirthdayReward[]
 }
 
 model Booking {
@@ -127,4 +128,22 @@ model FinanceExpense {
 
   @@index([date])
   @@index([category])
+}
+
+model BirthdayReward {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  year      Int
+  amount    Float    @default(30)
+  status    String   @default("pending")
+  target    String?
+  sentAt    DateTime?
+  error     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, year])
+  @@index([year])
+  @@index([status])
 }

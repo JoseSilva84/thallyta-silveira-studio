@@ -179,6 +179,20 @@ const buildClientReminderMessage = (booking) => {
   ].join('\n');
 };
 
+const buildBirthdayRewardMessage = (user, amount = 30) => {
+  const firstName = (user.name || '').split(' ')[0] || 'cliente';
+  return [
+    `Parabens, ${firstName}!`,
+    '',
+    'Hoje e seu aniversario e o Studio Thallyta Silveira preparou um presente para voce.',
+    `Voce ganhou um servico gratis de ate ${formatCurrency(amount)} para usar no studio.`,
+    '',
+    'Para combinar o uso do beneficio, responda esta mensagem ou fale com a nossa equipe.',
+    '',
+    'Que seu dia seja lindo, leve e cheio de carinho.',
+  ].join('\n');
+};
+
 const alreadyLogged = async (prisma, { bookingId, type, target }) => {
   const existing = await prisma.notificationLog.findUnique({
     where: {
@@ -255,5 +269,15 @@ export const notifyUpcomingBookingReminder = async (prisma, booking) => {
     type: 'booking_reminder_1h_client',
     target: clientChatId,
     text: buildClientReminderMessage(booking),
+  });
+};
+
+export const notifyBirthdayReward = async (user, amount = 30) => {
+  const clientChatId = toChatId(user.whatsappPhone);
+  if (!clientChatId) return { skipped: true, reason: 'Cliente sem WhatsApp' };
+
+  return sendText({
+    chatId: clientChatId,
+    text: buildBirthdayRewardMessage(user, amount),
   });
 };

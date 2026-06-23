@@ -155,7 +155,7 @@ export default function RegisterPage() {
                 />
               </div>
               <p className="mt-2 text-xs leading-5 text-cream/40">
-                Opcional. Usaremos para parabens no WhatsApp e premios de aniversario, como um servico gratis de ate R$ 30,00.
+                Opcional. No dia do seu aniversario, podemos enviar parabens no WhatsApp e liberar um servico gratis de ate R$ 30,00.
               </p>
             </div>
 
