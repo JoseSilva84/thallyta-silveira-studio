@@ -33,7 +33,6 @@ import {
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { allServices } from '../../data/services.js';
-import { timeSlots } from '../../data/timeSlots.js';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 const ADMIN_SESSION_EXPIRED_MESSAGE = 'Sua sessão expirou. Entre novamente como administradora para continuar.';
@@ -114,6 +113,9 @@ export default function AdminPanel() {
   // ── Admin Booking Modal ────────────────────────────────────────
   const [showAdminBookingModal, setShowAdminBookingModal] = useState(false);
   const [adminBookingSaving, setAdminBookingSaving] = useState(false);
+  const [adminBookingAgendaDays, setAdminBookingAgendaDays] = useState([]);
+  const [adminBookingAgendaLoading, setAdminBookingAgendaLoading] = useState(false);
+  const [adminBookingAgendaError, setAdminBookingAgendaError] = useState('');
   const [adminBookingForm, setAdminBookingForm] = useState({
     attendeeName: '',
     attendeePhone: '',
@@ -126,6 +128,11 @@ export default function AdminPanel() {
   });
 
   const categories = ['Unhas', 'Cabelo', 'Estudio'];
+  const adminBookingAvailableTimes = useMemo(() => {
+    if (!adminBookingForm.date) return [];
+    const day = adminBookingAgendaDays.find((item) => item.date === adminBookingForm.date);
+    return (day?.availableSlots || []).map((slot) => slot.time);
+  }, [adminBookingAgendaDays, adminBookingForm.date]);
 
   const requireAdminToken = useCallback(() => {
     const token = getToken();
@@ -145,6 +152,45 @@ export default function AdminPanel() {
     }
     return errorMessage;
   }, [logout, navigate]);
+
+  useEffect(() => {
+    if (!showAdminBookingModal || !adminBookingForm.serviceId) {
+      setAdminBookingAgendaDays([]);
+      setAdminBookingAgendaError('');
+      return;
+    }
+
+    let cancelled = false;
+    const fetchAdminBookingAgenda = async () => {
+      try {
+        setAdminBookingAgendaLoading(true);
+        setAdminBookingAgendaError('');
+        const params = new URLSearchParams({ days: '90', serviceId: adminBookingForm.serviceId });
+        const res = await fetch(`${API}/bookings/public-agenda?${params.toString()}`);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Erro ao carregar horarios disponiveis.');
+        if (!cancelled) setAdminBookingAgendaDays(Array.isArray(data.agendaDays) ? data.agendaDays : []);
+      } catch (error) {
+        if (!cancelled) {
+          setAdminBookingAgendaDays([]);
+          setAdminBookingAgendaError(error.message || 'Erro ao carregar horarios disponiveis.');
+        }
+      } finally {
+        if (!cancelled) setAdminBookingAgendaLoading(false);
+      }
+    };
+
+    fetchAdminBookingAgenda();
+    return () => {
+      cancelled = true;
+    };
+  }, [adminBookingForm.serviceId, showAdminBookingModal]);
+
+  useEffect(() => {
+    if (!adminBookingForm.time) return;
+    if (!adminBookingAvailableTimes.length || adminBookingAvailableTimes.includes(adminBookingForm.time)) return;
+    setAdminBookingForm((f) => ({ ...f, time: '' }));
+  }, [adminBookingAvailableTimes, adminBookingForm.time]);
 
   const fetchImages = useCallback(async () => {
     try {
@@ -897,7 +943,7 @@ export default function AdminPanel() {
                   <select
                     required
                     value={adminBookingForm.serviceId}
-                    onChange={(e) => setAdminBookingForm((f) => ({ ...f, serviceId: e.target.value }))}
+                    onChange={(e) => setAdminBookingForm((f) => ({ ...f, serviceId: e.target.value, time: '' }))}
                     className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-pink-500/50 focus:ring-1 focus:ring-pink-500/30 [&>option]:bg-[#1a1a2e]"
                   >
                     <option value="">Selecione o serviço</option>
@@ -930,7 +976,7 @@ export default function AdminPanel() {
                       type="date" required
                       min={new Date().toISOString().slice(0, 10)}
                       value={adminBookingForm.date}
-                      onChange={(e) => setAdminBookingForm((f) => ({ ...f, date: e.target.value }))}
+                      onChange={(e) => setAdminBookingForm((f) => ({ ...f, date: e.target.value, time: '' }))}
                       className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-pink-500/50 focus:ring-1 focus:ring-pink-500/30 [color-scheme:dark]"
                     />
                   </div>
@@ -942,11 +988,24 @@ export default function AdminPanel() {
                       onChange={(e) => setAdminBookingForm((f) => ({ ...f, time: e.target.value }))}
                       className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-pink-500/50 focus:ring-1 focus:ring-pink-500/30 [&>option]:bg-[#1a1a2e]"
                     >
-                      <option value="">Horário</option>
-                      {timeSlots.map((t) => (
+                      <option value="">
+                        {adminBookingAgendaLoading
+                          ? 'Carregando...'
+                          : !adminBookingForm.serviceId
+                            ? 'Escolha o servico'
+                            : !adminBookingForm.date
+                              ? 'Escolha a data'
+                              : adminBookingAvailableTimes.length
+                                ? 'Horario'
+                                : 'Sem horarios livres'}
+                      </option>
+                      {adminBookingAvailableTimes.map((t) => (
                         <option key={t} value={t}>{t}</option>
                       ))}
                     </select>
+                    {adminBookingAgendaError && (
+                      <p className="mt-1 text-xs text-red-300">{adminBookingAgendaError}</p>
+                    )}
                   </div>
                 </div>
                 {/* Sinal pago */}

@@ -238,6 +238,10 @@ export const createPaidBooking = async (req, res) => {
     }
 
     if (await hasScheduleConflict(scheduledAt, endTime)) {
+      return res.status(409).json({ error: 'Este horario esta indisponivel ou ja possui outro agendamento.' });
+    }
+
+    if (await hasScheduleConflict(scheduledAt, endTime)) {
       return res.status(409).json({ error: 'Este horario acabou de ficar indisponivel. Escolha outro horario.' });
     }
 
