@@ -16,12 +16,18 @@ dotenv.config();
 
 const prisma = new PrismaClient();
 
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@thallyta.com';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'ThallyStudio@2026!';
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 const ADMIN_NAME = process.env.ADMIN_NAME || 'Thallyta Silveira';
 
 async function main() {
   console.log('🔧 Criando usuário administrador...');
+
+  if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
+    console.error('❌ ERRO: Variáveis de ambiente ADMIN_EMAIL e ADMIN_PASSWORD são obrigatórias.');
+    console.log('Use o comando: ADMIN_EMAIL=seu@email.com ADMIN_PASSWORD=suaSenha npm run seed:admin');
+    process.exit(1);
+  }
 
   const existing = await prisma.user.findUnique({ where: { email: ADMIN_EMAIL } });
   if (existing) {
