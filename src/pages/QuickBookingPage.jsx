@@ -659,9 +659,6 @@ export default function QuickBookingPage() {
                   <p className="text-sm text-cream/50">Carregando horarios...</p>
                 ) : selectedDay?.availableSlots?.length ? (
                   <>
-                    <p className="mb-3 text-center text-sm font-semibold text-cream/60">
-                      Selecione o horário para {formatNumericDate(selectedDay.date)}
-                    </p>
                     <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3">
                       {selectedDay.availableSlots.map((slot) => {
                         const active = selectedSlot?.start === slot.start
@@ -976,12 +973,6 @@ const formatShortWeekday = (date) => date.toLocaleDateString('pt-BR', {
 const formatDayNumber = (date) => date.toLocaleDateString('pt-BR', {
   timeZone: STUDIO_TIME_ZONE,
   day: '2-digit',
-})
-
-const formatNumericDate = (date) => date.toLocaleDateString('pt-BR', {
-  timeZone: STUDIO_TIME_ZONE,
-  day: '2-digit',
-  month: '2-digit',
 })
 
 const formatLongDate = (date) => date.toLocaleDateString('pt-BR', {
