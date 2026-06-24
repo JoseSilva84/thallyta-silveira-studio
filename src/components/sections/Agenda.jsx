@@ -181,7 +181,7 @@ export default function Agenda() {
                   <FiClock className="text-gold" /> 08h00 às 17h
                 </span>
                 <span className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-black/20 px-3 py-2">
-                  <FiClock className="text-gold" /> Pausa 13h as 14h30
+                  <FiClock className="text-gold" /> Pausa 13h às 14h30
                 </span>
               </div>
               <button
