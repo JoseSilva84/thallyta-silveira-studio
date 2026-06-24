@@ -179,7 +179,7 @@ Crie um `.env.local` na raiz para o frontend:
 
 ```env
 VITE_API_URL=http://localhost:3001/api
-VITE_CAL_USERNAME=thallyta-silveira-hxfjrf
+VITE_CAL_USERNAME=seu-usuario-cal
 ```
 
 Crie um `backend/.env` para o backend:
@@ -199,7 +199,7 @@ SESSION_SECRET=troque-por-outra-chave-segura
 
 CAL_API_KEY=
 CAL_API_VERSION=2026-02-25
-CAL_USERNAME=thallyta-silveira-hxfjrf
+CAL_USERNAME=seu-usuario-cal
 
 MP_ACCESS_TOKEN=
 
@@ -228,9 +228,9 @@ CAL_FALLBACK_SYNC_ENABLED=true
 Variáveis de seed do admin:
 
 ```env
-ADMIN_EMAIL=admin@thallyta.com
+ADMIN_EMAIL=admin@example.com
 ADMIN_PASSWORD=senha-segura
-ADMIN_NAME=Thallyta Silveira
+ADMIN_NAME=Nome Admin
 ```
 
 ## Execução Local
