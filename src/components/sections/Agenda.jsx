@@ -250,12 +250,6 @@ export default function Agenda() {
                   </div>
                 </div>
 
-                <div className="hidden grid-cols-7 gap-2 text-center text-[0.68rem] font-bold uppercase tracking-wider text-cream/35 sm:grid">
-                  {['S', 'T', 'Q', 'Q', 'S', 'S', 'D'].map((label, index) => (
-                    <span key={`${label}-${index}`}>{label}</span>
-                  ))}
-                </div>
-
                 <div className="mt-3 hidden sm:block">
                   <div className="grid min-w-0 grid-cols-7 gap-2">
                     {desktopDateDays.map((day) => (

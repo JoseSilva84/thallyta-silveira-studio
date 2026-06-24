@@ -629,10 +629,6 @@ export default function QuickBookingPage() {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-7 gap-1 text-center text-[0.65rem] font-bold uppercase tracking-wider text-cream/35">
-                  {['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab', 'Dom'].map((day) => <span key={day}>{day}</span>)}
-                </div>
-
                 <div className="mt-3 grid grid-cols-7 gap-1.5">
                   {visibleDays.map((day) => (
                     <button
@@ -659,6 +655,9 @@ export default function QuickBookingPage() {
                   <p className="text-sm text-cream/50">Carregando horarios...</p>
                 ) : selectedDay?.availableSlots?.length ? (
                   <>
+                    <p className="mb-3 text-center text-sm font-semibold text-cream/60">
+                      Selecione o horário para {formatNumericDate(selectedDay.date)}
+                    </p>
                     <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3">
                       {selectedDay.availableSlots.map((slot) => {
                         const active = selectedSlot?.start === slot.start
@@ -973,6 +972,12 @@ const formatShortWeekday = (date) => date.toLocaleDateString('pt-BR', {
 const formatDayNumber = (date) => date.toLocaleDateString('pt-BR', {
   timeZone: STUDIO_TIME_ZONE,
   day: '2-digit',
+})
+
+const formatNumericDate = (date) => date.toLocaleDateString('pt-BR', {
+  timeZone: STUDIO_TIME_ZONE,
+  day: '2-digit',
+  month: '2-digit',
 })
 
 const formatLongDate = (date) => date.toLocaleDateString('pt-BR', {
