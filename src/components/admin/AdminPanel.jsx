@@ -511,6 +511,28 @@ export default function AdminPanel() {
     });
   };
 
+  const handleDeleteClient = async (clientEmail, clientName) => {
+    showConfirmToast({
+      message: `Excluir "${clientName}" e todos os dados (agendamentos, pagamentos, selos)? Esta ação não pode ser desfeita.`,
+      confirmLabel: 'Excluir',
+      tone: 'danger',
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`${API}/bookings/clients/${encodeURIComponent(clientEmail)}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${getToken()}` },
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.error || 'Erro ao excluir cliente');
+          toast.success(data.message || 'Cliente excluído com sucesso.');
+          await fetchBookings();
+        } catch (error) {
+          toast.error(error.message);
+        }
+      },
+    });
+  };
+
   const handleSyncBookingToCal = async (booking) => {
     try {
       const res = await fetch(`${API}/bookings/${booking.id}/sync-cal`, {
@@ -854,6 +876,7 @@ export default function AdminPanel() {
             onUndoCompleteService={handleUndoCompleteService}
             onMarkNoShow={handleMarkNoShow}
             onMarkRemainingPaid={handleMarkRemainingPaid}
+            onDeleteClient={handleDeleteClient}
           />
         )}
 
@@ -2284,7 +2307,7 @@ function LoyaltyAdminView({ clients, pendingBookings, onCompleteService, onUndoC
   );
 }
 
-function ClientsView({ clients, search, setSearch, statusBadge, onCompleteService, onUndoCompleteService, onMarkNoShow, onMarkRemainingPaid }) {
+function ClientsView({ clients, search, setSearch, statusBadge, onCompleteService, onUndoCompleteService, onMarkNoShow, onMarkRemainingPaid, onDeleteClient }) {
   const [selectedKey, setSelectedKey] = useState(null);
   const normalizedSearch = search.trim().toLowerCase();
   const filteredClients = useMemo(() => (
@@ -2355,12 +2378,25 @@ function ClientsView({ clients, search, setSearch, statusBadge, onCompleteServic
           <p className="text-sm text-cream/50">Selecione um cliente para ver detalhes.</p>
         ) : (
           <div className="space-y-6">
-            <div className="flex flex-col gap-5">
-              <div className="min-w-0">
-                <p className="text-xs font-bold uppercase tracking-wider text-gold-light/60">Detalhes do cliente</p>
-                <h2 className="mt-1 truncate text-2xl font-bold text-cream">{selectedClient.name}</h2>
-                <p className="mt-1 text-sm text-cream/50">{selectedClient.email || selectedClient.phone || 'Contato nao informado'}</p>
-                {selectedClient.email && selectedClient.phone && <p className="text-sm text-cream/40">{selectedClient.phone}</p>}
+            <div className="space-y-5">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold uppercase tracking-wider text-gold-light/60">Detalhes do cliente</p>
+                  <h2 className="mt-1 truncate text-2xl font-bold text-cream">{selectedClient.name}</h2>
+                  <p className="mt-1 text-sm text-cream/50">{selectedClient.email || selectedClient.phone || 'Contato nao informado'}</p>
+                  {selectedClient.email && selectedClient.phone && <p className="text-sm text-cream/40">{selectedClient.phone}</p>}
+                </div>
+                {onDeleteClient && selectedClient.email && (
+                  <button
+                    type="button"
+                    onClick={() => onDeleteClient(selectedClient.email, selectedClient.name)}
+                    className="flex shrink-0 items-center gap-2 rounded-xl border border-red-500/25 bg-red-500/10 px-3 py-2 text-xs font-bold uppercase tracking-wider text-red-300 transition hover:border-red-500/40 hover:bg-red-500/20 hover:text-red-200"
+                    title="Excluir este cliente e todos os seus dados"
+                  >
+                    <FiTrash2 size={14} />
+                    Excluir
+                  </button>
+                )}
               </div>
               <div className="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3 2xl:grid-cols-6">
                 <SmallStat label="Serviços" value={selectedClient.totalServices} tone="gold" />

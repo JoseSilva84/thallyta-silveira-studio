@@ -743,3 +743,91 @@ export const createAdminBooking = async (req, res) => {
     res.status(500).json({ error: error.message || 'Erro interno ao criar agendamento.' });
   }
 };
+
+/**
+ * DELETE /api/bookings/clients/:email
+ * Admin only: exclui um cliente e todos os dados relacionados.
+ */
+export const deleteClient = async (req, res) => {
+  try {
+    const email = decodeURIComponent(req.params.email).toLowerCase().trim();
+    if (!email) {
+      return res.status(400).json({ error: 'Email do cliente é obrigatório.' });
+    }
+
+    // 1. Buscar o User (pode não existir se o booking foi feito como visitante)
+    const user = await prisma.user.findUnique({ where: { email } });
+    const userId = user?.id;
+
+    // 2. Buscar todos os bookings do cliente
+    const orConditions = [{ attendeeEmail: email }];
+    if (userId) orConditions.push({ userId });
+
+    const bookings = await prisma.booking.findMany({
+      where: { OR: orConditions },
+      select: { id: true, paymentId: true },
+    });
+
+    if (!user && bookings.length === 0) {
+      return res.status(404).json({ error: 'Cliente não encontrado.' });
+    }
+
+    const bookingIds = bookings.map((b) => b.id);
+
+    // 3. Deletar tudo em transação
+    const result = await prisma.$transaction(async (tx) => {
+      // NotificationLogs dos bookings
+      const deletedNotifications = bookingIds.length
+        ? await tx.notificationLog.deleteMany({ where: { bookingId: { in: bookingIds } } })
+        : { count: 0 };
+
+      // BirthdayRewards do user
+      const deletedRewards = userId
+        ? await tx.birthdayReward.deleteMany({ where: { userId } })
+        : { count: 0 };
+
+      // Desassociar payments dos bookings (para evitar FK constraint)
+      if (bookingIds.length) {
+        await tx.booking.updateMany({
+          where: { id: { in: bookingIds } },
+          data: { paymentId: null },
+        });
+      }
+
+      // BookingPayments do user
+      const deletedPayments = userId
+        ? await tx.bookingPayment.deleteMany({ where: { userId } })
+        : { count: 0 };
+
+      // Bookings
+      const deletedBookings = bookingIds.length
+        ? await tx.booking.deleteMany({ where: { id: { in: bookingIds } } })
+        : { count: 0 };
+
+      // FinanceExpenses criadas pelo user
+      const deletedExpenses = userId
+        ? await tx.financeExpense.deleteMany({ where: { createdById: userId } })
+        : { count: 0 };
+
+      // O próprio User
+      const deletedUser = userId
+        ? await tx.user.delete({ where: { id: userId } }).then(() => 1)
+        : 0;
+
+      return {
+        user: deletedUser,
+        bookings: deletedBookings.count,
+        payments: deletedPayments.count,
+        notifications: deletedNotifications.count,
+        rewards: deletedRewards.count,
+        expenses: deletedExpenses.count,
+      };
+    });
+
+    console.log(`🗑️ Cliente excluído: ${email}`, result);
+    res.json({ message: `Cliente "${user?.name || email}" excluído com sucesso.`, ...result });
+  } catch (error) {
+    console.error('Erro ao excluir cliente:', error);
+    res.status(500).json({ error: 'Erro interno ao excluir cliente.' });
+  }
+};

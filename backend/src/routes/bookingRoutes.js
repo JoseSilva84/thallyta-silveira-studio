@@ -4,6 +4,7 @@ import {
   completeBookingService,
   createAdminBooking,
   createPaidBooking,
+  deleteClient,
   getBookings,
   getBookingById,
   getPublicAgenda,
@@ -21,6 +22,7 @@ router.get('/public-agenda', getPublicAgenda);
 router.get('/', verifyToken, getBookings);
 router.post('/paid-create', verifyToken, createPaidBooking);
 router.post('/admin-create', verifyToken, verifyAdmin, createAdminBooking);
+router.delete('/clients/:email', verifyToken, verifyAdmin, deleteClient);
 router.get('/:id', verifyToken, getBookingById);
 router.post('/:id/cancel', verifyToken, cancelBooking);
 router.post('/:id/complete-service', verifyToken, verifyAdmin, completeBookingService);
