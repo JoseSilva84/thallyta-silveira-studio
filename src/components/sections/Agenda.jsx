@@ -178,7 +178,7 @@ export default function Agenda() {
             <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div className="grid grid-cols-2 gap-2 text-[0.78rem] text-cream/65 sm:flex sm:flex-wrap sm:text-sm">
                 <span className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-black/20 px-3 py-2">
-                  <FiClock className="text-gold" /> 09h30 as 18h
+                  <FiClock className="text-gold" /> 08h00 às 17h
                 </span>
                 <span className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-black/20 px-3 py-2">
                   <FiClock className="text-gold" /> Pausa 13h as 14h30

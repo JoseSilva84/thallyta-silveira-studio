@@ -72,7 +72,7 @@ const getStudioOpenStatus = () => {
   return {
     isOpen,
     label: isOpen ? 'Aberto' : 'Fechado',
-    detail: 'Seg. a sex. 09:30-18:00, pausa 13:00-14:30',
+    detail: 'Seg. a sex. 08:00 - 17:00, pausa 13:00 -14:30',
   }
 }
 
