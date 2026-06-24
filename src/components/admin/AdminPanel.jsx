@@ -36,6 +36,31 @@ import { allServices } from '../../data/services.js';
 import { timeSlots } from '../../data/timeSlots.js';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const ADMIN_SESSION_EXPIRED_MESSAGE = 'Sua sessão expirou. Entre novamente como administradora para continuar.';
+const BLOCK_QUICK_SLOTS = ['08:00', '10:30', '14:30', '16:30', '18:30'];
+const BLOCK_SLOT_END_TIMES = {
+  '08:00': '10:30',
+  '10:30': '13:00',
+  '14:30': '16:30',
+  '16:30': '18:30',
+  '18:30': '19:00',
+};
+
+const parseJwtPayload = (token) => {
+  if (!token) return null;
+  try {
+    const base64 = token.split('.')[1]?.replace(/-/g, '+').replace(/_/g, '/');
+    if (!base64) return null;
+    return JSON.parse(window.atob(base64));
+  } catch {
+    return null;
+  }
+};
+
+const isExpiredToken = (token) => {
+  const payload = parseJwtPayload(token);
+  return !payload?.exp || payload.exp * 1000 <= Date.now();
+};
 
 const emptyTestimonial = {
   id: null,
@@ -101,6 +126,25 @@ export default function AdminPanel() {
   });
 
   const categories = ['Unhas', 'Cabelo', 'Estudio'];
+
+  const requireAdminToken = useCallback(() => {
+    const token = getToken();
+    if (!token || isExpiredToken(token)) {
+      logout();
+      navigate('/login');
+      throw new Error(ADMIN_SESSION_EXPIRED_MESSAGE);
+    }
+    return token;
+  }, [getToken, logout, navigate]);
+
+  const handleAuthFailure = useCallback((errorMessage) => {
+    if (/token/i.test(errorMessage || '')) {
+      logout();
+      navigate('/login');
+      return ADMIN_SESSION_EXPIRED_MESSAGE;
+    }
+    return errorMessage;
+  }, [logout, navigate]);
 
   const fetchImages = useCallback(async () => {
     try {
@@ -168,42 +212,46 @@ export default function AdminPanel() {
   const fetchScheduleBlocks = useCallback(async () => {
     try {
       setFetchingBlocks(true);
+      const token = requireAdminToken();
       const res = await fetch(`${API}/schedule-blocks`, {
-        headers: { Authorization: `Bearer ${getToken()}` },
+        headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error('Falha ao buscar bloqueios');
-      setScheduleBlocks(await res.json());
+      const data = await res.json().catch(() => []);
+      if (!res.ok) throw new Error(handleAuthFailure(data.error) || 'Falha ao buscar bloqueios');
+      setScheduleBlocks(data);
     } catch (error) {
-      toast.error('Erro ao carregar bloqueios de agenda');
+      toast.error(error.message || 'Erro ao carregar bloqueios de agenda');
       console.error(error);
     } finally {
       blocksLoadedRef.current = true;
       setFetchingBlocks(false);
     }
-  }, [getToken]);
+  }, [handleAuthFailure, requireAdminToken]);
 
   const handleCreateBlock = async (payload) => {
+    const token = requireAdminToken();
     const res = await fetch(`${API}/schedule-blocks`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${getToken()}`,
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(payload),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Erro ao criar bloqueio');
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(handleAuthFailure(data.error) || 'Erro ao criar bloqueio');
     setScheduleBlocks((prev) => [data, ...prev]);
     return data;
   };
 
   const handleDeleteBlock = async (uid) => {
+    const token = requireAdminToken();
     const res = await fetch(`${API}/schedule-blocks/${uid}`, {
       method: 'DELETE',
-      headers: { Authorization: `Bearer ${getToken()}` },
+      headers: { Authorization: `Bearer ${token}` },
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || 'Erro ao remover bloqueio');
+    if (!res.ok) throw new Error(handleAuthFailure(data.error) || 'Erro ao remover bloqueio');
     setScheduleBlocks((prev) => prev.filter((b) => b.uid !== uid));
   };
 
@@ -2993,8 +3041,8 @@ function statusBadge(status) {
 const emptyBlockForm = {
   date: '',
   allDay: true,
-  startTime: '09:30',
-  endTime: '18:00',
+  startTime: '08:00',
+  endTime: '10:30',
   reason: '',
 };
 
@@ -3004,6 +3052,15 @@ function ScheduleBlocksTab({ blocks, fetching, onRefresh, onCreate, onDelete }) 
 
   // Data mínima = hoje no fuso local
   const todayLocal = new Date().toLocaleDateString('en-CA'); // "YYYY-MM-DD"
+
+  const applyQuickSlot = (slot) => {
+    setForm((f) => ({
+      ...f,
+      allDay: false,
+      startTime: slot,
+      endTime: BLOCK_SLOT_END_TIMES[slot] || f.endTime,
+    }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -3157,6 +3214,33 @@ function ScheduleBlocksTab({ blocks, fetching, onRefresh, onCreate, onDelete }) 
             </div>
 
             {/* Horários (apenas se parcial) */}
+            {!form.allDay && (
+              <div>
+                <p className="mb-2 text-xs font-bold uppercase tracking-wider text-cream/60">
+                  Bloquear horário da agenda
+                </p>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                  {BLOCK_QUICK_SLOTS.map((slot) => {
+                    const active = form.startTime === slot && form.endTime === BLOCK_SLOT_END_TIMES[slot];
+                    return (
+                      <button
+                        key={slot}
+                        type="button"
+                        onClick={() => applyQuickSlot(slot)}
+                        className={`rounded-xl border px-3 py-2.5 text-sm font-bold transition-all ${
+                          active
+                            ? 'border-gold bg-gold text-dark'
+                            : 'border-white/10 bg-black/20 text-cream/70 hover:border-gold/40 hover:text-gold'
+                        }`}
+                      >
+                        {slot}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {!form.allDay && (
               <div className="grid grid-cols-2 gap-3">
                 <div>
