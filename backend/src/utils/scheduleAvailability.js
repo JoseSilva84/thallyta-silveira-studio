@@ -60,7 +60,24 @@ export const findActivePaymentHoldConflict = async (prisma, start, end, { exclud
   });
 };
 
+export const findScheduleBlockConflict = async (prisma, start, end) => {
+  return prisma.scheduleBlock.findFirst({
+    where: {
+      start: {
+        lt: end,
+      },
+      end: {
+        gt: start,
+      },
+    },
+    select: { id: true, start: true, end: true, allDay: true },
+  });
+};
+
 export const hasScheduleConflict = async (prisma, start, end, options = {}) => {
+  const blockConflict = await findScheduleBlockConflict(prisma, start, end);
+  if (blockConflict) return true;
+
   const bookingConflict = await findConfirmedScheduleConflict(prisma, start, end);
   if (bookingConflict) return true;
 

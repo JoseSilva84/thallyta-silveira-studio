@@ -1,6 +1,7 @@
 import prisma from '../config/prisma.js';
 import { notifyBookingCreated } from '../services/whatsappService.js';
 import { validateBookingWindow } from '../utils/bookingHours.js';
+import { findScheduleBlockConflict } from '../utils/scheduleAvailability.js';
 
 const cancelUnauthorizedCalBooking = async (calEventId, reason = 'Agendamento cancelado automaticamente: pagamento minimo nao aprovado.') => {
   const apiKey = process.env.CAL_API_KEY;
@@ -70,6 +71,13 @@ const validatePayloadSchedule = (payload) => {
   return validateBookingWindow(start, end);
 };
 
+const findPayloadScheduleBlock = (payload) => {
+  const start = new Date(payload.startTime || payload.start);
+  const end = new Date(payload.endTime || payload.end);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null;
+  return findScheduleBlockConflict(prisma, start, end);
+};
+
 /**
  * Webhook handler para eventos do Cal.com.
  * Recebe BOOKING_CREATED, BOOKING_RESCHEDULED e BOOKING_CANCELLED.
@@ -134,6 +142,16 @@ async function handleBookingCreated(payload) {
       reason: scheduleValidation.reason,
     });
     await cancelUnauthorizedCalBooking(uid, `Agendamento cancelado automaticamente: ${scheduleValidation.reason}`);
+    return;
+  }
+
+  const scheduleBlock = await findPayloadScheduleBlock(payload);
+  if (scheduleBlock) {
+    console.error('Booking recebido em horario bloqueado. Cancelando/ignorando.', {
+      uid,
+      scheduleBlockId: scheduleBlock.id,
+    });
+    await cancelUnauthorizedCalBooking(uid, 'Agendamento cancelado automaticamente: horario bloqueado na agenda do studio.');
     return;
   }
 
@@ -259,6 +277,17 @@ async function handleBookingRescheduled(payload) {
       reason: scheduleValidation.reason,
     });
     await cancelUnauthorizedCalBooking(newUid, `Reagendamento cancelado automaticamente: ${scheduleValidation.reason}`);
+    return;
+  }
+
+  const scheduleBlock = await findPayloadScheduleBlock(payload);
+  if (scheduleBlock) {
+    console.error('Reagendamento recebido em horario bloqueado. Cancelando novo horario.', {
+      previousUid,
+      newUid,
+      scheduleBlockId: scheduleBlock.id,
+    });
+    await cancelUnauthorizedCalBooking(newUid, 'Reagendamento cancelado automaticamente: horario bloqueado na agenda do studio.');
     return;
   }
 

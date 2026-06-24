@@ -3035,7 +3035,7 @@ function statusBadge(status) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ScheduleBlocksTab — Aba de Bloqueios de Agenda (integração Cal.com Out of Office)
+// ScheduleBlocksTab — Aba de Bloqueios de Agenda
 // ─────────────────────────────────────────────────────────────────────────────
 
 const emptyBlockForm = {
@@ -3081,7 +3081,7 @@ function ScheduleBlocksTab({ blocks, fetching, onRefresh, onCreate, onDelete }) 
         endTime: form.allDay ? undefined : form.endTime,
         reason: form.reason.trim() || undefined,
       });
-      toast.success('Bloqueio criado! O Cal.com já impedirá novos agendamentos nesse período.');
+      toast.success('Bloqueio criado! A agenda do site já impedirá novos agendamentos nesse período.');
       setForm(emptyBlockForm);
     } catch (error) {
       toast.error(error.message || 'Erro ao criar bloqueio.');
@@ -3109,16 +3109,12 @@ function ScheduleBlocksTab({ blocks, fetching, onRefresh, onCreate, onDelete }) 
   const formatBlockPeriod = (block) => {
     const start = new Date(block.start);
     const end = new Date(block.end);
-    const utcStartTime = start.toISOString().slice(11, 16);
-    const utcEndTime = end.toISOString().slice(11, 16);
-    const isUtcCalendarDay = utcStartTime === '00:00' && (utcEndTime === '23:59' || utcEndTime === '00:00');
-    const displayTimeZone = isUtcCalendarDay ? 'UTC' : 'America/Fortaleza';
     const dateStr = start.toLocaleDateString('pt-BR', {
       weekday: 'short',
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
-      timeZone: displayTimeZone,
+      timeZone: 'America/Fortaleza',
     });
     const startTime = start.toLocaleTimeString('pt-BR', {
       hour: '2-digit',
@@ -3131,13 +3127,10 @@ function ScheduleBlocksTab({ blocks, fetching, onRefresh, onCreate, onDelete }) 
       timeZone: 'America/Fortaleza',
     });
 
-    const isAllDay =
-      isUtcCalendarDay || (startTime === '00:00' && (endTime === '23:59' || endTime === '00:00'));
-
     return {
       date: dateStr,
-      time: isAllDay ? 'Dia inteiro' : `${startTime} – ${endTime}`,
-      isAllDay,
+      time: block.allDay ? 'Dia inteiro' : `${startTime} – ${endTime}`,
+      isAllDay: Boolean(block.allDay),
     };
   };
 
@@ -3149,7 +3142,7 @@ function ScheduleBlocksTab({ blocks, fetching, onRefresh, onCreate, onDelete }) 
         <div>
           <p className="text-sm font-semibold">Como funciona o bloqueio</p>
           <p className="mt-1 text-xs text-amber-200/80 leading-relaxed">
-            Ao criar um bloqueio aqui, o Cal.com marca automaticamente esse período como{' '}
+            Ao criar um bloqueio aqui, a agenda do site marca automaticamente esse período como{' '}
             <strong>indisponível</strong>. Nenhum cliente conseguirá agendar nesses dias ou
             horários. Os agendamentos já existentes <strong>não</strong> são cancelados
             automaticamente.
@@ -3292,7 +3285,7 @@ function ScheduleBlocksTab({ blocks, fetching, onRefresh, onCreate, onDelete }) 
               disabled={saving}
               className="gold-button w-full rounded-xl px-4 py-3.5 text-sm font-bold disabled:opacity-50"
             >
-              {saving ? 'Criando bloqueio...' : 'Bloquear agenda no Cal.com'}
+              {saving ? 'Criando bloqueio...' : 'Bloquear agenda'}
             </button>
           </form>
         </div>
@@ -3322,7 +3315,7 @@ function ScheduleBlocksTab({ blocks, fetching, onRefresh, onCreate, onDelete }) 
             {fetching ? (
               <div className="flex flex-col items-center gap-3 py-12 text-cream/30">
                 <FiRefreshCw className="animate-spin" size={24} />
-                <span className="text-sm">Buscando bloqueios no Cal.com...</span>
+                <span className="text-sm">Buscando bloqueios da agenda...</span>
               </div>
             ) : blocks.length === 0 ? (
               <div className="flex flex-col items-center gap-3 py-12 text-cream/30">

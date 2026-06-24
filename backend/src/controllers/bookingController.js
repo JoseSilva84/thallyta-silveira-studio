@@ -95,6 +95,25 @@ export const getPublicAgenda = async (req, res) => {
       },
     });
 
+    const scheduleBlocks = await prisma.scheduleBlock.findMany({
+      where: {
+        start: {
+          lt: until,
+        },
+        end: {
+          gt: now,
+        },
+      },
+      orderBy: { start: 'asc' },
+      select: {
+        id: true,
+        start: true,
+        end: true,
+        allDay: true,
+        reason: true,
+      },
+    });
+
     const occupiedTimes = [
       ...bookings,
       ...activePaymentHolds.map((payment) => ({
@@ -103,6 +122,13 @@ export const getPublicAgenda = async (req, res) => {
         scheduledAt: payment.scheduledAt,
         endTime: payment.endTime,
         status: 'payment_hold',
+      })),
+      ...scheduleBlocks.map((block) => ({
+        id: block.id,
+        service: block.reason || 'Bloqueio de agenda',
+        scheduledAt: block.start,
+        endTime: block.end,
+        status: 'schedule_block',
       })),
     ];
 
@@ -127,6 +153,20 @@ export const getPublicAgenda = async (req, res) => {
 };
 
 const hasScheduleConflict = async (start, end) => {
+  const blocked = await prisma.scheduleBlock.findFirst({
+    where: {
+      start: {
+        lt: end,
+      },
+      end: {
+        gt: start,
+      },
+    },
+    select: { id: true },
+  });
+
+  if (blocked) return true;
+
   const conflicting = await prisma.booking.findFirst({
     where: {
       status: {
