@@ -152,4 +152,4 @@ export const buildPublicAgendaDays = (bookings, daysCount, nowInput = new Date()
   });
 };
 
-export const businessHoursLabel = 'segunda a sexta, 08:00 às 19:00';
+export const businessHoursLabel = 'segunda a sexta, 08:00 às 17:00';

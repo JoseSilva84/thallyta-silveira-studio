@@ -23,6 +23,6 @@ export const getStudioOpenStatus = () => {
     isOpen,
     label: isOpen ? 'Atendimento aberto' : 'Atendimento fechado',
     shortLabel: isOpen ? 'Aberto agora' : 'Fechado agora',
-    detail: 'Segunda a sexta, 08:00 às 19:00',
+    detail: 'Segunda a sexta, 08:00 às 17:00',
   }
 }
