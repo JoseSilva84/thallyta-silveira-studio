@@ -8,7 +8,7 @@ import { randomUUID } from 'node:crypto';
 
 const bookingInclude = {
   user: {
-    select: { id: true, name: true, email: true, whatsappPhone: true },
+    select: { id: true, name: true, email: true, whatsappPhone: true, dateOfBirth: true },
   },
   payment: true,
 };

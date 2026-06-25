@@ -2385,6 +2385,11 @@ function ClientsView({ clients, search, setSearch, statusBadge, onCompleteServic
                   <h2 className="mt-1 truncate text-2xl font-bold text-cream">{selectedClient.name}</h2>
                   <p className="mt-1 text-sm text-cream/50">{selectedClient.email || selectedClient.phone || 'Contato nao informado'}</p>
                   {selectedClient.email && selectedClient.phone && <p className="text-sm text-cream/40">{selectedClient.phone}</p>}
+                  {selectedClient.dateOfBirth && (
+                    <p className="text-sm text-cream/40 mt-1">
+                      Aniversário: {new Date(selectedClient.dateOfBirth).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'UTC' })}
+                    </p>
+                  )}
                 </div>
                 {onDeleteClient && selectedClient.email && (
                   <button
@@ -2977,6 +2982,7 @@ function buildClientProfiles(bookings) {
         name: booking.attendeeName || booking.user?.name || 'Cliente',
         email: booking.attendeeEmail || booking.user?.email || '',
         phone: booking.attendeePhone || booking.user?.whatsappPhone || '',
+        dateOfBirth: booking.user?.dateOfBirth || null,
         bookings: [],
         serviceCounts: new Map(),
         totalRevenue: 0,
@@ -2993,6 +2999,9 @@ function buildClientProfiles(bookings) {
     }
 
     const client = clients.get(key);
+    if (!client.dateOfBirth && booking.user?.dateOfBirth) {
+      client.dateOfBirth = booking.user.dateOfBirth;
+    }
     const services = splitServices(booking.service);
     const serviceList = services.length ? services : ['Servico nao informado'];
     const stampCount = Math.max(1, serviceList.length);
