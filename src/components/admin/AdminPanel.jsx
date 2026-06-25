@@ -2223,7 +2223,7 @@ function SmallStat({ label, value, tone = 'default' }) {
   return (
     <div className="min-w-0 rounded-xl border border-white/10 bg-white/[0.03] p-4">
       <p className="truncate text-[0.68rem] font-bold uppercase tracking-wider text-cream/40">{label}</p>
-      <p className={`mt-2 max-w-full break-words text-[clamp(1.15rem,2vw,1.6rem)] font-bold leading-tight ${toneClasses[tone] || toneClasses.default}`}>
+      <p title={typeof value === 'string' || typeof value === 'number' ? String(value) : undefined} className={`mt-2 truncate text-[clamp(1.15rem,2vw,1.6rem)] font-bold leading-tight ${toneClasses[tone] || toneClasses.default}`}>
         {value}
       </p>
     </div>
@@ -2500,6 +2500,7 @@ function ClientsView({ clients, search, setSearch, statusBadge, onCompleteServic
                         <div className="mb-2 flex flex-wrap items-center gap-2">
                           {statusBadge(booking.status)}
                           {booking.serviceCompletedAt && <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-emerald-300">Fidelidade liberada</span>}
+                          {booking.calPayload?.adminCreated && <span className="rounded-full border border-purple-500/25 bg-purple-500/10 px-3 py-1 text-[0.65rem] font-bold uppercase tracking-wider text-purple-300" title="Agendamento feito pela administradora">Admin</span>}
                         </div>
                         <h4 className="text-base font-semibold text-cream">{booking.service || 'Servico nao informado'}</h4>
                         <p className="mt-1 text-sm text-cream/45">{formatDate(booking.scheduledAt)} - {formatTime(booking.scheduledAt)}{booking.endTime && ` ate ${formatTime(booking.endTime)}`}</p>
