@@ -9,17 +9,20 @@ export default function WhatsappPromptModal() {
   const [dateOfBirth, setDateOfBirth] = useState('')
   const [error, setError] = useState('')
 
+  const [dismissed, setDismissed] = useState(false)
+
   const shouldOpen = useMemo(() => {
-    return Boolean(authHydrated && user?.id && user.role !== 'ADMIN' && !user.whatsappPhone)
-  }, [authHydrated, user])
+    if (dismissed) return false
+    return Boolean(authHydrated && user?.id && user.role !== 'ADMIN' && (!user.whatsappPhone || !user.dateOfBirth))
+  }, [authHydrated, user, dismissed])
 
   useEffect(() => {
     if (shouldOpen) {
-      setPhone('')
-      setDateOfBirth('')
+      setPhone(user?.whatsappPhone || '')
+      setDateOfBirth(user?.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : '')
       setError('')
     }
-  }, [shouldOpen])
+  }, [shouldOpen, user])
 
   if (!shouldOpen) return null
 
@@ -36,6 +39,8 @@ export default function WhatsappPromptModal() {
     const result = await updateWhatsapp(normalizeBrazilWhatsapp(phone), dateOfBirth || undefined)
     if (!result.ok) {
       setError(result.error)
+    } else {
+      setDismissed(true)
     }
   }
 
@@ -84,7 +89,7 @@ export default function WhatsappPromptModal() {
               disabled={loading}
               className="gold-button tap-gold flex-1 rounded-xl px-5 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-50"
             >
-              {loading ? 'Salvando...' : 'Salvar WhatsApp'}
+              {loading ? 'Salvando...' : 'Salvar Informações'}
             </button>
             <button type="button" onClick={logout} className="flex items-center justify-center gap-2 px-5 py-2 text-sm text-cream/55 hover:text-cream">
               <FiLogOut /> Sair da conta
