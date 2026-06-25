@@ -2222,8 +2222,8 @@ function SmallStat({ label, value, tone = 'default' }) {
 
   return (
     <div className="min-w-0 rounded-xl border border-white/10 bg-white/[0.03] p-4">
-      <p className="truncate text-[0.68rem] font-bold uppercase tracking-wider text-cream/40">{label}</p>
-      <p title={typeof value === 'string' || typeof value === 'number' ? String(value) : undefined} className={`mt-2 truncate tracking-tight text-[clamp(0.95rem,1.5vw,1.25rem)] font-bold leading-tight ${toneClasses[tone] || toneClasses.default}`}>
+      <p className="truncate text-[0.65rem] font-bold uppercase tracking-wider text-cream/40">{label}</p>
+      <p title={typeof value === 'string' || typeof value === 'number' ? String(value) : undefined} className={`mt-2 truncate tracking-tight text-sm sm:text-base font-bold leading-tight ${toneClasses[tone] || toneClasses.default}`}>
         {value}
       </p>
     </div>
