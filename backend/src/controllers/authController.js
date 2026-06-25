@@ -246,14 +246,19 @@ export const getMe = async (req, res) => {
 export const updateWhatsapp = async (req, res) => {
   try {
     const normalizedWhatsapp = normalizeWhatsappPhone(req.body.whatsappPhone);
+    const dataToUpdate = {
+      whatsappPhone: normalizedWhatsapp,
+      whatsappOptIn: true,
+      whatsappUpdatedAt: new Date(),
+    };
+
+    if (req.body.dateOfBirth) {
+      dataToUpdate.dateOfBirth = new Date(`${req.body.dateOfBirth}T12:00:00Z`);
+    }
 
     const user = await prisma.user.update({
       where: { id: req.user.id },
-      data: {
-        whatsappPhone: normalizedWhatsapp,
-        whatsappOptIn: true,
-        whatsappUpdatedAt: new Date(),
-      },
+      data: dataToUpdate,
       select: userSelect,
     });
 

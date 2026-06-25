@@ -96,7 +96,7 @@ const getAvailableBirthdayReward = async (userId) => {
     create: {
       userId,
       year: today.year,
-      amount: Number.parseFloat(process.env.BIRTHDAY_REWARD_AMOUNT || '30') || 30,
+      amount: Number.parseFloat(process.env.BIRTHDAY_REWARD_AMOUNT || '0') || 0,
       status: 'pending',
     },
   });

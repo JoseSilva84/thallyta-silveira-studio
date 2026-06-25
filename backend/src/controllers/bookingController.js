@@ -36,6 +36,45 @@ export const getBookings = async (req, res) => {
       include: bookingInclude,
     });
 
+    if (isAdmin) {
+      const guestEmails = [...new Set(bookings
+        .filter((b) => !b.user && b.attendeeEmail)
+        .map((b) => b.attendeeEmail)
+      )];
+
+      const guestPhones = [...new Set(bookings
+        .filter((b) => !b.user && b.attendeePhone)
+        .map((b) => b.attendeePhone)
+      )];
+
+      if (guestEmails.length > 0 || guestPhones.length > 0) {
+        const users = await prisma.user.findMany({
+          where: {
+            OR: [
+              ...(guestEmails.length > 0 ? [{ email: { in: guestEmails } }] : []),
+              ...(guestPhones.length > 0 ? [{ whatsappPhone: { in: guestPhones } }] : [])
+            ]
+          },
+          select: { id: true, name: true, email: true, whatsappPhone: true, dateOfBirth: true },
+        });
+
+        const usersByEmail = new Map(users.map((u) => [u.email.toLowerCase(), u]));
+        const usersByPhone = new Map(users.filter(u => u.whatsappPhone).map((u) => [u.whatsappPhone, u]));
+
+        for (const booking of bookings) {
+          if (!booking.user) {
+            let matchedUser = null;
+            if (booking.attendeeEmail) matchedUser = usersByEmail.get(booking.attendeeEmail.toLowerCase());
+            if (!matchedUser && booking.attendeePhone) matchedUser = usersByPhone.get(booking.attendeePhone);
+            
+            if (matchedUser) {
+              booking.user = matchedUser;
+            }
+          }
+        }
+      }
+    }
+
     res.json(bookings);
   } catch (error) {
     console.error('Erro ao buscar agendamentos:', error);

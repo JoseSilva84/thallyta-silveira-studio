@@ -179,17 +179,18 @@ const buildClientReminderMessage = (booking) => {
   ].join('\n');
 };
 
-const buildBirthdayRewardMessage = (user, amount = 30) => {
+const buildBirthdayRewardMessage = (user, amount = 0) => {
   const firstName = (user.name || '').split(' ')[0] || 'cliente';
+  const rewardText = amount > 0 
+    ? `Voce ganhou um servico gratis de ate ${formatCurrency(amount)} para usar no studio.\n\nPara combinar o uso do beneficio, responda esta mensagem ou fale com a nossa equipe.`
+    : `O Studio Thallyta Silveira deseja a voce um dia incrivel e cheio de luz.\n\nFale conosco para agendar um horario e celebrar cuidando de voce!`;
+
   return [
     `Parabens, ${firstName}!`,
     '',
-    'Hoje e seu aniversario e o Studio Thallyta Silveira preparou um presente para voce.',
-    `Voce ganhou um servico gratis de ate ${formatCurrency(amount)} para usar no studio.`,
+    rewardText,
     '',
-    'Para combinar o uso do beneficio, responda esta mensagem ou fale com a nossa equipe.',
-    '',
-    'Que seu dia seja lindo, leve e cheio de carinho.',
+    'Que seu dia seja lindo, leve e cheio de carinho. Feliz aniversario!',
   ].join('\n');
 };
 
@@ -272,7 +273,7 @@ export const notifyUpcomingBookingReminder = async (prisma, booking) => {
   });
 };
 
-export const notifyBirthdayReward = async (user, amount = 30) => {
+export const notifyBirthdayReward = async (user, amount = 0) => {
   const clientChatId = toChatId(user.whatsappPhone);
   if (!clientChatId) return { skipped: true, reason: 'Cliente sem WhatsApp' };
 

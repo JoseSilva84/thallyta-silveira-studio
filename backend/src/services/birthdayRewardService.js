@@ -2,7 +2,7 @@ import prisma from '../config/prisma.js';
 import { notifyBirthdayReward } from './whatsappService.js';
 
 const DEFAULT_CHECK_INTERVAL_HOURS = 24;
-const DEFAULT_REWARD_AMOUNT = 30;
+const DEFAULT_REWARD_AMOUNT = 0;
 const STUDIO_TIME_ZONE = 'America/Fortaleza';
 
 const hoursToMs = (hours) => hours * 60 * 60 * 1000;

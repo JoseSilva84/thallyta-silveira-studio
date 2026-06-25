@@ -201,7 +201,7 @@ export function AuthProvider({ children }) {
 
   const getToken = useCallback(() => readToken(), [])
 
-  const updateWhatsapp = useCallback(async (whatsappPhone) => {
+  const updateWhatsapp = useCallback(async (whatsappPhone, dateOfBirth) => {
     const token = readToken()
     if (!token) {
       toast.error('Entre na sua conta para salvar o WhatsApp.')
@@ -216,7 +216,7 @@ export function AuthProvider({ children }) {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ whatsappPhone }),
+        body: JSON.stringify({ whatsappPhone, dateOfBirth }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Erro ao salvar WhatsApp.')

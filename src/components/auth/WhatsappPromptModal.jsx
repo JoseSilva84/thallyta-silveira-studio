@@ -6,6 +6,7 @@ import { formatBrazilWhatsappInput, normalizeBrazilWhatsapp, onlyDigits } from '
 export default function WhatsappPromptModal() {
   const { user, loading, authHydrated, updateWhatsapp, logout } = useAuth()
   const [phone, setPhone] = useState('')
+  const [dateOfBirth, setDateOfBirth] = useState('')
   const [error, setError] = useState('')
 
   const shouldOpen = useMemo(() => {
@@ -15,6 +16,7 @@ export default function WhatsappPromptModal() {
   useEffect(() => {
     if (shouldOpen) {
       setPhone('')
+      setDateOfBirth('')
       setError('')
     }
   }, [shouldOpen])
@@ -31,7 +33,7 @@ export default function WhatsappPromptModal() {
       return
     }
 
-    const result = await updateWhatsapp(normalizeBrazilWhatsapp(phone))
+    const result = await updateWhatsapp(normalizeBrazilWhatsapp(phone), dateOfBirth || undefined)
     if (!result.ok) {
       setError(result.error)
     }
@@ -41,12 +43,12 @@ export default function WhatsappPromptModal() {
     <div className="fixed inset-0 z-[80] grid place-items-center bg-black/70 px-4 backdrop-blur-sm">
       <div className="gold-border w-full max-w-md rounded-2xl bg-dark-card p-6 shadow-2xl">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.25em] text-gold/70">WhatsApp obrigatório</p>
-          <h2 className="mt-2 font-display text-3xl text-gold-light">Complete seu contato</h2>
+          <p className="text-xs font-bold uppercase tracking-[0.25em] text-gold/70">Contato e Aniversário</p>
+          <h2 className="mt-2 font-display text-3xl text-gold-light">Complete seu perfil</h2>
         </div>
 
         <p className="mt-3 text-sm leading-relaxed text-cream/65">
-          Informe seu WhatsApp para continuar e receber confirmações e avisos dos seus agendamentos.
+          Informe seu WhatsApp (obrigatório) para avisos dos agendamentos. Você também pode informar seu aniversário para receber nossos mimos!
         </p>
 
         <form onSubmit={handleSubmit} className="mt-5 space-y-4">
@@ -56,12 +58,22 @@ export default function WhatsappPromptModal() {
               type="tel"
               value={phone}
               onChange={(event) => setPhone(formatBrazilWhatsappInput(event.target.value))}
-              placeholder="WhatsApp com DDD"
+              placeholder="WhatsApp com DDD (Obrigatório)"
               inputMode="numeric"
               autoFocus
               required
               className="w-full rounded-xl border border-white/10 bg-white/5 py-3 pl-11 pr-4 text-sm text-cream placeholder-cream/30 outline-none transition focus:border-gold/50 focus:ring-1 focus:ring-gold/20"
             />
+          </div>
+
+          <div className="relative">
+            <input
+              type="date"
+              value={dateOfBirth}
+              onChange={(e) => setDateOfBirth(e.target.value)}
+              className="w-full rounded-xl border border-white/10 bg-white/5 py-3 px-4 text-sm text-cream placeholder-cream/30 outline-none transition focus:border-gold/50 focus:ring-1 focus:ring-gold/20"
+            />
+            <p className="mt-1 text-xs text-cream/40 px-1">Data de Nascimento (Opcional)</p>
           </div>
 
           {error && <p className="text-sm text-red-400">{error}</p>}
