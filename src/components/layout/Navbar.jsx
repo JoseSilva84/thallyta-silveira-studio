@@ -47,34 +47,7 @@ const getAnchorScrollTop = (element) => {
   return Math.max(element.getBoundingClientRect().top + window.scrollY + sectionPaddingTop - headerOffset, 0)
 }
 
-const getStudioOpenStatus = () => {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: STUDIO_TIME_ZONE,
-    weekday: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).formatToParts(new Date())
-
-  const value = (type) => parts.find((part) => part.type === type)?.value
-  const weekday = value('weekday')
-  const hour = Number(value('hour'))
-  const minute = Number(value('minute'))
-  const minutesNow = hour * 60 + minute
-  const isWeekday = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].includes(weekday)
-  const opensAt = 9 * 60 + 30
-  const lunchStartsAt = 13 * 60
-  const lunchEndsAt = 14 * 60 + 30
-  const closesAt = 18 * 60
-  const isLunchBreak = minutesNow >= lunchStartsAt && minutesNow < lunchEndsAt
-  const isOpen = isWeekday && minutesNow >= opensAt && minutesNow < closesAt && !isLunchBreak
-
-  return {
-    isOpen,
-    label: isOpen ? 'Aberto' : 'Fechado',
-    detail: 'Seg. a sex. 08:00 - 17:00, pausa 13:00 -14:30',
-  }
-}
+import { getStudioOpenStatus } from '../../utils/studioHours.js'
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false)
@@ -206,7 +179,7 @@ export default function Navbar() {
               <div className="hidden sm:flex flex-col justify-center">
                 <span className="font-display text-xl font-semibold text-cream leading-tight">Thallyta Silveira</span>
                 <span className={`mt-0.5 text-[0.6rem] font-bold tracking-[0.2em] uppercase ${statusTextClass} opacity-80`}>
-                  {studioStatus.label}
+                  {studioStatus.isOpen ? 'Aberto' : 'Fechado'}
                 </span>
               </div>
             </a>
