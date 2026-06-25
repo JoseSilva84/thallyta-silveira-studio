@@ -182,15 +182,15 @@ const buildClientReminderMessage = (booking) => {
 const buildBirthdayRewardMessage = (user, amount = 0) => {
   const firstName = (user.name || '').split(' ')[0] || 'cliente';
   const rewardText = amount > 0 
-    ? `Voce ganhou um servico gratis de ate ${formatCurrency(amount)} para usar no studio.\n\nPara combinar o uso do beneficio, responda esta mensagem ou fale com a nossa equipe.`
-    : `O Studio Thallyta Silveira deseja a voce um dia incrivel e cheio de luz.\n\nFale conosco para agendar um horario e celebrar cuidando de voce!`;
+    ? `Você ganhou um mimo da Studio Thallyta Silveira.\n\nPara saber mais sobre esse mimo, responda esta mensagem ou fale com a nossa equipe.`
+    : `O Studio Thallyta Silveira deseja a voce um dia incrível e cheio de luz.\n\nFale conosco para agendar um horário e celebrar cuidando de voce!`;
 
   return [
-    `Parabens, ${firstName}!`,
+    `Parabéns, ${firstName}!`,
     '',
     rewardText,
     '',
-    'Que seu dia seja lindo, leve e cheio de carinho. Feliz aniversario!',
+    'Que seu dia seja lindo, leve e cheio de carinho. Feliz aniversário!',
   ].join('\n');
 };
 
