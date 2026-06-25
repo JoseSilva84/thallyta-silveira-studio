@@ -2421,11 +2421,9 @@ function ClientsView({ clients, search, setSearch, statusBadge, onCompleteServic
                   <h2 className="mt-1 truncate text-2xl font-bold text-cream">{selectedClient.name}</h2>
                   <p className="mt-1 text-sm text-cream/50">{selectedClient.email || selectedClient.phone || 'Contato nao informado'}</p>
                   {selectedClient.email && selectedClient.phone && <p className="text-sm text-cream/40">{selectedClient.phone}</p>}
-                  {selectedClient.dateOfBirth && (
-                    <p className="text-sm text-cream/40 mt-1">
-                      Aniversário: {new Date(selectedClient.dateOfBirth).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'UTC' })}
-                    </p>
-                  )}
+                  <p className="text-sm text-cream/40 mt-1">
+                    Aniversário: {selectedClient.dateOfBirth ? new Date(selectedClient.dateOfBirth).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'UTC' }) : 'Não informado'}
+                  </p>
                 </div>
                 {onDeleteClient && selectedClient.email && (
                   <button
