@@ -490,6 +490,28 @@ export default function AdminPanel() {
     });
   };
 
+  const handleCancelBooking = async (booking) => {
+    showConfirmToast({
+      message: 'Cancelar este agendamento?',
+      confirmLabel: 'Cancelar agend.',
+      tone: 'danger',
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`${API}/bookings/${booking.id}/cancel`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${getToken()}` },
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.error || 'Erro ao cancelar agendamento');
+          updateBookingInList(data);
+          toast.info('Agendamento cancelado.');
+        } catch (error) {
+          toast.error(error.message);
+        }
+      },
+    });
+  };
+
   const handleMarkRemainingPaid = async (booking) => {
     showConfirmToast({
       message: 'Confirmar que o restante deste servico foi pago no atendimento?',
@@ -830,6 +852,7 @@ export default function AdminPanel() {
                 onCompleteService={handleCompleteService}
                 onUndoCompleteService={handleUndoCompleteService}
                 onMarkNoShow={handleMarkNoShow}
+                onCancelBooking={handleCancelBooking}
                 onMarkRemainingPaid={handleMarkRemainingPaid}
                 onSyncBookingToCal={handleSyncBookingToCal}
               />
@@ -862,6 +885,7 @@ export default function AdminPanel() {
             onCompleteService={handleCompleteService}
             onUndoCompleteService={handleUndoCompleteService}
             onMarkNoShow={handleMarkNoShow}
+            onCancelBooking={handleCancelBooking}
             onMarkRemainingPaid={handleMarkRemainingPaid}
           />
         )}
@@ -875,6 +899,7 @@ export default function AdminPanel() {
             onCompleteService={handleCompleteService}
             onUndoCompleteService={handleUndoCompleteService}
             onMarkNoShow={handleMarkNoShow}
+            onCancelBooking={handleCancelBooking}
             onMarkRemainingPaid={handleMarkRemainingPaid}
             onDeleteClient={handleDeleteClient}
           />
@@ -1140,7 +1165,7 @@ function showConfirmToast({ message, confirmLabel = 'Confirmar', cancelLabel = '
   });
 }
 
-function BookingsTable({ bookings, fetching, statusFilter, statusBadge, onCompleteService, onUndoCompleteService, onMarkNoShow, onMarkRemainingPaid, onSyncBookingToCal }) {
+function BookingsTable({ bookings, fetching, statusFilter, statusBadge, onCompleteService, onUndoCompleteService, onMarkNoShow, onCancelBooking, onMarkRemainingPaid, onSyncBookingToCal }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-gold/20 bg-black/40 backdrop-blur-md">
       {fetching ? (
@@ -1212,6 +1237,7 @@ function BookingsTable({ bookings, fetching, statusFilter, statusBadge, onComple
                         onCompleteService={onCompleteService}
                         onUndoCompleteService={onUndoCompleteService}
                         onMarkNoShow={onMarkNoShow}
+                        onCancelBooking={onCancelBooking}
                         onMarkRemainingPaid={onMarkRemainingPaid}
                       />
                     </td>
@@ -1226,7 +1252,7 @@ function BookingsTable({ bookings, fetching, statusFilter, statusBadge, onComple
   );
 }
 
-function CompletionAction({ booking, onCompleteService, onUndoCompleteService, onMarkNoShow, onMarkRemainingPaid }) {
+function CompletionAction({ booking, onCompleteService, onUndoCompleteService, onMarkNoShow, onCancelBooking, onMarkRemainingPaid }) {
   const payment = getBookingPaymentSummary(booking);
   const hasRemaining = payment.remaining > 0;
   const canMarkRemainingPaid = hasRemaining && typeof onMarkRemainingPaid === 'function';
@@ -1283,13 +1309,23 @@ function CompletionAction({ booking, onCompleteService, onUndoCompleteService, o
         <span className="whitespace-nowrap">Confirmar ida</span>
       </button>
       
-      <button
-        onClick={() => onMarkNoShow?.(booking)}
-        className="group relative inline-flex items-center justify-center gap-2 rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-2 text-[0.65rem] font-bold uppercase tracking-wider text-red-400/80 transition-all hover:bg-red-500/15 hover:text-red-300"
-      >
-        <FiX className="size-3.5 shrink-0" />
-        <span className="whitespace-nowrap">Não compareceu</span>
-      </button>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => onMarkNoShow?.(booking)}
+          className="group relative flex-1 inline-flex items-center justify-center gap-2 rounded-xl border border-red-500/20 bg-red-500/5 px-2 py-2 text-[0.65rem] font-bold uppercase tracking-wider text-red-400/80 transition-all hover:bg-red-500/15 hover:text-red-300"
+          title="Faltou ao agendamento"
+        >
+          <FiX className="size-3.5 shrink-0" />
+          <span className="whitespace-nowrap">Faltou</span>
+        </button>
+        <button
+          onClick={() => onCancelBooking?.(booking)}
+          className="group relative flex-1 inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/5 px-2 py-2 text-[0.65rem] font-bold uppercase tracking-wider text-cream/70 transition-all hover:bg-white/10 hover:text-cream"
+          title="Cancelar agendamento"
+        >
+          <span className="whitespace-nowrap">Cancelar</span>
+        </button>
+      </div>
     </div>
   );
 }
@@ -2194,7 +2230,7 @@ function SmallStat({ label, value, tone = 'default' }) {
   );
 }
 
-function LoyaltyAdminView({ clients, pendingBookings, onCompleteService, onUndoCompleteService, onMarkNoShow, onMarkRemainingPaid }) {
+function LoyaltyAdminView({ clients, pendingBookings, onCompleteService, onUndoCompleteService, onMarkNoShow, onCancelBooking, onMarkRemainingPaid }) {
   return (
     <div className="space-y-6">
       <section className="rounded-2xl border border-amber-300/20 bg-amber-300/10 p-5">
