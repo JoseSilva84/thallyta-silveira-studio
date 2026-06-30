@@ -36,6 +36,11 @@ const faqs = [
     videoId: 'iKVF98z3gI8'
   },
   {
+    title: 'Como fazer pix e agendar no sistema?',
+    content: 'Veja no video abaixo o passo a passo para fazer o pagamento por Pix e concluir o agendamento no sistema.',
+    videoId: 'wNRYcZF-Ec8'
+  },
+  {
     title: 'Como posso ver os meus agendamentos e os selos fidelidade?',
     content: 'Acesse o menu principal e vá na opção "Perfil" (ou em "Meus Agendamentos"). Lá você verá todo o histórico de suas reservas e quantos selos faltam para a sua recompensa. Confira o vídeo para mais detalhes.',
     videoId: 'sKMbY62FhEE'
