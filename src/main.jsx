@@ -14,7 +14,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       <AuthProvider>
         <BookingProvider>
           <App />
-          <ToastContainer position="top-right" theme="dark" autoClose={2600} />
+          <ToastContainer position="top-right" theme="dark" autoClose={2600} style={{ zIndex: 10050 }} />
         </BookingProvider>
       </AuthProvider>
     </BrowserRouter>

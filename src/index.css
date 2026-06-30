@@ -12,6 +12,10 @@
   --font-body: "DM Sans", sans-serif;
 }
 
+:root {
+  --toastify-z-index: 10050;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -651,7 +655,7 @@ label.cursor-pointer:active {
 }
 
 .Toastify__toast-container {
-  z-index: 10050;
+  z-index: 10050 !important;
 }
 
 .Toastify__progress-bar {
