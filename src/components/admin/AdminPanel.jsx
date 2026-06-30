@@ -1620,6 +1620,12 @@ function CalendarView({ days, monthLabel, onPrev, onNext, statusBadge, formatTim
   const todayKey = dateKey(new Date());
   const [selectedDay, setSelectedDay] = useState(null);
   const [selectedBooking, setSelectedBooking] = useState(null);
+  const now = new Date();
+
+  const openDayAgenda = (day) => {
+    if (!day.bookings.length) return;
+    setSelectedDay(day);
+  };
 
   return (
     <div className="rounded-2xl border border-gold/20 bg-black/40 p-4 backdrop-blur-md md:p-6">
@@ -1636,39 +1642,69 @@ function CalendarView({ days, monthLabel, onPrev, onNext, statusBadge, formatTim
       <div className="grid grid-cols-7 gap-2 text-center text-xs font-bold uppercase tracking-wider text-gold-light/70">
         {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'].map((day) => <div key={day}>{day}</div>)}
       </div>
-      <div className="mt-2 grid grid-cols-1 gap-3 md:grid-cols-7 md:gap-2">
+      <div className="mt-2 grid grid-cols-7 gap-1.5 md:gap-2">
         {days.map((day) => {
           const visibleBookings = day.bookings.slice(0, 3);
           const hiddenCount = Math.max(day.bookings.length - visibleBookings.length, 0);
+          const dayState = getCalendarDayState(day, now);
+          const canOpenDay = day.bookings.length > 0;
 
           return (
             <div
               key={day.key}
-              className={`relative min-h-36 rounded-xl border p-3 transition duration-200 ${
-                day.inMonth ? 'border-white/10 bg-white/[0.03] hover:border-gold/25 hover:bg-gold/[0.035]' : 'border-white/5 bg-black/20 opacity-40'
+              role={canOpenDay ? 'button' : undefined}
+              tabIndex={canOpenDay ? 0 : undefined}
+              onClick={() => openDayAgenda(day)}
+              onKeyDown={(event) => {
+                if (!canOpenDay || !['Enter', ' '].includes(event.key)) return;
+                event.preventDefault();
+                openDayAgenda(day);
+              }}
+              className={`relative flex aspect-square min-h-12 flex-col rounded-xl border p-1.5 text-left transition duration-200 md:aspect-auto md:min-h-36 md:p-3 ${
+                day.inMonth ? dayState.classes : 'border-white/5 bg-black/20 opacity-35'
               } ${day.key === todayKey ? 'ring-1 ring-gold/70' : ''}`}
             >
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-sm font-bold text-cream">{day.date.getDate()}</span>
+              <div className="flex items-center justify-between gap-1 md:mb-2">
+                <span className={`text-sm font-bold md:text-sm ${day.inMonth ? 'text-cream' : 'text-cream/45'}`}>{day.date.getDate()}</span>
                 {day.bookings.length > 0 && (
                   <button
                     type="button"
-                    onClick={() => setSelectedDay(day)}
-                    className="rounded-full bg-gold/20 px-2 py-0.5 text-[0.65rem] font-bold text-gold transition hover:bg-gold hover:text-dark"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setSelectedDay(day);
+                    }}
+                    className="rounded-full bg-gold/20 px-1.5 py-0.5 text-[0.6rem] font-bold leading-none text-gold transition hover:bg-gold hover:text-dark md:px-2 md:text-[0.65rem]"
                     title="Ver agenda do dia"
                   >
                     {day.bookings.length}
                   </button>
                 )}
               </div>
-              <div className="space-y-2">
+              {day.bookings.length > 0 && (
+                <div className="mt-auto flex flex-wrap gap-1 md:hidden">
+                  {dayState.dots.map((dot) => (
+                    <span key={dot} className={`size-1.5 rounded-full ${dot}`} />
+                  ))}
+                </div>
+              )}
+              <div className="hidden space-y-2 md:block">
                 {visibleBookings.map((booking) => (
-                  <CalendarBookingCard key={booking.id} booking={booking} formatTime={formatTime} onBookingClick={setSelectedBooking} />
+                  <CalendarBookingCard
+                    key={booking.id}
+                    booking={booking}
+                    formatTime={formatTime}
+                    onBookingClick={(bookingItem) => {
+                      setSelectedBooking(bookingItem);
+                    }}
+                  />
                 ))}
                 {hiddenCount > 0 && (
                   <button
                     type="button"
-                    onClick={() => setSelectedDay(day)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setSelectedDay(day);
+                    }}
                     className="mt-1 inline-flex w-full cursor-pointer items-center justify-center rounded-lg border border-gold/25 bg-gold/10 px-2 py-2 text-xs font-bold text-gold-light transition hover:border-gold/50 hover:bg-gold/20 hover:text-gold"
                   >
                     +{hiddenCount} {hiddenCount === 1 ? 'outro' : 'outros'}
@@ -1709,6 +1745,45 @@ function CalendarView({ days, monthLabel, onPrev, onNext, statusBadge, formatTim
   );
 }
 
+function getCalendarDayState(day, now) {
+  const bookings = day.bookings || [];
+  const activeBookings = bookings.filter((booking) => !['cancelled', 'no_show'].includes(booking.status));
+  const hasCancelled = bookings.some((booking) => ['cancelled', 'no_show'].includes(booking.status));
+  const hasPastActive = activeBookings.some((booking) => new Date(booking.scheduledAt) < now);
+  const hasFutureActive = activeBookings.some((booking) => new Date(booking.scheduledAt) >= now);
+
+  if (!bookings.length) {
+    return {
+      classes: 'border-white/10 bg-white/[0.03] hover:border-gold/25 hover:bg-gold/[0.035]',
+      dots: [],
+    };
+  }
+
+  const dots = [];
+  if (hasFutureActive) dots.push('bg-emerald-400');
+  if (hasPastActive) dots.push('bg-amber-300');
+  if (hasCancelled) dots.push('bg-red-400');
+
+  if (hasFutureActive) {
+    return {
+      classes: 'cursor-pointer border-emerald-500/30 bg-emerald-500/10 hover:border-emerald-300/45 hover:bg-emerald-500/15',
+      dots,
+    };
+  }
+
+  if (hasPastActive) {
+    return {
+      classes: 'cursor-pointer border-amber-400/35 bg-amber-400/10 hover:border-amber-200/45 hover:bg-amber-400/15',
+      dots,
+    };
+  }
+
+  return {
+    classes: 'cursor-pointer border-red-500/30 bg-red-500/10 hover:border-red-300/45 hover:bg-red-500/15',
+    dots,
+  };
+}
+
 function CalendarBookingCard({ booking, formatTime, onBookingClick }) {
   const client = booking.attendeeName || booking.user?.name || 'Cliente';
   const contact = booking.attendeeEmail || booking.user?.email || booking.attendeePhone || booking.user?.whatsappPhone || 'Contato nao informado';
@@ -1720,7 +1795,10 @@ function CalendarBookingCard({ booking, formatTime, onBookingClick }) {
     <div className="group relative">
       <button
         type="button"
-        onClick={() => onBookingClick && onBookingClick(booking)}
+        onClick={(event) => {
+          event.stopPropagation();
+          onBookingClick && onBookingClick(booking);
+        }}
         className={`w-full cursor-pointer rounded-lg border p-2 text-left transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_30px_rgba(0,0,0,0.35)] ${
           isCancelled || isNoShow
             ? 'border-red-500/20 bg-red-500/[0.06]'
