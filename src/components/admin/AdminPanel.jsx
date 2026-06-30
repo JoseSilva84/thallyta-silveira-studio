@@ -95,6 +95,7 @@ export default function AdminPanel() {
   const [fetchingBookings, setFetchingBookings] = useState(true);
   const [approvedPaymentsWithoutBooking, setApprovedPaymentsWithoutBooking] = useState([]);
   const [fetchingPaymentAlerts, setFetchingPaymentAlerts] = useState(true);
+  const [showPaymentIssueModal, setShowPaymentIssueModal] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
   const [clientSearch, setClientSearch] = useState('');
 
@@ -127,6 +128,7 @@ export default function AdminPanel() {
     time: '',
     notes: '',
     amountPaid: '',
+    paymentId: '',
   });
 
   const categories = ['Unhas', 'Cabelo', 'Estudio'];
@@ -402,6 +404,37 @@ export default function AdminPanel() {
     setBookings((current) => current.map((booking) => (booking.id === updatedBooking.id ? updatedBooking : booking)));
   };
 
+  const resetAdminBookingForm = () => {
+    setAdminBookingForm({
+      attendeeName: '',
+      attendeePhone: '',
+      attendeeEmail: '',
+      serviceId: '',
+      date: '',
+      time: '',
+      notes: '',
+      amountPaid: '',
+      paymentId: '',
+    });
+  };
+
+  const openAdminBookingFromPayment = (payment) => {
+    const scheduledAt = payment?.scheduledAt ? new Date(payment.scheduledAt) : null;
+    setAdminBookingForm({
+      attendeeName: payment?.user?.name || '',
+      attendeePhone: payment?.user?.whatsappPhone || '',
+      attendeeEmail: payment?.user?.email || '',
+      serviceId: payment?.serviceId || '',
+      date: scheduledAt && !Number.isNaN(scheduledAt.getTime()) ? dateKey(scheduledAt) : '',
+      time: scheduledAt && !Number.isNaN(scheduledAt.getTime()) ? formatTime(scheduledAt) : '',
+      notes: 'Agendamento criado a partir de pagamento aprovado sem agendamento.',
+      amountPaid: Number.isFinite(Number(payment?.amount)) ? String(payment.amount).replace('.', ',') : '',
+      paymentId: payment?.id || '',
+    });
+    setShowPaymentIssueModal(false);
+    setShowAdminBookingModal(true);
+  };
+
   // ── Admin Booking Submit ───────────────────────────────────────
   const handleAdminBookingSubmit = async (e) => {
     e.preventDefault();
@@ -435,17 +468,9 @@ export default function AdminPanel() {
 
       toast.success('Agendamento criado com sucesso!');
       setShowAdminBookingModal(false);
-      setAdminBookingForm({
-        attendeeName: '',
-        attendeePhone: '',
-        attendeeEmail: '',
-        serviceId: '',
-        date: '',
-        time: '',
-        notes: '',
-        amountPaid: '',
-      });
+      resetAdminBookingForm();
       fetchBookings();
+      fetchApprovedPaymentsWithoutBooking();
     } catch (error) {
       toast.error(error.message || 'Erro ao criar agendamento.');
     } finally {
@@ -589,6 +614,31 @@ export default function AdminPanel() {
     } catch (error) {
       toast.error(error.message || 'Erro ao enviar para o Cal.com.');
     }
+  };
+
+  const handleResolvePaymentWithoutBooking = async (payment) => {
+    showConfirmToast({
+      message: `Marcar o pagamento de "${payment.user?.name || payment.serviceName || 'cliente'}" como resolvido sem criar agendamento?`,
+      confirmLabel: 'Resolver',
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`${API}/payments/admin/approved-without-booking/${payment.id}/resolve`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${getToken()}`,
+            },
+            body: JSON.stringify({ note: 'Resolvido manualmente pela administradora.' }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.error || 'Erro ao marcar pagamento como resolvido');
+          setApprovedPaymentsWithoutBooking((current) => current.map((item) => (item.id === payment.id ? data : item)));
+          toast.success('Pagamento marcado como resolvido.');
+        } catch (error) {
+          toast.error(error.message || 'Erro ao marcar pagamento como resolvido.');
+        }
+      },
+    });
   };
 
   const handleSaveTestimonial = async (e) => {
@@ -740,6 +790,10 @@ export default function AdminPanel() {
     () => bookings.filter((booking) => !['cancelled', 'no_show'].includes(booking.status) && !booking.serviceCompletedAt),
     [bookings],
   );
+  const unresolvedApprovedPayments = useMemo(
+    () => approvedPaymentsWithoutBooking.filter((payment) => !payment.resolved),
+    [approvedPaymentsWithoutBooking],
+  );
   const loyaltyClients = useMemo(() => buildLoyaltyClients(bookings), [bookings]);
   const clientProfiles = useMemo(() => buildClientProfiles(bookings), [bookings]);
 
@@ -788,7 +842,7 @@ export default function AdminPanel() {
         </div>
 
         <div className="mb-6 flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-black/30 p-1 backdrop-blur-md">
-          <TabButton active={activeTab === 'bookings'} icon={<FiCalendar />} label="Agenda" count={bookings.length + approvedPaymentsWithoutBooking.length} onClick={() => setActiveTab('bookings')} />
+          <TabButton active={activeTab === 'bookings'} icon={<FiCalendar />} label="Agenda" count={bookings.length + unresolvedApprovedPayments.length} onClick={() => setActiveTab('bookings')} />
           <TabButton active={activeTab === 'analytics'} icon={<FiBarChart2 />} label="Análises" onClick={() => setActiveTab('analytics')} />
           <TabButton active={activeTab === 'finance'} icon={<FiDollarSign />} label="Financeiro" count={financeExpenses.length || undefined} onClick={() => setActiveTab('finance')} />
           <TabButton active={activeTab === 'loyalty'} icon={<FiAward />} label="Fidelidade" count={pendingCompletionBookings.length} onClick={() => setActiveTab('loyalty')} />
@@ -801,9 +855,9 @@ export default function AdminPanel() {
         {activeTab === 'bookings' && (
           <div className="space-y-6">
             <ApprovedPaymentsWithoutBookingAlert
-              payments={approvedPaymentsWithoutBooking}
+              unresolvedCount={unresolvedApprovedPayments.length}
               fetching={fetchingPaymentAlerts}
-              onRefresh={fetchApprovedPaymentsWithoutBooking}
+              onOpen={() => setShowPaymentIssueModal(true)}
             />
 
             {pendingCompletionBookings.length > 0 && (
@@ -971,11 +1025,38 @@ export default function AdminPanel() {
           />
         )}
 
+        {showPaymentIssueModal && createPortal(
+          <PaymentIssuesModal
+            payments={approvedPaymentsWithoutBooking}
+            fetching={fetchingPaymentAlerts}
+            onClose={() => setShowPaymentIssueModal(false)}
+            onRefresh={fetchApprovedPaymentsWithoutBooking}
+            onCreateBooking={openAdminBookingFromPayment}
+            onResolve={handleResolvePaymentWithoutBooking}
+          />,
+          document.body,
+        )}
+
         {showAdminBookingModal && createPortal(
           <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
             <div className="relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl border border-white/10 bg-[#1a1a2e] p-6 shadow-2xl">
-              <button onClick={() => setShowAdminBookingModal(false)} className="absolute right-4 top-4 text-white/50 hover:text-white"><FiX size={20} /></button>
-              <h2 className="mb-6 text-xl font-bold text-white">Novo Agendamento</h2>
+              <button
+                onClick={() => {
+                  setShowAdminBookingModal(false);
+                  resetAdminBookingForm();
+                }}
+                className="absolute right-4 top-4 text-white/50 hover:text-white"
+              >
+                <FiX size={20} />
+              </button>
+              <h2 className="mb-6 text-xl font-bold text-white">
+                {adminBookingForm.paymentId ? 'Agendar pagamento aprovado' : 'Novo Agendamento'}
+              </h2>
+              {adminBookingForm.paymentId && (
+                <div className="mb-4 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+                  Este agendamento sera vinculado ao pagamento ja aprovado e marcado como resolvido automaticamente.
+                </div>
+              )}
               <form onSubmit={handleAdminBookingSubmit} className="space-y-4">
                 {/* Nome */}
                 <div>
@@ -1089,8 +1170,9 @@ export default function AdminPanel() {
                   <input
                     type="text" inputMode="decimal" placeholder="0,00"
                     value={adminBookingForm.amountPaid}
+                    disabled={Boolean(adminBookingForm.paymentId)}
                     onChange={(e) => setAdminBookingForm((f) => ({ ...f, amountPaid: e.target.value.replace(/[^0-9,.]/g, '') }))}
-                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder-white/30 outline-none focus:border-pink-500/50 focus:ring-1 focus:ring-pink-500/30"
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder-white/30 outline-none focus:border-pink-500/50 focus:ring-1 focus:ring-pink-500/30 disabled:cursor-not-allowed disabled:opacity-60"
                   />
                 </div>
                 {/* Observações */}
@@ -1192,8 +1274,8 @@ function showConfirmToast({ message, confirmLabel = 'Confirmar', cancelLabel = '
   });
 }
 
-function ApprovedPaymentsWithoutBookingAlert({ payments, fetching, onRefresh }) {
-  if (fetching && payments.length === 0) {
+function ApprovedPaymentsWithoutBookingAlert({ unresolvedCount, fetching, onOpen }) {
+  if (fetching && unresolvedCount === 0) {
     return (
       <div className="rounded-2xl border border-white/10 bg-black/30 p-4 text-sm text-cream/45">
         Verificando pagamentos aprovados sem agendamento...
@@ -1201,64 +1283,166 @@ function ApprovedPaymentsWithoutBookingAlert({ payments, fetching, onRefresh }) 
     );
   }
 
-  if (!payments.length) return null;
+  if (!unresolvedCount) return null;
 
   return (
-    <section className="rounded-2xl border border-red-400/25 bg-red-500/10 p-5 text-red-50">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <section className="rounded-2xl border border-red-400/20 bg-red-500/10 p-4 text-red-50">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-red-100/75">
+          <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-red-100/70">
             <FiAlertTriangle /> Pagamento aprovado sem agendamento
           </p>
-          <h2 className="mt-1 text-xl font-semibold">
-            {payments.length} {payments.length === 1 ? 'cliente pagou, mas nao entrou na agenda.' : 'clientes pagaram, mas nao entraram na agenda.'}
-          </h2>
-          <p className="mt-2 max-w-3xl text-sm text-red-50/70">
-            Confira estes casos no Mercado Pago e crie o agendamento manualmente para reservar o horario.
-          </p>
+          <h2 className="mt-1 text-lg font-semibold">{unresolvedCount} {unresolvedCount === 1 ? 'caso precisa' : 'casos precisam'} de revisao.</h2>
         </div>
         <button
           type="button"
-          onClick={onRefresh}
+          onClick={onOpen}
           className="inline-flex items-center justify-center gap-2 rounded-full border border-red-100/30 px-4 py-2 text-sm font-semibold text-red-50 hover:bg-red-100/10"
         >
-          <FiRefreshCw /> Atualizar
+          <FiEye /> Visualizar
         </button>
-      </div>
-
-      <div className="mt-4 grid gap-3 lg:grid-cols-2">
-        {payments.map((payment) => (
-          <article key={payment.id} className="rounded-xl border border-red-100/15 bg-black/25 p-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="min-w-0">
-                <h3 className="truncate font-semibold text-cream">{payment.user?.name || 'Cliente sem nome'}</h3>
-                <p className="mt-1 break-words text-xs text-cream/45">
-                  {payment.user?.whatsappPhone || payment.user?.email || 'Contato nao informado'}
-                </p>
-              </div>
-              <span className="w-max rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-emerald-300">
-                {formatPaymentMethod(payment)}
-              </span>
-            </div>
-
-            <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-              <PaymentAlertLine label="Servico" value={payment.serviceName || '-'} />
-              <PaymentAlertLine label="Valor pago" value={formatCurrency(payment.amount)} />
-              <PaymentAlertLine label="Horario escolhido" value={payment.scheduledAt ? `${formatDate(payment.scheduledAt)} - ${formatTime(payment.scheduledAt)}` : 'Nao informado'} />
-              <PaymentAlertLine label="Aprovado em" value={payment.approvedAt ? `${formatDate(payment.approvedAt)} - ${formatTime(payment.approvedAt)}` : '-'} />
-            </div>
-
-            <div className="mt-3 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-cream/45">
-              ID Mercado Pago: <span className="font-mono text-cream/65">{payment.mercadoPagoPaymentId || '-'}</span>
-            </div>
-          </article>
-        ))}
       </div>
     </section>
   );
 }
 
-function PaymentAlertLine({ label, value }) {
+function PaymentIssuesModal({ payments, fetching, onClose, onRefresh, onCreateBooking, onResolve }) {
+  const unresolved = payments.filter((payment) => !payment.resolved);
+  const resolved = payments.filter((payment) => payment.resolved);
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
+      <div className="relative max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-3xl border border-white/10 bg-[#15131d] p-6 shadow-2xl">
+        <button type="button" onClick={onClose} className="absolute right-4 top-4 rounded-full border border-white/10 p-2 text-white/50 hover:text-white">
+          <FiX />
+        </button>
+
+        <div className="pr-12">
+          <p className="text-xs font-bold uppercase tracking-wider text-red-200/70">Pagamentos sem agenda</p>
+          <h2 className="mt-1 text-2xl font-bold text-cream">Revisao de pagamentos aprovados</h2>
+          <p className="mt-2 text-sm text-cream/50">Use esta area para criar o agendamento manual ou marcar o caso como resolvido.</p>
+        </div>
+
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+          <div className="flex flex-wrap gap-2 text-xs font-bold uppercase tracking-wider">
+            <span className="rounded-full border border-red-400/25 bg-red-500/10 px-3 py-1 text-red-200">{unresolved.length} pendente(s)</span>
+            <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-emerald-300">{resolved.length} resolvido(s)</span>
+          </div>
+          <button type="button" onClick={onRefresh} className="inline-flex items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-cream/70 hover:border-gold/30 hover:text-gold">
+            <FiRefreshCw /> Atualizar
+          </button>
+        </div>
+
+        {fetching ? (
+          <p className="mt-6 rounded-xl border border-white/10 bg-white/[0.03] p-5 text-sm text-cream/45">Carregando pagamentos...</p>
+        ) : payments.length === 0 ? (
+          <p className="mt-6 rounded-xl border border-white/10 bg-white/[0.03] p-5 text-sm text-cream/45">Nenhum pagamento aprovado sem agendamento encontrado.</p>
+        ) : (
+          <div className="mt-6 space-y-6">
+            <PaymentIssueSection
+              title="Pendentes"
+              emptyText="Nenhum caso pendente."
+              payments={unresolved}
+              onCreateBooking={onCreateBooking}
+              onResolve={onResolve}
+            />
+            <PaymentIssueSection
+              title="Resolvidos"
+              emptyText="Nenhum caso resolvido por aqui ainda."
+              payments={resolved}
+              resolved
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PaymentIssueSection({ title, emptyText, payments, resolved = false, onCreateBooking, onResolve }) {
+  return (
+    <section>
+      <h3 className="mb-3 text-lg font-semibold text-gold-light">{title}</h3>
+      {payments.length === 0 ? (
+        <p className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-cream/45">{emptyText}</p>
+      ) : (
+        <div className="grid gap-3 lg:grid-cols-2">
+          {payments.map((payment) => (
+            <PaymentIssueCard
+              key={payment.id}
+              payment={payment}
+              resolved={resolved}
+              onCreateBooking={onCreateBooking}
+              onResolve={onResolve}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function PaymentIssueCard({ payment, resolved, onCreateBooking, onResolve }) {
+  const resolutionLabel = payment.resolution?.type === 'booking_created'
+    ? 'Resolvido com agendamento'
+    : payment.booking
+      ? 'Resolvido com agendamento'
+      : 'Resolvido manualmente';
+
+  return (
+    <article className={`rounded-xl border p-4 ${resolved ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-red-100/15 bg-black/25'}`}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h3 className="truncate font-semibold text-cream">{payment.user?.name || 'Cliente sem nome'}</h3>
+          <p className="mt-1 break-words text-xs text-cream/45">
+            {payment.user?.whatsappPhone || payment.user?.email || 'Contato nao informado'}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <span className="w-max rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-emerald-300">
+            {formatPaymentMethod(payment)}
+          </span>
+          {resolved && (
+            <span className="w-max rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-gold-light">
+              Resolvido
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+        <PaymentInfoLine label="Servico" value={payment.serviceName || '-'} />
+        <PaymentInfoLine label="Valor pago" value={formatCurrency(payment.amount)} />
+        <PaymentInfoLine label="Horario escolhido" value={payment.scheduledAt ? `${formatDate(payment.scheduledAt)} - ${formatTime(payment.scheduledAt)}` : 'Nao informado'} />
+        <PaymentInfoLine label="Aprovado em" value={payment.approvedAt ? `${formatDate(payment.approvedAt)} - ${formatTime(payment.approvedAt)}` : '-'} />
+      </div>
+
+      {resolved && (
+        <div className="mt-3 rounded-lg border border-emerald-500/15 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-100/75">
+          {resolutionLabel}
+          {payment.booking?.scheduledAt && ` em ${formatDate(payment.booking.scheduledAt)} - ${formatTime(payment.booking.scheduledAt)}`}
+        </div>
+      )}
+
+      <div className="mt-3 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-cream/45">
+        ID Mercado Pago: <span className="font-mono text-cream/65">{payment.mercadoPagoPaymentId || '-'}</span>
+      </div>
+
+      {!resolved && (
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button type="button" onClick={() => onCreateBooking(payment)} className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-gold to-gold-light px-4 py-2 text-sm font-bold text-dark">
+            <FiCalendar /> Agendar
+          </button>
+          <button type="button" onClick={() => onResolve(payment)} className="inline-flex items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-cream/70 hover:border-emerald-400/30 hover:text-emerald-200">
+            <FiCheckCircle /> Marcar resolvido
+          </button>
+        </div>
+      )}
+    </article>
+  );
+}
+
+function PaymentInfoLine({ label, value }) {
   return (
     <div>
       <p className="text-[0.65rem] font-bold uppercase tracking-wider text-cream/35">{label}</p>

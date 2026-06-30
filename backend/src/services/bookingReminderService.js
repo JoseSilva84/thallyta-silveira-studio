@@ -1,5 +1,6 @@
 import prisma from '../config/prisma.js';
 import { notifyUpcomingBookingReminder } from './whatsappService.js';
+import { isDatabaseUnavailableError, logDatabaseUnavailableWarning } from '../utils/prismaErrors.js';
 
 const DEFAULT_CHECK_INTERVAL_MINUTES = 5;
 const DEFAULT_LEAD_MINUTES = 60;
@@ -26,23 +27,32 @@ const getReminderWindow = () => {
 export const sendDueBookingReminders = async () => {
   const { from, to } = getReminderWindow();
 
-  const bookings = await prisma.booking.findMany({
-    where: {
-      scheduledAt: {
-        gte: from,
-        lte: to,
+  let bookings = [];
+  try {
+    bookings = await prisma.booking.findMany({
+      where: {
+        scheduledAt: {
+          gte: from,
+          lte: to,
+        },
+        status: {
+          in: ['confirmed', 'rescheduled'],
+        },
       },
-      status: {
-        in: ['confirmed', 'rescheduled'],
+      include: {
+        user: {
+          select: { id: true, name: true, email: true, whatsappPhone: true },
+        },
       },
-    },
-    include: {
-      user: {
-        select: { id: true, name: true, email: true, whatsappPhone: true },
-      },
-    },
-    orderBy: { scheduledAt: 'asc' },
-  });
+      orderBy: { scheduledAt: 'asc' },
+    });
+  } catch (error) {
+    if (isDatabaseUnavailableError(error)) {
+      logDatabaseUnavailableWarning('Lembretes de agendamento', error);
+      return 0;
+    }
+    throw error;
+  }
 
   for (const booking of bookings) {
     try {

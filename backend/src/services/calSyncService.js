@@ -1,6 +1,7 @@
 import prisma from '../config/prisma.js';
 import { findServiceById, services } from '../data/services.js';
 import { createCalBooking } from './calService.js';
+import { isDatabaseUnavailableError, logDatabaseUnavailableWarning } from '../utils/prismaErrors.js';
 
 const DEFAULT_SYNC_INTERVAL_MINUTES = 2;
 const DEFAULT_SYNC_LIMIT = 10;
@@ -150,28 +151,38 @@ export const syncFallbackBookingsToCal = async (bookings) => {
 
 export const syncDueFallbackBookingsToCal = async () => {
   const limit = getNumberEnv('CAL_FALLBACK_SYNC_LIMIT', DEFAULT_SYNC_LIMIT);
-  const bookings = await prisma.booking.findMany({
-    where: {
-      scheduledAt: { gt: new Date() },
-      status: { notIn: ['cancelled', 'no_show'] },
-      OR: [
-        {
-          calEventId: {
-            startsWith: 'site-payment-',
+  let bookings = [];
+
+  try {
+    bookings = await prisma.booking.findMany({
+      where: {
+        scheduledAt: { gt: new Date() },
+        status: { notIn: ['cancelled', 'no_show'] },
+        OR: [
+          {
+            calEventId: {
+              startsWith: 'site-payment-',
+            },
           },
-        },
-        {
-          calPayload: {
-            path: ['calendarFallback'],
-            equals: true,
+          {
+            calPayload: {
+              path: ['calendarFallback'],
+              equals: true,
+            },
           },
-        },
-      ],
-    },
-    orderBy: { scheduledAt: 'asc' },
-    take: limit,
-    include: bookingInclude,
-  });
+        ],
+      },
+      orderBy: { scheduledAt: 'asc' },
+      take: limit,
+      include: bookingInclude,
+    });
+  } catch (error) {
+    if (isDatabaseUnavailableError(error)) {
+      logDatabaseUnavailableWarning('Sincronizacao com Cal.com', error);
+      return 0;
+    }
+    throw error;
+  }
 
   await syncFallbackBookingsToCal(bookings);
   return bookings.length;

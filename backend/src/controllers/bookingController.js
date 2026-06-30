@@ -650,7 +650,7 @@ export const createAdminBooking = async (req, res) => {
       return res.status(403).json({ error: 'Acesso negado. Apenas administradores.' });
     }
 
-    const { attendeeName, attendeePhone, attendeeEmail, serviceId, date, time, notes, amountPaid } = req.body;
+    const { attendeeName, attendeePhone, attendeeEmail, serviceId, date, time, notes, amountPaid, paymentId: existingPaymentId } = req.body;
 
     if (!attendeeName?.trim() || !attendeePhone?.trim() || !serviceId || !date || !time) {
       return res.status(400).json({ error: 'Preencha todos os campos obrigatorios (nome, whatsapp, servico, data, horario).' });
@@ -659,6 +659,30 @@ export const createAdminBooking = async (req, res) => {
     const service = findServiceById(serviceId);
     if (!service) {
       return res.status(400).json({ error: 'Servico nao encontrado no catalogo.' });
+    }
+
+    let existingPayment = null;
+    if (existingPaymentId) {
+      existingPayment = await prisma.bookingPayment.findUnique({
+        where: { id: existingPaymentId },
+        include: { booking: true },
+      });
+
+      if (!existingPayment) {
+        return res.status(404).json({ error: 'Pagamento aprovado nao encontrado.' });
+      }
+
+      if (existingPayment.booking) {
+        return res.status(409).json({ error: 'Este pagamento ja possui agendamento.' });
+      }
+
+      if (existingPayment.status !== 'approved' || existingPayment.amount < existingPayment.minimumAmount) {
+        return res.status(409).json({ error: 'Este pagamento ainda nao esta aprovado para agendamento.' });
+      }
+
+      if (existingPayment.serviceId !== service.id) {
+        return res.status(409).json({ error: 'O servico escolhido precisa ser o mesmo do pagamento aprovado.' });
+      }
     }
 
     // ── Convert Fortaleza local time to UTC ────────────────────────
@@ -712,16 +736,16 @@ export const createAdminBooking = async (req, res) => {
     }
 
     // ── Try to link to existing user ──────────────────────────────
-    let userId = null;
+    let userId = existingPayment?.userId || null;
     if (attendeeEmail) {
       const user = await prisma.user.findUnique({ where: { email: attendeeEmail } });
       if (user) userId = user.id;
     }
 
     // ── Create BookingPayment if sinal was paid ───────────────────
-    let paymentId = null;
+    let paymentId = existingPayment?.id || null;
     const sinalAmount = Number.parseFloat(String(amountPaid || '0').replace(',', '.'));
-    if (Number.isFinite(sinalAmount) && sinalAmount > 0) {
+    if (!existingPayment && Number.isFinite(sinalAmount) && sinalAmount > 0) {
       const payment = await prisma.bookingPayment.create({
         data: {
           userId: userId || req.user.id,
@@ -767,6 +791,24 @@ export const createAdminBooking = async (req, res) => {
     });
 
     console.log(`✅ Admin booking criado: ${booking.id} (Cal UID: ${calBooking.uid}) para ${attendeeName}`);
+
+    if (existingPayment) {
+      await prisma.bookingPayment.update({
+        where: { id: existingPayment.id },
+        data: {
+          metadata: {
+            ...(existingPayment.metadata || {}),
+            adminResolution: {
+              status: 'resolved',
+              type: 'booking_created',
+              bookingId: booking.id,
+              resolvedAt: new Date().toISOString(),
+              resolvedBy: req.user.id,
+            },
+          },
+        },
+      });
+    }
 
     // ── Send WhatsApp notifications ───────────────────────────────
     try {

@@ -245,29 +245,6 @@ const serializePayment = (payment) => ({
   birthdayReward: payment.metadata?.birthdayReward || null,
 });
 
-const serializeOrphanBookingPayment = (payment) => ({
-  id: payment.id,
-  status: payment.status,
-  serviceId: payment.serviceId,
-  serviceName: payment.serviceName,
-  servicePrice: payment.servicePrice,
-  paymentType: payment.paymentType,
-  amount: payment.amount,
-  minimumAmount: payment.minimumAmount,
-  scheduledAt: payment.scheduledAt,
-  endTime: payment.endTime,
-  approvedAt: payment.approvedAt,
-  mercadoPagoPaymentId: payment.mercadoPagoPaymentId,
-  paymentMethodId: payment.metadata?.mercadoPago?.paymentMethodId || null,
-  paymentTypeId: payment.metadata?.mercadoPago?.paymentTypeId || null,
-  user: payment.user ? {
-    id: payment.user.id,
-    name: payment.user.name,
-    email: payment.user.email,
-    whatsappPhone: payment.user.whatsappPhone,
-  } : null,
-});
-
 const serializeBookingSummary = (booking) => {
   if (!booking) return null;
 
@@ -283,6 +260,36 @@ const serializeBookingSummary = (booking) => {
     status: booking.status,
     calendarFallback: Boolean(booking.calPayload?.calendarFallback),
     calendarError: booking.calPayload?.calBookingError || null,
+  };
+};
+
+const serializeOrphanBookingPayment = (payment) => {
+  const resolution = payment.metadata?.adminResolution || null;
+
+  return {
+    id: payment.id,
+    status: payment.status,
+    serviceId: payment.serviceId,
+    serviceName: payment.serviceName,
+    servicePrice: payment.servicePrice,
+    paymentType: payment.paymentType,
+    amount: payment.amount,
+    minimumAmount: payment.minimumAmount,
+    scheduledAt: payment.scheduledAt,
+    endTime: payment.endTime,
+    approvedAt: payment.approvedAt,
+    mercadoPagoPaymentId: payment.mercadoPagoPaymentId,
+    paymentMethodId: payment.metadata?.mercadoPago?.paymentMethodId || null,
+    paymentTypeId: payment.metadata?.mercadoPago?.paymentTypeId || null,
+    resolved: Boolean(resolution || payment.booking),
+    resolution,
+    booking: serializeBookingSummary(payment.booking),
+    user: payment.user ? {
+      id: payment.user.id,
+      name: payment.user.name,
+      email: payment.user.email,
+      whatsappPhone: payment.user.whatsappPhone,
+    } : null,
   };
 };
 
@@ -555,10 +562,10 @@ export const getApprovedPaymentsWithoutBooking = async (req, res) => {
 
     const payments = await prisma.bookingPayment.findMany({
       where: {
-        booking: null,
         status: 'approved',
       },
       include: {
+        booking: true,
         user: {
           select: { id: true, name: true, email: true, whatsappPhone: true },
         },
@@ -571,11 +578,72 @@ export const getApprovedPaymentsWithoutBooking = async (req, res) => {
     });
 
     res.json(payments
-      .filter((payment) => payment.amount >= payment.minimumAmount)
+      .filter((payment) =>
+        payment.amount >= payment.minimumAmount
+        && (!payment.booking || payment.metadata?.adminResolution),
+      )
       .map(serializeOrphanBookingPayment));
   } catch (error) {
     console.error('Erro ao buscar pagamentos aprovados sem agendamento:', error);
     res.status(500).json({ error: 'Erro ao buscar pagamentos aprovados sem agendamento.' });
+  }
+};
+
+export const resolveApprovedPaymentWithoutBooking = async (req, res) => {
+  try {
+    if (req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Acesso negado. Apenas administradores.' });
+    }
+
+    const payment = await prisma.bookingPayment.findUnique({
+      where: { id: req.params.id },
+      include: {
+        booking: true,
+        user: {
+          select: { id: true, name: true, email: true, whatsappPhone: true },
+        },
+      },
+    });
+
+    if (!payment) {
+      return res.status(404).json({ error: 'Pagamento nao encontrado.' });
+    }
+
+    if (payment.status !== 'approved' || payment.amount < payment.minimumAmount) {
+      return res.status(409).json({ error: 'Este pagamento nao esta aprovado para resolucao.' });
+    }
+
+    if (payment.booking) {
+      return res.status(409).json({ error: 'Este pagamento ja possui agendamento.' });
+    }
+
+    const note = String(req.body?.note || '').trim();
+    const updated = await prisma.bookingPayment.update({
+      where: { id: payment.id },
+      data: {
+        metadata: {
+          ...(payment.metadata || {}),
+          adminResolution: {
+            status: 'resolved',
+            type: 'manual',
+            note: note || null,
+            resolvedAt: new Date().toISOString(),
+            resolvedBy: req.user.id,
+          },
+        },
+      },
+      include: {
+        booking: true,
+        user: {
+          select: { id: true, name: true, email: true, whatsappPhone: true },
+        },
+      },
+    });
+
+    res.json(serializeOrphanBookingPayment(updated));
+  } catch (error) {
+    console.error('Erro ao marcar pagamento como resolvido:', error);
+    res.status(500).json({ error: 'Erro ao marcar pagamento como resolvido.' });
   }
 };
 
