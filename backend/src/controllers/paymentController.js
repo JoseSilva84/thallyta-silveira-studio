@@ -245,6 +245,29 @@ const serializePayment = (payment) => ({
   birthdayReward: payment.metadata?.birthdayReward || null,
 });
 
+const serializeOrphanBookingPayment = (payment) => ({
+  id: payment.id,
+  status: payment.status,
+  serviceId: payment.serviceId,
+  serviceName: payment.serviceName,
+  servicePrice: payment.servicePrice,
+  paymentType: payment.paymentType,
+  amount: payment.amount,
+  minimumAmount: payment.minimumAmount,
+  scheduledAt: payment.scheduledAt,
+  endTime: payment.endTime,
+  approvedAt: payment.approvedAt,
+  mercadoPagoPaymentId: payment.mercadoPagoPaymentId,
+  paymentMethodId: payment.metadata?.mercadoPago?.paymentMethodId || null,
+  paymentTypeId: payment.metadata?.mercadoPago?.paymentTypeId || null,
+  user: payment.user ? {
+    id: payment.user.id,
+    name: payment.user.name,
+    email: payment.user.email,
+    whatsappPhone: payment.user.whatsappPhone,
+  } : null,
+});
+
 const serializeBookingSummary = (booking) => {
   if (!booking) return null;
 
@@ -521,6 +544,38 @@ export const getPendingSchedulePayment = async (req, res) => {
   } catch (error) {
     console.error('Erro ao buscar pagamento pendente de agendamento:', error);
     res.status(500).json({ error: 'Erro ao buscar pagamento pendente.' });
+  }
+};
+
+export const getApprovedPaymentsWithoutBooking = async (req, res) => {
+  try {
+    if (req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Acesso negado. Apenas administradores.' });
+    }
+
+    const payments = await prisma.bookingPayment.findMany({
+      where: {
+        booking: null,
+        status: 'approved',
+      },
+      include: {
+        user: {
+          select: { id: true, name: true, email: true, whatsappPhone: true },
+        },
+      },
+      orderBy: [
+        { approvedAt: 'desc' },
+        { createdAt: 'desc' },
+      ],
+      take: 50,
+    });
+
+    res.json(payments
+      .filter((payment) => payment.amount >= payment.minimumAmount)
+      .map(serializeOrphanBookingPayment));
+  } catch (error) {
+    console.error('Erro ao buscar pagamentos aprovados sem agendamento:', error);
+    res.status(500).json({ error: 'Erro ao buscar pagamentos aprovados sem agendamento.' });
   }
 };
 

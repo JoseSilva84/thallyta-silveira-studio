@@ -93,6 +93,8 @@ export default function AdminPanel() {
 
   const [bookings, setBookings] = useState([]);
   const [fetchingBookings, setFetchingBookings] = useState(true);
+  const [approvedPaymentsWithoutBooking, setApprovedPaymentsWithoutBooking] = useState([]);
+  const [fetchingPaymentAlerts, setFetchingPaymentAlerts] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
   const [clientSearch, setClientSearch] = useState('');
 
@@ -222,6 +224,23 @@ export default function AdminPanel() {
     }
   }, [getToken]);
 
+  const fetchApprovedPaymentsWithoutBooking = useCallback(async () => {
+    try {
+      setFetchingPaymentAlerts(true);
+      const res = await fetch(`${API}/payments/admin/approved-without-booking`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      const data = await res.json().catch(() => []);
+      if (!res.ok) throw new Error(data.error || 'Falha ao buscar pagamentos sem agendamento');
+      setApprovedPaymentsWithoutBooking(Array.isArray(data) ? data : []);
+    } catch (error) {
+      toast.error('Erro ao carregar alertas de pagamento');
+      console.error(error);
+    } finally {
+      setFetchingPaymentAlerts(false);
+    }
+  }, [getToken]);
+
   const fetchTestimonials = useCallback(async () => {
     try {
       setFetchingTestimonials(true);
@@ -304,9 +323,10 @@ export default function AdminPanel() {
   useEffect(() => {
     fetchImages();
     fetchBookings();
+    fetchApprovedPaymentsWithoutBooking();
     fetchTestimonials();
     fetchFinanceExpenses();
-  }, [fetchBookings, fetchFinanceExpenses, fetchImages, fetchTestimonials]);
+  }, [fetchApprovedPaymentsWithoutBooking, fetchBookings, fetchFinanceExpenses, fetchImages, fetchTestimonials]);
 
   // Carrega bloqueios quando a aba é aberta pela primeira vez
   useEffect(() => {
@@ -317,6 +337,7 @@ export default function AdminPanel() {
 
   const refreshAll = () => {
     fetchBookings();
+    fetchApprovedPaymentsWithoutBooking();
     fetchImages();
     fetchTestimonials();
     fetchFinanceExpenses();
@@ -767,7 +788,7 @@ export default function AdminPanel() {
         </div>
 
         <div className="mb-6 flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-black/30 p-1 backdrop-blur-md">
-          <TabButton active={activeTab === 'bookings'} icon={<FiCalendar />} label="Agenda" count={bookings.length} onClick={() => setActiveTab('bookings')} />
+          <TabButton active={activeTab === 'bookings'} icon={<FiCalendar />} label="Agenda" count={bookings.length + approvedPaymentsWithoutBooking.length} onClick={() => setActiveTab('bookings')} />
           <TabButton active={activeTab === 'analytics'} icon={<FiBarChart2 />} label="Análises" onClick={() => setActiveTab('analytics')} />
           <TabButton active={activeTab === 'finance'} icon={<FiDollarSign />} label="Financeiro" count={financeExpenses.length || undefined} onClick={() => setActiveTab('finance')} />
           <TabButton active={activeTab === 'loyalty'} icon={<FiAward />} label="Fidelidade" count={pendingCompletionBookings.length} onClick={() => setActiveTab('loyalty')} />
@@ -779,6 +800,12 @@ export default function AdminPanel() {
 
         {activeTab === 'bookings' && (
           <div className="space-y-6">
+            <ApprovedPaymentsWithoutBookingAlert
+              payments={approvedPaymentsWithoutBooking}
+              fetching={fetchingPaymentAlerts}
+              onRefresh={fetchApprovedPaymentsWithoutBooking}
+            />
+
             {pendingCompletionBookings.length > 0 && (
               <div className="rounded-2xl border border-amber-300/20 bg-amber-300/10 p-5 text-amber-50">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -1163,6 +1190,81 @@ function showConfirmToast({ message, confirmLabel = 'Confirmar', cancelLabel = '
     draggable: false,
     position: 'top-center',
   });
+}
+
+function ApprovedPaymentsWithoutBookingAlert({ payments, fetching, onRefresh }) {
+  if (fetching && payments.length === 0) {
+    return (
+      <div className="rounded-2xl border border-white/10 bg-black/30 p-4 text-sm text-cream/45">
+        Verificando pagamentos aprovados sem agendamento...
+      </div>
+    );
+  }
+
+  if (!payments.length) return null;
+
+  return (
+    <section className="rounded-2xl border border-red-400/25 bg-red-500/10 p-5 text-red-50">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-red-100/75">
+            <FiAlertTriangle /> Pagamento aprovado sem agendamento
+          </p>
+          <h2 className="mt-1 text-xl font-semibold">
+            {payments.length} {payments.length === 1 ? 'cliente pagou, mas nao entrou na agenda.' : 'clientes pagaram, mas nao entraram na agenda.'}
+          </h2>
+          <p className="mt-2 max-w-3xl text-sm text-red-50/70">
+            Confira estes casos no Mercado Pago e crie o agendamento manualmente para reservar o horario.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onRefresh}
+          className="inline-flex items-center justify-center gap-2 rounded-full border border-red-100/30 px-4 py-2 text-sm font-semibold text-red-50 hover:bg-red-100/10"
+        >
+          <FiRefreshCw /> Atualizar
+        </button>
+      </div>
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+        {payments.map((payment) => (
+          <article key={payment.id} className="rounded-xl border border-red-100/15 bg-black/25 p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
+                <h3 className="truncate font-semibold text-cream">{payment.user?.name || 'Cliente sem nome'}</h3>
+                <p className="mt-1 break-words text-xs text-cream/45">
+                  {payment.user?.whatsappPhone || payment.user?.email || 'Contato nao informado'}
+                </p>
+              </div>
+              <span className="w-max rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-emerald-300">
+                {formatPaymentMethod(payment)}
+              </span>
+            </div>
+
+            <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+              <PaymentAlertLine label="Servico" value={payment.serviceName || '-'} />
+              <PaymentAlertLine label="Valor pago" value={formatCurrency(payment.amount)} />
+              <PaymentAlertLine label="Horario escolhido" value={payment.scheduledAt ? `${formatDate(payment.scheduledAt)} - ${formatTime(payment.scheduledAt)}` : 'Nao informado'} />
+              <PaymentAlertLine label="Aprovado em" value={payment.approvedAt ? `${formatDate(payment.approvedAt)} - ${formatTime(payment.approvedAt)}` : '-'} />
+            </div>
+
+            <div className="mt-3 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-cream/45">
+              ID Mercado Pago: <span className="font-mono text-cream/65">{payment.mercadoPagoPaymentId || '-'}</span>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function PaymentAlertLine({ label, value }) {
+  return (
+    <div>
+      <p className="text-[0.65rem] font-bold uppercase tracking-wider text-cream/35">{label}</p>
+      <p className="mt-0.5 break-words font-semibold text-cream/85">{value}</p>
+    </div>
+  );
 }
 
 function BookingsTable({ bookings, fetching, statusFilter, statusBadge, onCompleteService, onUndoCompleteService, onMarkNoShow, onCancelBooking, onMarkRemainingPaid, onSyncBookingToCal }) {
@@ -3145,6 +3247,16 @@ function formatTime(dateStr) {
 function formatCurrency(value) {
   if (typeof value !== 'number' || !Number.isFinite(value)) return '-';
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+}
+
+function formatPaymentMethod(payment) {
+  const method = String(payment?.paymentMethodId || '').toLowerCase();
+  const type = String(payment?.paymentTypeId || '').toLowerCase();
+  if (method === 'pix') return 'Pix';
+  if (type === 'credit_card') return 'Cartao credito';
+  if (type === 'debit_card') return 'Cartao debito';
+  if (type === 'bank_transfer') return method ? method.toUpperCase() : 'Transferencia';
+  return method || type || 'Pagamento';
 }
 
 function getBookingPaymentSummary(booking) {
