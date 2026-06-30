@@ -2236,10 +2236,6 @@ function FinanceView({ summary, expenses, fetching, saving, form, setForm, onAdd
           </div>
         </div>
 
-        <MonthlyFinanceHistory
-          months={summary.monthlyHistory}
-          onSelectMonth={setSelectedFinanceMonth}
-        />
       </section>
 
       <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
@@ -2349,6 +2345,11 @@ function FinanceView({ summary, expenses, fetching, saving, form, setForm, onAdd
           )}
         </section>
       </div>
+
+      <MonthlyFinanceHistory
+        months={summary.monthlyHistory}
+        onSelectMonth={setSelectedFinanceMonth}
+      />
 
       <BookingDetailModal
         booking={selectedPendingPayment?.booking || null}
