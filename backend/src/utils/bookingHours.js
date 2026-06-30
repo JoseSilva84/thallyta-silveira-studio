@@ -7,7 +7,7 @@ const FIXED_SLOTS = [
   { hour: 16, minute: 30 }, // 16:30
   { hour: 18, minute: 30 }, // 18:30
 ];
-const FIXED_SLOT_MINUTES = new Set(FIXED_SLOTS.map(s => s.hour * 60 + s.minute));
+const FRIDAY_SLOTS = FIXED_SLOTS.slice(0, 2);
 const OPEN_MINUTES = 8 * 60;        // 08:00
 const LAST_START_MINUTES = 18 * 60 + 30; // 18:30
 const SLOT_INTERVAL_MINUTES = 30;
@@ -39,6 +39,12 @@ const getStudioDateTime = (date) => {
   };
 };
 
+const getSlotsForWeekday = (weekday) => (weekday === 'Fri' ? FRIDAY_SLOTS : FIXED_SLOTS);
+
+const isValidStartSlot = (weekday, minutes) => {
+  return getSlotsForWeekday(weekday).some((slot) => slot.hour * 60 + slot.minute === minutes);
+};
+
 export const validateBookingWindow = (startInput, endInput) => {
   const start = startInput instanceof Date ? startInput : new Date(startInput);
   const end = endInput instanceof Date ? endInput : new Date(endInput);
@@ -62,7 +68,7 @@ export const validateBookingWindow = (startInput, endInput) => {
     return { valid: false, reason: 'O atendimento comeca a partir das 08h00.' };
   }
 
-  if (!FIXED_SLOT_MINUTES.has(startLocal.minutes)) {
+  if (!isValidStartSlot(startLocal.weekday, startLocal.minutes)) {
     return { valid: false, reason: 'Este horario nao esta disponivel para agendamento.' };
   }
 
@@ -128,7 +134,7 @@ export const buildPublicAgendaDays = (bookings, daysCount, nowInput = new Date()
     const availableSlots = [];
 
     if (isBusinessDay) {
-      for (const { hour, minute } of FIXED_SLOTS) {
+      for (const { hour, minute } of getSlotsForWeekday(localDay.weekday)) {
         const minutes = hour * 60 + minute;
         const slotStart = localSlotToDate(dateKey, minutes);
         const slotEnd = new Date(slotStart.getTime() + candidateDurationMinutes * 60 * 1000);
