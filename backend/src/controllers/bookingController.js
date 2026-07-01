@@ -1,5 +1,5 @@
 import prisma from '../config/prisma.js';
-import { createCalBooking } from '../services/calService.js';
+import { confirmCalBooking, createCalBooking } from '../services/calService.js';
 import { syncBookingToCalById } from '../services/calSyncService.js';
 import { findServiceById } from '../data/services.js';
 import { notifyBookingCreated } from '../services/whatsappService.js';
@@ -415,6 +415,57 @@ export const syncBookingToCal = async (req, res) => {
   }
 };
 
+export const confirmBookingOnCal = async (req, res) => {
+  try {
+    if (req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Acesso negado. Apenas administradores.' });
+    }
+
+    const booking = await prisma.booking.findUnique({
+      where: { id: req.params.id },
+      include: bookingInclude,
+    });
+
+    if (!booking) {
+      return res.status(404).json({ error: 'Agendamento nao encontrado.' });
+    }
+
+    if (!booking.calEventId) {
+      return res.status(400).json({ error: 'Este agendamento nao possui UID do Cal.com.' });
+    }
+
+    if (['cancelled', 'no_show'].includes(booking.status)) {
+      return res.status(409).json({ error: 'Nao e possivel confirmar no Cal.com um agendamento cancelado ou marcado como falta.' });
+    }
+
+    const calBooking = await confirmCalBooking(booking.calEventId);
+    const existingPayload = booking.calPayload && typeof booking.calPayload === 'object' && !Array.isArray(booking.calPayload)
+      ? booking.calPayload
+      : {};
+
+    const updated = await prisma.booking.update({
+      where: { id: booking.id },
+      data: {
+        status: booking.status === 'rescheduled' ? 'rescheduled' : 'confirmed',
+        calPayload: {
+          ...existingPayload,
+          calConfirmation: {
+            confirmedAt: new Date().toISOString(),
+            confirmedBy: req.user.id,
+            status: calBooking?.status || 'accepted',
+          },
+        },
+      },
+      include: bookingInclude,
+    });
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Erro ao confirmar agendamento no Cal.com:', error);
+    res.status(error.statusCode || 502).json({ error: error.message || 'Erro ao confirmar no Cal.com.' });
+  }
+};
+
 const cancelOnCal = async (booking) => {
   const apiKey = process.env.CAL_API_KEY;
   if (!apiKey || !booking.calEventId) return { skipped: true };
@@ -780,7 +831,7 @@ export const createAdminBooking = async (req, res) => {
       paymentId,
     };
 
-    const booking = await prisma.booking.upsert({
+    let booking = await prisma.booking.upsert({
       where: { calEventId: calBooking.uid },
       update: bookingData,
       create: {
@@ -789,6 +840,26 @@ export const createAdminBooking = async (req, res) => {
       },
       include: bookingInclude,
     });
+
+    try {
+      const calConfirmedBooking = await confirmCalBooking(booking.calEventId);
+      booking = await prisma.booking.update({
+        where: { id: booking.id },
+        data: {
+          calPayload: {
+            ...(booking.calPayload || {}),
+            calConfirmation: {
+              confirmedAt: new Date().toISOString(),
+              confirmedBy: req.user.id,
+              status: calConfirmedBooking?.status || 'accepted',
+            },
+          },
+        },
+        include: bookingInclude,
+      });
+    } catch (calConfirmError) {
+      console.error('Erro ao confirmar automaticamente agendamento admin no Cal.com:', calConfirmError);
+    }
 
     console.log(`✅ Admin booking criado: ${booking.id} (Cal UID: ${calBooking.uid}) para ${attendeeName}`);
 

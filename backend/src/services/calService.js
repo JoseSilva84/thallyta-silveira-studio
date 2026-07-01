@@ -99,3 +99,23 @@ export async function createCalBooking({
     endTime: booking.end || booking.endTime || null,
   };
 }
+
+export async function confirmCalBooking(bookingUid) {
+  if (!process.env.CAL_API_KEY) throw new Error('CAL_API_KEY nao configurado no .env.');
+  if (!bookingUid) throw new Error('UID do agendamento no Cal.com nao informado.');
+
+  const response = await fetch(`${CAL_BASE}/bookings/${encodeURIComponent(bookingUid)}/confirm`, {
+    method: 'POST',
+    headers: calHeaders(),
+  });
+
+  const raw = await response.text();
+  const data = raw ? JSON.parse(raw) : {};
+
+  if (!response.ok) {
+    console.error('[calService] Cal.com confirmBooking error:', JSON.stringify(data));
+    throw new Error(stringifyCalError(data?.message || data?.error || data) || `Cal.com retornou HTTP ${response.status}`);
+  }
+
+  return data?.data ?? data;
+}

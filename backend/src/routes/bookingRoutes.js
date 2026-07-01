@@ -1,6 +1,7 @@
 import express from 'express';
 import {
   cancelBooking,
+  confirmBookingOnCal,
   completeBookingService,
   createAdminBooking,
   createPaidBooking,
@@ -28,6 +29,7 @@ router.post('/:id/cancel', verifyToken, cancelBooking);
 router.post('/:id/complete-service', verifyToken, verifyAdmin, completeBookingService);
 router.post('/:id/mark-remaining-paid', verifyToken, verifyAdmin, markRemainingPaymentPaid);
 router.post('/:id/sync-cal', verifyToken, verifyAdmin, syncBookingToCal);
+router.post('/:id/confirm-cal', verifyToken, verifyAdmin, confirmBookingOnCal);
 router.post('/:id/no-show', verifyToken, verifyAdmin, markBookingNoShow);
 router.post('/:id/undo-complete-service', verifyToken, verifyAdmin, undoBookingServiceCompletion);
 
