@@ -751,6 +751,8 @@ export default function AdminPanel() {
   };
 
   const handleDeleteExpense = async (id) => {
+    if (!window.confirm('Remover esta despesa do financeiro?')) return;
+
     try {
       const res = await fetch(`${API}/finance/expenses/${id}`, {
         method: 'DELETE',
@@ -2147,8 +2149,18 @@ function AnalyticsView({ analytics }) {
 function FinanceView({ summary, expenses, fetching, saving, form, setForm, onAddExpense, onDeleteExpense, onMarkRemainingPaid }) {
   const [selectedPendingPayment, setSelectedPendingPayment] = useState(null);
   const [selectedFinanceMonth, setSelectedFinanceMonth] = useState(null);
-  const currentExpenses = expenses.filter((expense) => financeMonthKey(new Date(expense.date)) === summary.currentMonthKey);
+  const currentExpenses = expenses.filter((expense) => financeMonthKey(parseFinanceDate(expense.date)) === summary.currentMonthKey);
   const profitTone = summary.netProfit >= 0 ? 'text-emerald-300' : 'text-red-300';
+
+  useEffect(() => {
+    if (!selectedFinanceMonth) return;
+    const updatedMonth = summary.yearlyHistory
+      .flatMap((year) => year.months)
+      .find((month) => month.key === selectedFinanceMonth.key);
+    if (updatedMonth && updatedMonth !== selectedFinanceMonth) {
+      setSelectedFinanceMonth(updatedMonth);
+    }
+  }, [summary.yearlyHistory, selectedFinanceMonth?.key]);
 
   return (
     <div className="space-y-6">
@@ -2333,7 +2345,7 @@ function FinanceView({ summary, expenses, fetching, saving, form, setForm, onAdd
                         <h3 className="truncate font-semibold text-cream">{expense.description}</h3>
                         <span className="rounded-full border border-gold/15 bg-gold/10 px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wider text-gold-light">{expense.category}</span>
                       </div>
-                      <p className="mt-1 text-sm text-cream/45">{formatDate(expense.date)}</p>
+                      <p className="mt-1 text-sm text-cream/45">{formatFinanceDate(expense.date)}</p>
                       {expense.notes && <p className="mt-2 text-sm text-cream/60">{expense.notes}</p>}
                     </div>
                     <div className="flex shrink-0 items-center justify-between gap-3 sm:justify-end">
@@ -2373,6 +2385,7 @@ function FinanceView({ summary, expenses, fetching, saving, form, setForm, onAdd
       <MonthlyFinanceModal
         month={selectedFinanceMonth}
         onClose={() => setSelectedFinanceMonth(null)}
+        onDeleteExpense={onDeleteExpense}
       />
     </div>
   );
@@ -2650,7 +2663,7 @@ function FinanceMiniStat({ label, value, tone = 'default' }) {
   );
 }
 
-function MonthlyFinanceModal({ month, onClose }) {
+function MonthlyFinanceModal({ month, onClose, onDeleteExpense }) {
   if (!month) return null;
 
   const balanceTone = month.balance >= 0 ? 'text-emerald-300' : 'text-red-300';
@@ -2710,9 +2723,11 @@ function MonthlyFinanceModal({ month, onClose }) {
                 <FinanceMovementRow
                   title={item.description}
                   subtitle={item.category}
-                  meta={[formatDate(item.date), item.notes].filter(Boolean).join(' - ')}
+                  meta={[formatFinanceDate(item.date), item.notes].filter(Boolean).join(' - ')}
                   value={formatCurrency(item.amount)}
                   tone="danger"
+                  actionLabel="Remover despesa"
+                  onAction={onDeleteExpense ? () => onDeleteExpense(item.expenseId || item.id.replace('expense-', '')) : null}
                 />
               )}
             />
@@ -2777,7 +2792,7 @@ function MonthlyFinanceList({ title, emptyText, items, renderItem }) {
   );
 }
 
-function FinanceMovementRow({ title, subtitle, meta, value, tone }) {
+function FinanceMovementRow({ title, subtitle, meta, value, tone, actionLabel, onAction }) {
   const toneClasses = {
     success: 'text-emerald-300',
     warning: 'text-amber-200',
@@ -2791,7 +2806,20 @@ function FinanceMovementRow({ title, subtitle, meta, value, tone }) {
           <p className="truncate text-sm font-semibold text-cream">{title}</p>
           <p className="mt-1 truncate text-xs text-cream/45">{subtitle}</p>
         </div>
-        <span className={`shrink-0 text-sm font-bold ${toneClasses[tone] || 'text-cream'}`}>{value}</span>
+        <div className="flex shrink-0 items-center gap-2">
+          <span className={`text-sm font-bold ${toneClasses[tone] || 'text-cream'}`}>{value}</span>
+          {onAction && (
+            <button
+              type="button"
+              onClick={onAction}
+              className="grid size-8 place-items-center rounded-full border border-red-500/20 text-red-300 transition hover:bg-red-500/10"
+              aria-label={actionLabel}
+              title={actionLabel}
+            >
+              <FiTrash2 />
+            </button>
+          )}
+        </div>
       </div>
       {meta && <p className="mt-2 text-xs text-cream/40">{meta}</p>}
     </article>
@@ -3506,6 +3534,25 @@ function financeMonthKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
+function parseFinanceDate(value) {
+  if (value instanceof Date) {
+    return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+  }
+
+  const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) {
+    const [, year, month, day] = match;
+    return new Date(Number(year), Number(month) - 1, Number(day));
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? new Date() : date;
+}
+
+function formatFinanceDate(value) {
+  return parseFinanceDate(value).toLocaleDateString('pt-BR');
+}
+
 function createFinanceMonthBucket(date) {
   const validDate = date instanceof Date && !Number.isNaN(date.getTime()) ? date : new Date();
   const key = financeMonthKey(validDate);
@@ -3669,11 +3716,12 @@ function buildFinanceSummary(bookings, expenses) {
     const amount = Number(expense.amount);
     if (!Number.isFinite(amount) || amount <= 0) return sum;
     const category = expense.category || 'Outros';
-    const date = new Date(expense.date);
+    const date = parseFinanceDate(expense.date);
     const monthBucket = ensureFinanceMonthBucket(monthlyHistoryMap, date);
     monthBucket.expenses += amount;
     monthBucket.expenseItems.push({
       id: `expense-${expense.id}`,
+      expenseId: expense.id,
       description: expense.description || 'Despesa',
       category,
       date: expense.date,

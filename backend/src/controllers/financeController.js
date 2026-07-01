@@ -1,10 +1,20 @@
 import prisma from '../config/prisma.js';
 
+const parseExpenseDate = (value) => {
+  const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (match) {
+    const [, year, month, day] = match;
+    return new Date(Date.UTC(Number(year), Number(month) - 1, Number(day), 12, 0, 0));
+  }
+
+  return value ? new Date(value) : new Date();
+};
+
 const normalizeExpensePayload = (body) => {
   const description = String(body.description || '').trim();
   const category = String(body.category || 'Salao').trim() || 'Salao';
   const amount = Number(String(body.amount ?? '').replace(',', '.'));
-  const dateValue = body.date ? new Date(body.date) : new Date();
+  const dateValue = parseExpenseDate(body.date);
   const notes = String(body.notes || '').trim();
 
   if (!description) {
