@@ -2356,7 +2356,7 @@ function FinanceView({ summary, expenses, fetching, saving, form, setForm, onAdd
       </div>
 
       <MonthlyFinanceHistory
-        months={summary.monthlyHistory}
+        years={summary.yearlyHistory}
         onSelectMonth={setSelectedFinanceMonth}
       />
 
@@ -2378,72 +2378,252 @@ function FinanceView({ summary, expenses, fetching, saving, form, setForm, onAdd
   );
 }
 
-function MonthlyFinanceHistory({ months, onSelectMonth }) {
-  const hasValues = months.some((month) => month.income > 0 || month.expenses > 0 || month.pending > 0);
+function MonthlyFinanceHistory({ years, onSelectMonth }) {
+  const currentYear = String(new Date().getFullYear());
+  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const activeYear = years.find((year) => year.year === selectedYear) || years[0];
+  const months = activeYear?.months || [];
+  const hasValues = months.some((month) => month.hasMovement);
+  const balanceTone = (activeYear?.totals.balance || 0) >= 0 ? 'text-emerald-300' : 'text-red-300';
 
   return (
-    <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.025] p-4">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+    <section className="mt-6 rounded-2xl border border-white/10 bg-white/[0.025] p-4 sm:p-5">
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-wider text-gold-light/60">Historico mensal</p>
-          <h3 className="mt-1 text-xl font-semibold text-cream">Entradas, despesas e saldo por mes</h3>
+          <h3 className="mt-1 text-xl font-semibold text-cream">Consulta por ano e mes</h3>
+          <p className="mt-2 max-w-2xl text-sm text-cream/45">
+            Escolha o ano e passe o mouse sobre um mes para ver uma previa; clique para abrir os lancamentos detalhados.
+          </p>
         </div>
-        <p className="max-w-xl text-sm text-cream/45">
-          Clique em um mes para abrir os lancamentos detalhados, pagamentos pendentes e categorias de despesa.
-        </p>
+        <div className="flex flex-wrap gap-2">
+          {years.map((year) => (
+            <button
+              key={year.year}
+              type="button"
+              onClick={() => setSelectedYear(year.year)}
+              className={`rounded-full border px-4 py-2 text-sm font-bold transition ${
+                activeYear?.year === year.year
+                  ? 'border-gold/40 bg-gold text-dark'
+                  : 'border-white/10 bg-white/[0.03] text-cream/60 hover:border-gold/30 hover:text-gold-light'
+              }`}
+            >
+              {year.year}
+            </button>
+          ))}
+        </div>
       </div>
 
+      <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1.6fr)]">
+        <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-cream/40">Ano selecionado</p>
+              <h4 className="mt-1 text-2xl font-bold text-gold-light">{activeYear?.year}</h4>
+            </div>
+            <span className={`rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-sm font-bold ${balanceTone}`}>
+              {formatCurrency(activeYear?.totals.balance || 0)}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <FinanceMiniStat label="Faturamento" value={formatCurrency(activeYear?.totals.income || 0)} tone="success" />
+            <FinanceMiniStat label="Despesas" value={formatCurrency(activeYear?.totals.expenses || 0)} tone="danger" />
+            <FinanceMiniStat label="A receber" value={formatCurrency(activeYear?.totals.pending || 0)} tone="warning" />
+            <FinanceMiniStat label="Margem" value={`${(activeYear?.margin || 0).toFixed(0)}%`} tone={activeYear?.margin >= 0 ? 'success' : 'danger'} />
+          </div>
+
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            {months.map((month) => (
+              <MonthPickerButton key={month.key} month={month} onSelectMonth={onSelectMonth} />
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+          <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-cream/40">Analise financeira</p>
+              <h4 className="mt-1 text-lg font-semibold text-cream">Comparativo mensal de {activeYear?.year}</h4>
+            </div>
+            {hasValues && (
+              <p className="text-sm text-cream/45">
+                Melhor mes: <span className="capitalize text-gold-light">{activeYear.bestIncomeMonth?.monthLabel}</span>
+              </p>
+            )}
+          </div>
+
+          {!hasValues ? (
+            <p className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-cream/45">
+              Ainda nao ha movimentacao suficiente neste ano para montar os graficos.
+            </p>
+          ) : (
+            <div className="grid gap-4 2xl:grid-cols-2">
+              <FinanceTrendChart
+                title="Faturamento por mes"
+                items={months}
+                valueKey="income"
+                valueFormatter={formatCurrency}
+                tone="success"
+              />
+              <FinanceTrendChart
+                title="Despesas por mes"
+                items={months}
+                valueKey="expenses"
+                valueFormatter={formatCurrency}
+                tone="danger"
+              />
+              <FinanceTrendChart
+                title="Lucro realizado"
+                items={months}
+                valueKey="balance"
+                valueFormatter={formatCurrency}
+                tone="balance"
+              />
+              <FinanceTrendChart
+                title="Margem mensal"
+                items={months}
+                valueKey="margin"
+                valueFormatter={(value) => `${value.toFixed(0)}%`}
+                tone="gold"
+              />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {hasValues && (
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <FinanceAnalysisNote
+            label="Media de faturamento"
+            value={formatCurrency(activeYear.averageIncome)}
+            text="Media considerando os 12 meses do ano selecionado."
+          />
+          <FinanceAnalysisNote
+            label="Media de despesas"
+            value={formatCurrency(activeYear.averageExpenses)}
+            text="Ajuda a perceber se os custos estao crescendo fora do ritmo."
+            tone="danger"
+          />
+          <FinanceAnalysisNote
+            label="Maior despesa"
+            value={formatCurrency(activeYear.highestExpenseMonth?.expenses || 0)}
+            text={activeYear.highestExpenseMonth?.expenses ? `Registrada em ${activeYear.highestExpenseMonth.monthLabel}.` : 'Sem despesas no ano.'}
+            tone="danger"
+          />
+          <FinanceAnalysisNote
+            label="Saldo projetado"
+            value={formatCurrency(activeYear.totals.projectedBalance)}
+            text="Inclui valores pendentes que ainda podem entrar no caixa."
+            tone={activeYear.totals.projectedBalance >= 0 ? 'success' : 'danger'}
+          />
+        </div>
+      )}
+    </section>
+  );
+}
+
+function MonthPickerButton({ month, onSelectMonth }) {
+  const balanceTone = month.balance >= 0 ? 'text-emerald-300' : 'text-red-300';
+  const preview = [
+    `Entradas: ${formatCurrency(month.income)}`,
+    `Despesas: ${formatCurrency(month.expenses)}`,
+    `A receber: ${formatCurrency(month.pending)}`,
+    `Saldo: ${formatCurrency(month.balance)}`,
+  ].join(' | ');
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSelectMonth(month)}
+      className={`group relative min-h-20 rounded-xl border p-3 text-left transition hover:-translate-y-0.5 focus:outline-none focus:ring-1 focus:ring-gold/50 ${
+        month.hasMovement
+          ? 'border-gold/20 bg-gold/[0.07] hover:border-gold/45'
+          : 'border-white/10 bg-white/[0.025] hover:border-white/20'
+      }`}
+      title={preview}
+    >
+      <span className="block text-[0.65rem] font-bold uppercase tracking-wider text-cream/35">{month.shortLabel}</span>
+      <span className={`mt-2 block truncate text-sm font-bold ${balanceTone}`}>{formatCurrency(month.balance)}</span>
+      <span className="mt-1 block text-[0.68rem] text-cream/35">{month.incomeItems.length + month.expenseItems.length} lanc.</span>
+
+      <span className="pointer-events-none absolute bottom-[calc(100%+0.55rem)] left-0 z-20 hidden w-64 rounded-xl border border-gold/25 bg-[#100d0a] p-3 text-xs shadow-2xl group-hover:block group-focus:block">
+        <strong className="block capitalize text-gold-light">{month.label}</strong>
+        <span className="mt-2 grid gap-1 text-cream/55">
+          <span>Entradas: <b className="text-emerald-300">{formatCurrency(month.income)}</b></span>
+          <span>Despesas: <b className="text-red-200">{formatCurrency(month.expenses)}</b></span>
+          <span>A receber: <b className="text-amber-200">{formatCurrency(month.pending)}</b></span>
+          <span>Saldo: <b className={balanceTone}>{formatCurrency(month.balance)}</b></span>
+        </span>
+      </span>
+    </button>
+  );
+}
+
+function FinanceTrendChart({ title, items, valueKey, valueFormatter, tone = 'gold' }) {
+  const [activeIndex, setActiveIndex] = useState(null);
+  const values = items.map((item) => Number(item[valueKey]) || 0);
+  const max = Math.max(1, ...values.map((value) => Math.abs(value)));
+  const hasValues = values.some((value) => value !== 0);
+  const toneClass = {
+    success: 'from-emerald-500 to-emerald-200',
+    danger: 'from-red-400 to-rose-200',
+    gold: 'from-gold to-gold-light',
+    balance: 'from-gold to-gold-light',
+  }[tone] || 'from-gold to-gold-light';
+
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/[0.025] p-4">
+      <p className="text-xs font-bold uppercase tracking-wider text-cream/40">{title}</p>
       {!hasValues ? (
-        <p className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4 text-sm text-cream/45">
-          Ainda nao ha movimentacao suficiente para montar o historico.
-        </p>
+        <p className="mt-4 text-sm text-cream/45">Sem valores para este indicador.</p>
       ) : (
-        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {months.map((month) => {
-            const balanceTone = month.balance >= 0 ? 'text-emerald-300' : 'text-red-300';
-            const totalMovement = month.income + month.expenses + month.pending;
-            const incomeWidth = totalMovement ? (month.income / totalMovement) * 100 : 0;
-            const expenseWidth = totalMovement ? (month.expenses / totalMovement) * 100 : 0;
-            const pendingWidth = totalMovement ? (month.pending / totalMovement) * 100 : 0;
+        <div className="mt-4 flex h-40 items-end gap-1.5 rounded-xl border border-white/10 bg-black/20 px-2 pb-8 pt-4">
+          {items.map((month, index) => {
+            const value = values[index] || 0;
+            const height = Math.abs(value) ? (Math.abs(value) / max) * 100 : 0;
+            const isActive = activeIndex === index;
+            const isNegative = value < 0;
+            const barClass = tone === 'balance' && isNegative ? 'from-red-400 to-red-200' : toneClass;
 
             return (
               <button
                 key={month.key}
                 type="button"
-                onClick={() => onSelectMonth(month)}
-                className="rounded-2xl border border-white/10 bg-black/25 p-4 text-left transition hover:-translate-y-0.5 hover:border-gold/35 hover:bg-gold/[0.045] focus:outline-none focus:ring-1 focus:ring-gold/50"
+                onMouseEnter={() => setActiveIndex(index)}
+                onFocus={() => setActiveIndex(index)}
+                onMouseLeave={() => setActiveIndex(null)}
+                onBlur={() => setActiveIndex(null)}
+                className="group relative flex h-full min-w-0 flex-1 items-end justify-center"
+                title={`${month.monthLabel}: ${valueFormatter(value)}`}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-cream/40">{month.yearLabel}</p>
-                    <h4 className="mt-1 text-lg font-bold capitalize text-gold-light">{month.label}</h4>
-                  </div>
-                  <span className={`rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-sm font-bold ${balanceTone}`}>
-                    {formatCurrency(month.balance)}
+                <span
+                  className={`w-full max-w-8 rounded-t-md bg-gradient-to-t ${barClass} transition ${isActive ? 'brightness-125' : 'opacity-85 group-hover:opacity-100'}`}
+                  style={{ height: `${Math.max(6, height)}%` }}
+                />
+                <span className="absolute -bottom-6 max-w-full truncate text-[0.62rem] font-semibold text-cream/45">{month.shortLabel}</span>
+                {isActive && (
+                  <span className="absolute bottom-[calc(100%+0.45rem)] z-10 whitespace-nowrap rounded-lg border border-gold/20 bg-[#110d09] px-3 py-2 text-xs font-bold text-gold-light shadow-xl">
+                    {valueFormatter(value)}
                   </span>
-                </div>
-
-                <div className="mt-4 grid grid-cols-3 gap-2">
-                  <FinanceMiniStat label="Entradas" value={formatCurrency(month.income)} tone="success" />
-                  <FinanceMiniStat label="Despesas" value={formatCurrency(month.expenses)} tone="danger" />
-                  <FinanceMiniStat label="A receber" value={formatCurrency(month.pending)} tone="warning" />
-                </div>
-
-                <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
-                  <div className="flex h-full">
-                    <span className="bg-emerald-400/80" style={{ width: `${incomeWidth}%` }} />
-                    <span className="bg-red-300/80" style={{ width: `${expenseWidth}%` }} />
-                    <span className="bg-amber-300/80" style={{ width: `${pendingWidth}%` }} />
-                  </div>
-                </div>
-                <p className="mt-3 text-xs text-cream/40">
-                  {month.incomeItems.length} entrada(s), {month.expenseItems.length} despesa(s), {month.pendingItems.length} pendencia(s)
-                </p>
+                )}
               </button>
             );
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+function FinanceAnalysisNote({ label, value, text, tone = 'success' }) {
+  const valueTone = tone === 'danger' ? 'text-red-200' : tone === 'success' ? 'text-emerald-300' : 'text-gold-light';
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+      <p className="text-xs font-bold uppercase tracking-wider text-cream/40">{label}</p>
+      <p className={`mt-2 text-lg font-bold ${valueTone}`}>{value}</p>
+      <p className="mt-1 text-xs leading-relaxed text-cream/45">{text}</p>
     </div>
   );
 }
@@ -3349,6 +3529,61 @@ function ensureFinanceMonthBucket(monthMap, date) {
   return monthMap.get(key);
 }
 
+function buildFinanceYearlyHistory(monthMap) {
+  const currentYear = new Date().getFullYear();
+  const years = new Set([currentYear]);
+  monthMap.forEach((month) => {
+    const year = Number(String(month.key).slice(0, 4));
+    if (Number.isFinite(year)) years.add(year);
+  });
+
+  return Array.from(years)
+    .sort((a, b) => b - a)
+    .map((year) => {
+      const months = Array.from({ length: 12 }).map((_, index) => {
+        const date = new Date(year, index, 1);
+        const key = financeMonthKey(date);
+        const month = monthMap.get(key) || createFinanceMonthBucket(date);
+        const projectedBalance = month.income + month.pending - month.expenses;
+        const margin = month.income > 0 ? (month.balance / month.income) * 100 : 0;
+
+        return {
+          ...month,
+          shortLabel: date.toLocaleDateString('pt-BR', { month: 'short' }),
+          monthLabel: date.toLocaleDateString('pt-BR', { month: 'long' }),
+          projectedBalance,
+          margin,
+          hasMovement: month.income > 0 || month.expenses > 0 || month.pending > 0,
+        };
+      });
+
+      const totals = months.reduce((acc, month) => ({
+        income: acc.income + month.income,
+        expenses: acc.expenses + month.expenses,
+        pending: acc.pending + month.pending,
+        balance: acc.balance + month.balance,
+        projectedBalance: acc.projectedBalance + month.projectedBalance,
+      }), {
+        income: 0,
+        expenses: 0,
+        pending: 0,
+        balance: 0,
+        projectedBalance: 0,
+      });
+
+      return {
+        year: String(year),
+        months,
+        totals,
+        averageIncome: totals.income / 12,
+        averageExpenses: totals.expenses / 12,
+        margin: totals.income > 0 ? (totals.balance / totals.income) * 100 : 0,
+        bestIncomeMonth: [...months].sort((a, b) => b.income - a.income)[0],
+        highestExpenseMonth: [...months].sort((a, b) => b.expenses - a.expenses)[0],
+      };
+    });
+}
+
 function buildFinanceSummary(bookings, expenses) {
   const monthMap = new Map();
   const monthlyHistoryMap = new Map();
@@ -3454,6 +3689,7 @@ function buildFinanceSummary(bookings, expenses) {
         .sort((a, b) => b.value - a.value),
     }))
     .slice(-12);
+  const yearlyHistory = buildFinanceYearlyHistory(monthlyHistoryMap);
   const currentMonth = monthlyHistoryMap.get(currentMonthKey) || createFinanceMonthBucket(new Date());
   const currentExpenseCategories = Array.from(currentMonth.expenseCategoryMap.entries())
     .map(([label, value]) => ({ label, value }))
@@ -3477,6 +3713,7 @@ function buildFinanceSummary(bookings, expenses) {
     currentMonthLabel: currentMonth.label,
     monthStats: monthSeeds.slice(-6).map((key) => monthMap.get(key)),
     monthlyHistory,
+    yearlyHistory,
     pendingPayments: currentPendingPayments,
     expenseCategories: currentExpenseCategories,
     totals: {
