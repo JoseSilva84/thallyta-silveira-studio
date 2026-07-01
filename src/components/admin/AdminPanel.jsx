@@ -2147,14 +2147,15 @@ function AnalyticsView({ analytics }) {
 function FinanceView({ summary, expenses, fetching, saving, form, setForm, onAddExpense, onDeleteExpense, onMarkRemainingPaid }) {
   const [selectedPendingPayment, setSelectedPendingPayment] = useState(null);
   const [selectedFinanceMonth, setSelectedFinanceMonth] = useState(null);
+  const currentExpenses = expenses.filter((expense) => financeMonthKey(new Date(expense.date)) === summary.currentMonthKey);
   const profitTone = summary.netProfit >= 0 ? 'text-emerald-300' : 'text-red-300';
 
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard icon={<FiDollarSign />} label="Recebido" value={formatCurrency(summary.totalPaid)} hint={`${summary.paidBookings} pagamento(s) com entrada`} />
-        <MetricCard icon={<FiTrendingUp />} label="A receber" value={formatCurrency(summary.totalRemaining)} hint={`${summary.pendingPayments.length} atendimento(s) pendente(s)`} />
-        <MetricCard icon={<FiTrash2 />} label="Despesas" value={formatCurrency(summary.totalExpenses)} hint={`${expenses.length} lancamento(s) no salao`} />
+        <MetricCard icon={<FiDollarSign />} label="Recebido" value={formatCurrency(summary.totalPaid)} hint={`${summary.paidBookings} pagamento(s) no mes`} />
+        <MetricCard icon={<FiTrendingUp />} label="A receber" value={formatCurrency(summary.totalRemaining)} hint={`${summary.pendingPayments.length} atendimento(s) no mes`} />
+        <MetricCard icon={<FiTrash2 />} label="Despesas" value={formatCurrency(summary.totalExpenses)} hint={`${summary.expenseCount} lancamento(s) no mes`} />
         <MetricCard icon={<FiBarChart2 />} label="Lucro atual" value={formatCurrency(summary.netProfit)} hint={`Projetado: ${formatCurrency(summary.projectedProfit)}`} />
       </div>
 
@@ -2162,7 +2163,13 @@ function FinanceView({ summary, expenses, fetching, saving, form, setForm, onAdd
         <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-gold-light/60">Contabilidade dos serviços</p>
-            <h2 className="mt-1 text-2xl font-semibold text-gold-light">Financeiro</h2>
+            <div className="mt-1 flex flex-wrap items-center gap-3">
+              <h2 className="text-2xl font-semibold text-gold-light">Financeiro</h2>
+              <span className="rounded-full border border-gold/20 bg-gold/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-gold-light">
+                Referente a <span className="capitalize">{summary.currentMonthLabel}</span>
+              </span>
+            </div>
+            <p className="mt-2 text-sm text-cream/45">Caixa mensal iniciado no primeiro dia e fechado no ultimo dia do mes.</p>
           </div>
           <div className="grid gap-3 text-sm sm:grid-cols-3">
             <FinanceInlineStat label="Valor em serviços" value={formatCurrency(summary.totalRevenue)} />
@@ -2303,7 +2310,9 @@ function FinanceView({ summary, expenses, fetching, saving, form, setForm, onAdd
           <div className="mb-4 flex items-end justify-between gap-3">
             <div>
               <h2 className="text-xl font-semibold text-gold-light">Despesas do salão</h2>
-              <p className="mt-1 text-sm text-cream/45">Lancamentos salvos neste painel administrativo.</p>
+              <p className="mt-1 text-sm text-cream/45">
+                Lancamentos de <span className="capitalize">{summary.currentMonthLabel}</span>.
+              </p>
             </div>
             <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-sm font-semibold text-cream/65">
               {formatCurrency(summary.totalExpenses)}
@@ -2312,11 +2321,11 @@ function FinanceView({ summary, expenses, fetching, saving, form, setForm, onAdd
 
           {fetching ? (
             <p className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-cream/50">Carregando despesas...</p>
-          ) : expenses.length === 0 ? (
-            <p className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-cream/50">Nenhuma despesa cadastrada ainda.</p>
+          ) : currentExpenses.length === 0 ? (
+            <p className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-cream/50">Nenhuma despesa cadastrada neste mes.</p>
           ) : (
             <div className="space-y-3">
-              {expenses.map((expense) => (
+              {currentExpenses.map((expense) => (
                 <article key={expense.id} className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
@@ -3318,10 +3327,13 @@ function createFinanceMonthBucket(date) {
     key,
     label: validDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }),
     yearLabel: String(validDate.getFullYear()),
+    revenue: 0,
     income: 0,
     expenses: 0,
     pending: 0,
     balance: 0,
+    paidBookings: 0,
+    chargeableBookings: 0,
     incomeItems: [],
     expenseItems: [],
     pendingItems: [],
@@ -3340,7 +3352,7 @@ function ensureFinanceMonthBucket(monthMap, date) {
 function buildFinanceSummary(bookings, expenses) {
   const monthMap = new Map();
   const monthlyHistoryMap = new Map();
-  const categoryMap = new Map();
+  const currentMonthKey = financeMonthKey(new Date());
   let totalRevenue = 0;
   let totalPaid = 0;
   let totalRemaining = 0;
@@ -3373,6 +3385,9 @@ function buildFinanceSummary(bookings, expenses) {
     const key = financeMonthKey(date);
     if (monthMap.has(key)) monthMap.get(key).value += payment.paid;
     const monthBucket = ensureFinanceMonthBucket(monthlyHistoryMap, date);
+    monthBucket.revenue += payment.total;
+    monthBucket.chargeableBookings += 1;
+    if (payment.paid > 0) monthBucket.paidBookings += 1;
 
     if (payment.paid > 0) {
       monthBucket.income += payment.paid;
@@ -3411,7 +3426,6 @@ function buildFinanceSummary(bookings, expenses) {
     const amount = Number(expense.amount);
     if (!Number.isFinite(amount) || amount <= 0) return sum;
     const category = expense.category || 'Outros';
-    categoryMap.set(category, (categoryMap.get(category) || 0) + amount);
     const date = new Date(expense.date);
     const monthBucket = ensureFinanceMonthBucket(monthlyHistoryMap, date);
     monthBucket.expenses += amount;
@@ -3440,24 +3454,39 @@ function buildFinanceSummary(bookings, expenses) {
         .sort((a, b) => b.value - a.value),
     }))
     .slice(-12);
+  const currentMonth = monthlyHistoryMap.get(currentMonthKey) || createFinanceMonthBucket(new Date());
+  const currentExpenseCategories = Array.from(currentMonth.expenseCategoryMap.entries())
+    .map(([label, value]) => ({ label, value }))
+    .sort((a, b) => b.value - a.value);
+  const currentPendingPayments = pendingPayments
+    .filter((payment) => financeMonthKey(new Date(payment.scheduledAt)) === currentMonthKey)
+    .sort((a, b) => b.remaining - a.remaining)
+    .slice(0, 8);
 
   return {
-    totalRevenue,
-    totalPaid,
-    totalRemaining,
-    totalExpenses,
-    netProfit: totalPaid - totalExpenses,
-    projectedProfit: totalRevenue - totalExpenses,
-    averageTicket: chargeableBookings ? totalRevenue / chargeableBookings : 0,
-    paidBookings,
+    totalRevenue: currentMonth.revenue,
+    totalPaid: currentMonth.income,
+    totalRemaining: currentMonth.pending,
+    totalExpenses: currentMonth.expenses,
+    netProfit: currentMonth.income - currentMonth.expenses,
+    projectedProfit: currentMonth.revenue - currentMonth.expenses,
+    averageTicket: currentMonth.chargeableBookings ? currentMonth.revenue / currentMonth.chargeableBookings : 0,
+    paidBookings: currentMonth.paidBookings,
+    expenseCount: currentMonth.expenseItems.length,
+    currentMonthKey,
+    currentMonthLabel: currentMonth.label,
     monthStats: monthSeeds.slice(-6).map((key) => monthMap.get(key)),
     monthlyHistory,
-    pendingPayments: pendingPayments
-      .sort((a, b) => b.remaining - a.remaining)
-      .slice(0, 8),
-    expenseCategories: Array.from(categoryMap.entries())
-      .map(([label, value]) => ({ label, value }))
-      .sort((a, b) => b.value - a.value),
+    pendingPayments: currentPendingPayments,
+    expenseCategories: currentExpenseCategories,
+    totals: {
+      totalRevenue,
+      totalPaid,
+      totalRemaining,
+      totalExpenses,
+      paidBookings,
+      chargeableBookings,
+    },
   };
 }
 
