@@ -2524,6 +2524,7 @@ function MonthlyFinanceHistory({ years, onSelectMonth }) {
 }
 
 function MonthPickerButton({ month, onSelectMonth }) {
+  const isCurrentMonth = month.key === financeMonthKey(new Date());
   const balanceTone = month.balance >= 0 ? 'text-emerald-300' : 'text-red-300';
   const preview = [
     `Entradas: ${formatCurrency(month.income)}`,
@@ -2537,13 +2538,18 @@ function MonthPickerButton({ month, onSelectMonth }) {
       type="button"
       onClick={() => onSelectMonth(month)}
       className={`group relative min-h-20 rounded-xl border p-3 text-left transition hover:-translate-y-0.5 focus:outline-none focus:ring-1 focus:ring-gold/50 ${
-        month.hasMovement
+        isCurrentMonth
+          ? 'border-gold/60 bg-gold/[0.14] shadow-[0_0_0_1px_rgba(232,194,106,0.18)] hover:border-gold'
+          : month.hasMovement
           ? 'border-gold/20 bg-gold/[0.07] hover:border-gold/45'
           : 'border-white/10 bg-white/[0.025] hover:border-white/20'
       }`}
       title={preview}
     >
-      <span className="block text-[0.65rem] font-bold uppercase tracking-wider text-cream/35">{month.shortLabel}</span>
+      <span className="flex items-center justify-between gap-2 text-[0.65rem] font-bold uppercase tracking-wider text-cream/35">
+        <span>{month.shortLabel}</span>
+        {isCurrentMonth && <span className="rounded-full bg-gold px-2 py-0.5 text-[0.55rem] text-dark">Atual</span>}
+      </span>
       <span className={`mt-2 block truncate text-sm font-bold ${balanceTone}`}>{formatCurrency(month.balance)}</span>
       <span className="mt-1 block text-[0.68rem] text-cream/35">{month.incomeItems.length + month.expenseItems.length} lanc.</span>
 
@@ -3544,13 +3550,15 @@ function buildFinanceYearlyHistory(monthMap) {
         const date = new Date(year, index, 1);
         const key = financeMonthKey(date);
         const month = monthMap.get(key) || createFinanceMonthBucket(date);
+        const balance = month.income - month.expenses;
         const projectedBalance = month.income + month.pending - month.expenses;
-        const margin = month.income > 0 ? (month.balance / month.income) * 100 : 0;
+        const margin = month.income > 0 ? (balance / month.income) * 100 : 0;
 
         return {
           ...month,
           shortLabel: date.toLocaleDateString('pt-BR', { month: 'short' }),
           monthLabel: date.toLocaleDateString('pt-BR', { month: 'long' }),
+          balance,
           projectedBalance,
           margin,
           hasMovement: month.income > 0 || month.expenses > 0 || month.pending > 0,
