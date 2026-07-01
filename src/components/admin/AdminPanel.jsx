@@ -70,6 +70,7 @@ const emptyTestimonial = {
 };
 
 const emptyExpenseForm = {
+  id: null,
   description: '',
   category: 'Salao',
   amount: '',
@@ -723,8 +724,9 @@ export default function AdminPanel() {
 
     try {
       setExpenseSaving(true);
-      const res = await fetch(`${API}/finance/expenses`, {
-        method: 'POST',
+      const isEditing = Boolean(expenseForm.id);
+      const res = await fetch(`${API}/finance/expenses${isEditing ? `/${expenseForm.id}` : ''}`, {
+        method: isEditing ? 'PATCH' : 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${getToken()}`,
@@ -738,11 +740,15 @@ export default function AdminPanel() {
         }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || 'Erro ao registrar despesa');
+      if (!res.ok) throw new Error(data.error || (isEditing ? 'Erro ao atualizar despesa' : 'Erro ao registrar despesa'));
 
-      setFinanceExpenses((current) => [data, ...current]);
+      setFinanceExpenses((current) => (
+        isEditing
+          ? current.map((expense) => (expense.id === data.id ? data : expense))
+          : [data, ...current]
+      ));
       setExpenseForm(emptyExpenseForm);
-      toast.success('Despesa registrada no financeiro.');
+      toast.success(isEditing ? 'Despesa atualizada.' : 'Despesa registrada no financeiro.');
     } catch (error) {
       toast.error(error.message);
     } finally {
@@ -750,9 +756,7 @@ export default function AdminPanel() {
     }
   };
 
-  const handleDeleteExpense = async (id) => {
-    if (!window.confirm('Remover esta despesa do financeiro?')) return;
-
+  const deleteExpense = async (id) => {
     try {
       const res = await fetch(`${API}/finance/expenses/${id}`, {
         method: 'DELETE',
@@ -766,6 +770,56 @@ export default function AdminPanel() {
     } catch (error) {
       toast.error(error.message);
     }
+  };
+
+  const handleDeleteExpense = (id) => {
+    toast(
+      ({ closeToast }) => (
+        <div className="space-y-3">
+          <p className="text-sm font-semibold text-cream">Remover esta despesa do financeiro?</p>
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={closeToast}
+              className="rounded-full border border-white/10 px-3 py-1.5 text-xs font-bold text-cream/70 hover:border-white/20 hover:text-cream"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                closeToast();
+                deleteExpense(id);
+              }}
+              className="rounded-full border border-red-400/25 bg-red-500/15 px-3 py-1.5 text-xs font-bold text-red-100 hover:bg-red-500/25"
+            >
+              Remover
+            </button>
+          </div>
+        </div>
+      ),
+      {
+        autoClose: false,
+        closeOnClick: false,
+        draggable: false,
+      },
+    );
+  };
+
+  const handleEditExpense = (expense) => {
+    setExpenseForm({
+      id: expense.id,
+      description: expense.description || '',
+      category: expense.category || 'Salao',
+      amount: Number(expense.amount || 0).toLocaleString('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+      date: toFinanceInputDate(expense.date),
+      notes: expense.notes || '',
+    });
+    setActiveTab('finance');
+    toast.info('Despesa carregada para edicao.');
   };
 
   const toggleTestimonial = async (testimonial) => {
@@ -957,6 +1011,7 @@ export default function AdminPanel() {
             setForm={setExpenseForm}
             onAddExpense={handleAddExpense}
             onDeleteExpense={handleDeleteExpense}
+            onEditExpense={handleEditExpense}
             onMarkRemainingPaid={handleMarkRemainingPaid}
           />
         )}
@@ -2146,11 +2201,26 @@ function AnalyticsView({ analytics }) {
   );
 }
 
-function FinanceView({ summary, expenses, fetching, saving, form, setForm, onAddExpense, onDeleteExpense, onMarkRemainingPaid }) {
+function FinanceView({ summary, expenses, fetching, saving, form, setForm, onAddExpense, onDeleteExpense, onEditExpense, onMarkRemainingPaid }) {
   const [selectedPendingPayment, setSelectedPendingPayment] = useState(null);
   const [selectedFinanceMonth, setSelectedFinanceMonth] = useState(null);
-  const currentExpenses = expenses.filter((expense) => financeMonthKey(parseFinanceDate(expense.date)) === summary.currentMonthKey);
+  const [selectedExpenseMonthKey, setSelectedExpenseMonthKey] = useState(summary.currentMonthKey);
+  const currentExpenseYear = String(new Date().getFullYear());
+  const expenseMonthOptions = summary.yearlyHistory.find((year) => year.year === currentExpenseYear)?.months || [];
+  const selectedExpenseMonth = expenseMonthOptions.find((month) => month.key === selectedExpenseMonthKey)
+    || expenseMonthOptions.find((month) => month.key === summary.currentMonthKey)
+    || createFinanceMonthBucket(new Date());
+  const selectedExpenses = expenses.filter((expense) => financeMonthKey(parseFinanceDate(expense.date)) === selectedExpenseMonth.key);
   const profitTone = summary.netProfit >= 0 ? 'text-emerald-300' : 'text-red-300';
+
+  useEffect(() => {
+    setSelectedExpenseMonthKey(summary.currentMonthKey);
+  }, [summary.currentMonthKey]);
+
+  useEffect(() => {
+    if (!form.id) return;
+    setSelectedExpenseMonthKey(financeMonthKey(parseFinanceDate(form.date)));
+  }, [form.id, form.date]);
 
   useEffect(() => {
     if (!selectedFinanceMonth) return;
@@ -2259,7 +2329,20 @@ function FinanceView({ summary, expenses, fetching, saving, form, setForm, onAdd
 
       <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
         <section className="rounded-2xl border border-gold/20 bg-black/40 p-5">
-          <h2 className="text-xl font-semibold text-gold-light">Nova despesa</h2>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-xl font-semibold text-gold-light">{form.id ? 'Editar despesa' : 'Nova despesa'}</h2>
+            {form.id && (
+              <button
+                type="button"
+                onClick={() => setForm(emptyExpenseForm)}
+                className="grid size-9 place-items-center rounded-full border border-white/10 text-cream/55 transition hover:border-gold/30 hover:text-gold"
+                aria-label="Cancelar edicao da despesa"
+                title="Cancelar edicao"
+              >
+                <FiX />
+              </button>
+            )}
+          </div>
           <form onSubmit={onAddExpense} className="mt-4 space-y-4">
             <div>
               <label className="mb-1 block text-sm text-cream/70">Descrição</label>
@@ -2313,31 +2396,57 @@ function FinanceView({ summary, expenses, fetching, saving, form, setForm, onAdd
               />
             </div>
             <button type="submit" disabled={saving} className="flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-gold to-gold-light py-3 font-bold text-dark transition-all hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60">
-              <FiPlus /> {saving ? 'Registrando...' : 'Registrar despesa'}
+              {form.id ? <FiSave /> : <FiPlus />} {saving ? (form.id ? 'Salvando...' : 'Registrando...') : (form.id ? 'Salvar despesa' : 'Registrar despesa')}
             </button>
           </form>
         </section>
 
         <section className="rounded-2xl border border-gold/20 bg-black/40 p-5">
-          <div className="mb-4 flex items-end justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-semibold text-gold-light">Despesas do salão</h2>
+          <div className="mb-4 flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-3">
+                <h2 className="text-xl font-semibold text-gold-light">Despesas do salão</h2>
+                <div className="flex flex-wrap gap-1.5">
+                  {expenseMonthOptions.map((month) => {
+                    const isSelected = month.key === selectedExpenseMonth.key;
+                    const isCurrent = month.key === summary.currentMonthKey;
+
+                    return (
+                      <button
+                        key={month.key}
+                        type="button"
+                        onClick={() => setSelectedExpenseMonthKey(month.key)}
+                        className={`rounded-full border px-2.5 py-1 text-[0.65rem] font-bold uppercase tracking-wider transition ${
+                          isSelected
+                            ? 'border-gold bg-gold text-dark'
+                            : isCurrent
+                              ? 'border-gold/45 bg-gold/10 text-gold-light hover:bg-gold/20'
+                              : 'border-white/10 bg-white/[0.03] text-cream/45 hover:border-gold/25 hover:text-gold-light'
+                        }`}
+                        title={`Ver despesas de ${month.label}`}
+                      >
+                        {month.shortLabel}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               <p className="mt-1 text-sm text-cream/45">
-                Lancamentos de <span className="capitalize">{summary.currentMonthLabel}</span>.
+                Lancamentos de <span className="capitalize">{selectedExpenseMonth.label}</span>.
               </p>
             </div>
-            <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-sm font-semibold text-cream/65">
-              {formatCurrency(summary.totalExpenses)}
+            <span className="w-fit rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-sm font-semibold text-cream/65">
+              {formatCurrency(selectedExpenseMonth.expenses)}
             </span>
           </div>
 
           {fetching ? (
             <p className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-cream/50">Carregando despesas...</p>
-          ) : currentExpenses.length === 0 ? (
+          ) : selectedExpenses.length === 0 ? (
             <p className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-cream/50">Nenhuma despesa cadastrada neste mes.</p>
           ) : (
             <div className="space-y-3">
-              {currentExpenses.map((expense) => (
+              {selectedExpenses.map((expense) => (
                 <article key={expense.id} className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
@@ -2350,6 +2459,15 @@ function FinanceView({ summary, expenses, fetching, saving, form, setForm, onAdd
                     </div>
                     <div className="flex shrink-0 items-center justify-between gap-3 sm:justify-end">
                       <span className="text-lg font-bold text-red-200">{formatCurrency(expense.amount)}</span>
+                      <button
+                        type="button"
+                        onClick={() => onEditExpense(expense)}
+                        className="rounded-full border border-gold/20 p-2 text-gold-light hover:bg-gold/10"
+                        aria-label="Editar despesa"
+                        title="Editar despesa"
+                      >
+                        <FiEdit3 />
+                      </button>
                       <button
                         type="button"
                         onClick={() => onDeleteExpense(expense.id)}
@@ -2386,6 +2504,7 @@ function FinanceView({ summary, expenses, fetching, saving, form, setForm, onAdd
         month={selectedFinanceMonth}
         onClose={() => setSelectedFinanceMonth(null)}
         onDeleteExpense={onDeleteExpense}
+        onEditExpense={onEditExpense}
       />
     </div>
   );
@@ -2663,7 +2782,7 @@ function FinanceMiniStat({ label, value, tone = 'default' }) {
   );
 }
 
-function MonthlyFinanceModal({ month, onClose, onDeleteExpense }) {
+function MonthlyFinanceModal({ month, onClose, onDeleteExpense, onEditExpense }) {
   if (!month) return null;
 
   const balanceTone = month.balance >= 0 ? 'text-emerald-300' : 'text-red-300';
@@ -2726,6 +2845,11 @@ function MonthlyFinanceModal({ month, onClose, onDeleteExpense }) {
                   meta={[formatFinanceDate(item.date), item.notes].filter(Boolean).join(' - ')}
                   value={formatCurrency(item.amount)}
                   tone="danger"
+                  editLabel="Editar despesa"
+                  onEdit={onEditExpense ? () => {
+                    onEditExpense(item.original || item);
+                    onClose();
+                  } : null}
                   actionLabel="Remover despesa"
                   onAction={onDeleteExpense ? () => onDeleteExpense(item.expenseId || item.id.replace('expense-', '')) : null}
                 />
@@ -2792,7 +2916,7 @@ function MonthlyFinanceList({ title, emptyText, items, renderItem }) {
   );
 }
 
-function FinanceMovementRow({ title, subtitle, meta, value, tone, actionLabel, onAction }) {
+function FinanceMovementRow({ title, subtitle, meta, value, tone, editLabel, onEdit, actionLabel, onAction }) {
   const toneClasses = {
     success: 'text-emerald-300',
     warning: 'text-amber-200',
@@ -2808,6 +2932,17 @@ function FinanceMovementRow({ title, subtitle, meta, value, tone, actionLabel, o
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <span className={`text-sm font-bold ${toneClasses[tone] || 'text-cream'}`}>{value}</span>
+          {onEdit && (
+            <button
+              type="button"
+              onClick={onEdit}
+              className="grid size-8 place-items-center rounded-full border border-gold/20 text-gold-light transition hover:bg-gold/10"
+              aria-label={editLabel}
+              title={editLabel}
+            >
+              <FiEdit3 />
+            </button>
+          )}
           {onAction && (
             <button
               type="button"
@@ -3553,6 +3688,14 @@ function formatFinanceDate(value) {
   return parseFinanceDate(value).toLocaleDateString('pt-BR');
 }
 
+function toFinanceInputDate(value) {
+  const date = parseFinanceDate(value);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function createFinanceMonthBucket(date) {
   const validDate = date instanceof Date && !Number.isNaN(date.getTime()) ? date : new Date();
   const key = financeMonthKey(validDate);
@@ -3722,6 +3865,7 @@ function buildFinanceSummary(bookings, expenses) {
     monthBucket.expenseItems.push({
       id: `expense-${expense.id}`,
       expenseId: expense.id,
+      original: expense,
       description: expense.description || 'Despesa',
       category,
       date: expense.date,

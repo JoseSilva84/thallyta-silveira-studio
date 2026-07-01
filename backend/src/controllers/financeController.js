@@ -75,6 +75,30 @@ export const createFinanceExpense = async (req, res) => {
   }
 };
 
+export const updateFinanceExpense = async (req, res) => {
+  const payload = normalizeExpensePayload(req.body);
+
+  if (payload.error) {
+    return res.status(400).json({ error: payload.error });
+  }
+
+  try {
+    const expense = await prisma.financeExpense.update({
+      where: { id: req.params.id },
+      data: payload.data,
+    });
+
+    res.json(expense);
+  } catch (error) {
+    if (error.code === 'P2025') {
+      return res.status(404).json({ error: 'Despesa nao encontrada.' });
+    }
+
+    console.error('Erro ao atualizar despesa financeira:', error);
+    res.status(500).json({ error: 'Erro ao atualizar despesa financeira.' });
+  }
+};
+
 export const deleteFinanceExpense = async (req, res) => {
   try {
     await prisma.financeExpense.delete({ where: { id: req.params.id } });
