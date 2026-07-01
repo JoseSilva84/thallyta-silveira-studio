@@ -293,6 +293,8 @@ export const createPaidBooking = async (req, res) => {
     ].filter(Boolean).join('\n');
 
     let calBooking;
+    let calConfirmation = null;
+    let calConfirmationError = null;
     try {
       calBooking = await createCalBooking({
         eventTypeSlug: service.calSlug || 'servicos-gerais',
@@ -313,6 +315,19 @@ export const createPaidBooking = async (req, res) => {
           paidAmount: payment.amount.toFixed(2),
         },
       });
+      try {
+        const calConfirmedBooking = await confirmCalBooking(calBooking.uid);
+        calConfirmation = {
+          confirmedAt: new Date().toISOString(),
+          confirmedBy: req.user.id,
+          status: calConfirmedBooking?.status || 'accepted',
+          alreadyConfirmed: Boolean(calConfirmedBooking?.alreadyConfirmed),
+          automatic: true,
+        };
+      } catch (calConfirmError) {
+        calConfirmationError = calConfirmError.message || 'Erro desconhecido ao confirmar no Cal.com.';
+        console.error('Erro ao confirmar automaticamente booking pago no Cal.com:', calConfirmError);
+      }
     } catch (calError) {
       console.error('Erro ao criar booking pago no Cal.com:', calError);
       return res.status(502).json({ error: calError.message || 'Nao foi possivel reservar no calendario.' });
@@ -332,7 +347,7 @@ export const createPaidBooking = async (req, res) => {
         attendeeEmail: req.user.email,
         attendeePhone: req.user.whatsappPhone || null,
         location: 'Presencial',
-        calPayload: { siteCreated: true, calBooking },
+        calPayload: { siteCreated: true, calBooking, calConfirmation, calConfirmationError },
         paymentId: payment.id,
       },
       create: {
@@ -348,7 +363,7 @@ export const createPaidBooking = async (req, res) => {
         attendeeEmail: req.user.email,
         attendeePhone: req.user.whatsappPhone || null,
         location: 'Presencial',
-        calPayload: { siteCreated: true, calBooking },
+        calPayload: { siteCreated: true, calBooking, calConfirmation, calConfirmationError },
         paymentId: payment.id,
       },
       include: bookingInclude,
@@ -412,57 +427,6 @@ export const syncBookingToCal = async (req, res) => {
   } catch (error) {
     console.error('Erro ao sincronizar agendamento com Cal.com:', error);
     res.status(error.statusCode || 502).json({ error: error.message || 'Erro ao sincronizar com Cal.com.' });
-  }
-};
-
-export const confirmBookingOnCal = async (req, res) => {
-  try {
-    if (req.user.role !== 'ADMIN') {
-      return res.status(403).json({ error: 'Acesso negado. Apenas administradores.' });
-    }
-
-    const booking = await prisma.booking.findUnique({
-      where: { id: req.params.id },
-      include: bookingInclude,
-    });
-
-    if (!booking) {
-      return res.status(404).json({ error: 'Agendamento nao encontrado.' });
-    }
-
-    if (!booking.calEventId) {
-      return res.status(400).json({ error: 'Este agendamento nao possui UID do Cal.com.' });
-    }
-
-    if (['cancelled', 'no_show'].includes(booking.status)) {
-      return res.status(409).json({ error: 'Nao e possivel confirmar no Cal.com um agendamento cancelado ou marcado como falta.' });
-    }
-
-    const calBooking = await confirmCalBooking(booking.calEventId);
-    const existingPayload = booking.calPayload && typeof booking.calPayload === 'object' && !Array.isArray(booking.calPayload)
-      ? booking.calPayload
-      : {};
-
-    const updated = await prisma.booking.update({
-      where: { id: booking.id },
-      data: {
-        status: booking.status === 'rescheduled' ? 'rescheduled' : 'confirmed',
-        calPayload: {
-          ...existingPayload,
-          calConfirmation: {
-            confirmedAt: new Date().toISOString(),
-            confirmedBy: req.user.id,
-            status: calBooking?.status || 'accepted',
-          },
-        },
-      },
-      include: bookingInclude,
-    });
-
-    res.json(updated);
-  } catch (error) {
-    console.error('Erro ao confirmar agendamento no Cal.com:', error);
-    res.status(error.statusCode || 502).json({ error: error.message || 'Erro ao confirmar no Cal.com.' });
   }
 };
 
@@ -852,6 +816,7 @@ export const createAdminBooking = async (req, res) => {
               confirmedAt: new Date().toISOString(),
               confirmedBy: req.user.id,
               status: calConfirmedBooking?.status || 'accepted',
+              alreadyConfirmed: Boolean(calConfirmedBooking?.alreadyConfirmed),
             },
           },
         },

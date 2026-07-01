@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import prisma from '../config/prisma.js';
 import { findServiceById } from '../data/services.js';
-import { createCalBooking } from '../services/calService.js';
+import { confirmCalBooking, createCalBooking } from '../services/calService.js';
 import { notifyBookingCreated } from '../services/whatsappService.js';
 import { validateBookingWindow, validateClientBookingLeadTime } from '../utils/bookingHours.js';
 import { findConfirmedScheduleConflict, hasScheduleConflict } from '../utils/scheduleAvailability.js';
@@ -396,6 +396,8 @@ const buildConfirmedBookingFromPayment = async (payment) => {
 
   let calBooking = null;
   let calBookingError = null;
+  let calConfirmation = null;
+  let calConfirmationError = null;
   try {
     calBooking = await createCalBooking({
       eventTypeSlug: service.calSlug || 'servicos-gerais',
@@ -416,6 +418,23 @@ const buildConfirmedBookingFromPayment = async (payment) => {
         paidAmount: hydratedPayment.amount.toFixed(2),
       },
     });
+    try {
+      const calConfirmedBooking = await confirmCalBooking(calBooking.uid);
+      calConfirmation = {
+        confirmedAt: new Date().toISOString(),
+        confirmedBy: hydratedPayment.userId,
+        status: calConfirmedBooking?.status || 'accepted',
+        alreadyConfirmed: Boolean(calConfirmedBooking?.alreadyConfirmed),
+        automatic: true,
+      };
+    } catch (calConfirmError) {
+      calConfirmationError = calConfirmError.message || 'Erro desconhecido ao confirmar no Cal.com.';
+      console.error('Erro ao confirmar automaticamente booking pago no Cal.com:', {
+        bookingPaymentId: hydratedPayment.id,
+        calEventId: calBooking.uid,
+        error: calConfirmationError,
+      });
+    }
   } catch (calError) {
     calBookingError = calError.message || 'Erro desconhecido ao criar no Cal.com.';
     console.error('Erro ao criar booking pago no Cal.com; salvando agendamento local:', {
@@ -445,6 +464,8 @@ const buildConfirmedBookingFromPayment = async (payment) => {
         autoConfirmedAfterPayment: true,
         calBooking,
         calBookingError,
+        calConfirmation,
+        calConfirmationError,
         calendarFallback: !calBooking,
       },
       paymentId: hydratedPayment.id,
@@ -467,6 +488,8 @@ const buildConfirmedBookingFromPayment = async (payment) => {
         autoConfirmedAfterPayment: true,
         calBooking,
         calBookingError,
+        calConfirmation,
+        calConfirmationError,
         calendarFallback: !calBooking,
       },
       paymentId: hydratedPayment.id,

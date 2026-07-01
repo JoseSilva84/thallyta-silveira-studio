@@ -36,6 +36,11 @@ const normalizeMetadata = (metadata) => Object.fromEntries(
   Object.entries(metadata || {}).map(([key, value]) => [key, value == null ? '' : String(value)]),
 );
 
+const isAlreadyConfirmedError = (data) => {
+  const message = stringifyCalError(data?.message || data?.error || data).toLowerCase();
+  return message.includes('already confirmed');
+};
+
 /**
  * Creates a booking on Cal.com via the API v2.
  *
@@ -113,6 +118,14 @@ export async function confirmCalBooking(bookingUid) {
   const data = raw ? JSON.parse(raw) : {};
 
   if (!response.ok) {
+    if (isAlreadyConfirmedError(data)) {
+      return {
+        uid: bookingUid,
+        status: 'accepted',
+        alreadyConfirmed: true,
+      };
+    }
+
     console.error('[calService] Cal.com confirmBooking error:', JSON.stringify(data));
     throw new Error(stringifyCalError(data?.message || data?.error || data) || `Cal.com retornou HTTP ${response.status}`);
   }

@@ -617,27 +617,6 @@ export default function AdminPanel() {
     }
   };
 
-  const handleConfirmBookingOnCal = async (booking) => {
-    showConfirmToast({
-      message: `Confirmar este agendamento de "${booking.attendeeName || booking.user?.name || 'cliente'}" no Cal.com?`,
-      confirmLabel: 'Confirmar Cal.com',
-      onConfirm: async () => {
-        try {
-          const res = await fetch(`${API}/bookings/${booking.id}/confirm-cal`, {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${getToken()}` },
-          });
-          const data = await res.json().catch(() => ({}));
-          if (!res.ok) throw new Error(data.error || 'Erro ao confirmar no Cal.com');
-          updateBookingInList(data);
-          toast.success('Agendamento confirmado no Cal.com.');
-        } catch (error) {
-          toast.error(error.message || 'Erro ao confirmar no Cal.com.');
-        }
-      },
-    });
-  };
-
   const handleResolvePaymentWithoutBooking = async (payment) => {
     showConfirmToast({
       message: `Marcar o pagamento de "${payment.user?.name || payment.serviceName || 'cliente'}" como resolvido sem criar agendamento?`,
@@ -1013,7 +992,6 @@ export default function AdminPanel() {
                 onCancelBooking={handleCancelBooking}
                 onMarkRemainingPaid={handleMarkRemainingPaid}
                 onSyncBookingToCal={handleSyncBookingToCal}
-                onConfirmBookingOnCal={handleConfirmBookingOnCal}
               />
             )}
           </div>
@@ -1047,7 +1025,6 @@ export default function AdminPanel() {
             onMarkNoShow={handleMarkNoShow}
             onCancelBooking={handleCancelBooking}
             onMarkRemainingPaid={handleMarkRemainingPaid}
-            onConfirmBookingOnCal={handleConfirmBookingOnCal}
           />
         )}
 
@@ -1063,7 +1040,6 @@ export default function AdminPanel() {
             onCancelBooking={handleCancelBooking}
             onMarkRemainingPaid={handleMarkRemainingPaid}
             onDeleteClient={handleDeleteClient}
-            onConfirmBookingOnCal={handleConfirmBookingOnCal}
           />
         )}
 
@@ -1532,7 +1508,7 @@ function PaymentInfoLine({ label, value }) {
   );
 }
 
-function BookingsTable({ bookings, fetching, statusFilter, statusBadge, onCompleteService, onUndoCompleteService, onMarkNoShow, onCancelBooking, onMarkRemainingPaid, onSyncBookingToCal, onConfirmBookingOnCal }) {
+function BookingsTable({ bookings, fetching, statusFilter, statusBadge, onCompleteService, onUndoCompleteService, onMarkNoShow, onCancelBooking, onMarkRemainingPaid, onSyncBookingToCal }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-gold/20 bg-black/40 backdrop-blur-md">
       {fetching ? (
@@ -1606,7 +1582,6 @@ function BookingsTable({ bookings, fetching, statusFilter, statusBadge, onComple
                         onMarkNoShow={onMarkNoShow}
                         onCancelBooking={onCancelBooking}
                         onMarkRemainingPaid={onMarkRemainingPaid}
-                        onConfirmBookingOnCal={onConfirmBookingOnCal}
                       />
                     </td>
                   </tr>
@@ -1620,16 +1595,10 @@ function BookingsTable({ bookings, fetching, statusFilter, statusBadge, onComple
   );
 }
 
-function CompletionAction({ booking, onCompleteService, onUndoCompleteService, onMarkNoShow, onCancelBooking, onMarkRemainingPaid, onConfirmBookingOnCal }) {
+function CompletionAction({ booking, onCompleteService, onUndoCompleteService, onMarkNoShow, onCancelBooking, onMarkRemainingPaid }) {
   const payment = getBookingPaymentSummary(booking);
   const hasRemaining = payment.remaining > 0;
   const canMarkRemainingPaid = hasRemaining && typeof onMarkRemainingPaid === 'function';
-  const canConfirmOnCal = Boolean(
-    booking.calEventId
-    && !booking.calPayload?.calConfirmation
-    && !['cancelled', 'no_show'].includes(booking.status)
-    && typeof onConfirmBookingOnCal === 'function'
-  );
 
   if (booking.status === 'cancelled') {
     return <span className="text-xs font-semibold uppercase tracking-wider text-cream/35">Sem fidelidade</span>;
@@ -1649,16 +1618,6 @@ function CompletionAction({ booking, onCompleteService, onUndoCompleteService, o
           >
             <FiDollarSign className="size-3.5 shrink-0" />
             <span className="whitespace-nowrap">Dar baixa</span>
-          </button>
-        )}
-        {canConfirmOnCal && (
-          <button
-            onClick={() => onConfirmBookingOnCal(booking)}
-            className="group relative inline-flex items-center justify-center gap-2 rounded-xl border border-sky-400/30 bg-sky-400/10 px-4 py-2 text-[0.65rem] font-bold uppercase tracking-wider text-sky-200 transition-all hover:bg-sky-400/20"
-            title="Confirma no Cal.com o agendamento criado pela administradora"
-          >
-            <FiCalendar className="size-3.5 shrink-0" />
-            <span className="whitespace-nowrap">Confirmar Cal.com</span>
           </button>
         )}
         <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-emerald-400">
@@ -1683,16 +1642,6 @@ function CompletionAction({ booking, onCompleteService, onUndoCompleteService, o
         >
           <FiDollarSign className="size-3.5 shrink-0" />
           <span className="whitespace-nowrap">Dar baixa</span>
-        </button>
-      )}
-      {canConfirmOnCal && (
-        <button
-          onClick={() => onConfirmBookingOnCal(booking)}
-          className="group relative inline-flex items-center justify-center gap-2 rounded-xl border border-sky-400/30 bg-sky-400/10 px-4 py-2 text-[0.65rem] font-bold uppercase tracking-wider text-sky-200 transition-all hover:bg-sky-400/20"
-          title="Confirma no Cal.com o agendamento criado pela administradora"
-        >
-          <FiCalendar className="size-3.5 shrink-0" />
-          <span className="whitespace-nowrap">Confirmar Cal.com</span>
         </button>
       )}
       <button
@@ -3248,7 +3197,7 @@ function SmallStat({ label, value, tone = 'default' }) {
   );
 }
 
-function LoyaltyAdminView({ clients, pendingBookings, onCompleteService, onUndoCompleteService, onMarkNoShow, onCancelBooking, onMarkRemainingPaid, onConfirmBookingOnCal }) {
+function LoyaltyAdminView({ clients, pendingBookings, onCompleteService, onUndoCompleteService, onMarkNoShow, onCancelBooking, onMarkRemainingPaid }) {
   return (
     <div className="space-y-6">
       <section className="rounded-2xl border border-amber-300/20 bg-amber-300/10 p-5">
@@ -3348,7 +3297,6 @@ function LoyaltyAdminView({ clients, pendingBookings, onCompleteService, onUndoC
                         onUndoCompleteService={onUndoCompleteService}
                         onMarkNoShow={onMarkNoShow}
                         onMarkRemainingPaid={onMarkRemainingPaid}
-                        onConfirmBookingOnCal={onConfirmBookingOnCal}
                       />
                     </div>
                   ))}
@@ -3362,7 +3310,7 @@ function LoyaltyAdminView({ clients, pendingBookings, onCompleteService, onUndoC
   );
 }
 
-function ClientsView({ clients, search, setSearch, statusBadge, onCompleteService, onUndoCompleteService, onMarkNoShow, onMarkRemainingPaid, onDeleteClient, onConfirmBookingOnCal }) {
+function ClientsView({ clients, search, setSearch, statusBadge, onCompleteService, onUndoCompleteService, onMarkNoShow, onMarkRemainingPaid, onDeleteClient }) {
   const [selectedKey, setSelectedKey] = useState(null);
   const normalizedSearch = search.trim().toLowerCase();
   const filteredClients = useMemo(() => (
@@ -3520,7 +3468,6 @@ function ClientsView({ clients, search, setSearch, statusBadge, onCompleteServic
                           {statusBadge(booking.status)}
                           {booking.serviceCompletedAt && <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-emerald-300">Fidelidade liberada</span>}
                           {booking.calPayload?.adminCreated && <span className="rounded-full border border-purple-500/25 bg-purple-500/10 px-3 py-1 text-[0.65rem] font-bold uppercase tracking-wider text-purple-300" title="Agendamento feito pela administradora">Admin</span>}
-                          {booking.calPayload?.calConfirmation && <span className="rounded-full border border-sky-400/25 bg-sky-400/10 px-3 py-1 text-[0.65rem] font-bold uppercase tracking-wider text-sky-200" title="Confirmado no Cal.com pelo painel">Cal.com confirmado</span>}
                         </div>
                         <h4 className="text-base font-semibold text-cream">{booking.service || 'Servico nao informado'}</h4>
                         <p className="mt-1 text-sm text-cream/45">{formatDate(booking.scheduledAt)} - {formatTime(booking.scheduledAt)}{booking.endTime && ` ate ${formatTime(booking.endTime)}`}</p>
@@ -3543,7 +3490,6 @@ function ClientsView({ clients, search, setSearch, statusBadge, onCompleteServic
                         onUndoCompleteService={onUndoCompleteService}
                         onMarkNoShow={onMarkNoShow}
                         onMarkRemainingPaid={onMarkRemainingPaid}
-                        onConfirmBookingOnCal={onConfirmBookingOnCal}
                       />
                     </div>
                   </article>

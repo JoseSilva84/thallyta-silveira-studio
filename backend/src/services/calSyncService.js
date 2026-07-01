@@ -1,6 +1,6 @@
 import prisma from '../config/prisma.js';
 import { findServiceById, services } from '../data/services.js';
-import { createCalBooking } from './calService.js';
+import { confirmCalBooking, createCalBooking } from './calService.js';
 import { isDatabaseUnavailableError, logDatabaseUnavailableWarning } from '../utils/prismaErrors.js';
 
 const DEFAULT_SYNC_INTERVAL_MINUTES = 2;
@@ -89,6 +89,21 @@ export const syncBookingToCalById = async (bookingId) => {
     },
   });
 
+  let calConfirmation = null;
+  let calConfirmationError = null;
+  try {
+    const calConfirmedBooking = await confirmCalBooking(calBooking.uid);
+    calConfirmation = {
+      confirmedAt: new Date().toISOString(),
+      confirmedBy: 'system',
+      status: calConfirmedBooking?.status || 'accepted',
+      alreadyConfirmed: Boolean(calConfirmedBooking?.alreadyConfirmed),
+      automatic: true,
+    };
+  } catch (error) {
+    calConfirmationError = error.message || 'Erro ao confirmar no Cal.com.';
+  }
+
   return prisma.booking.update({
     where: { id: booking.id },
     data: {
@@ -96,6 +111,8 @@ export const syncBookingToCalById = async (bookingId) => {
       calPayload: {
         ...(booking.calPayload || {}),
         calBooking,
+        calConfirmation,
+        calConfirmationError,
         calBookingError: null,
         calendarFallback: false,
         syncedToCalAt: new Date().toISOString(),
@@ -188,6 +205,85 @@ export const syncDueFallbackBookingsToCal = async () => {
   return bookings.length;
 };
 
+export const confirmDueCalBookings = async () => {
+  const limit = getNumberEnv('CAL_CONFIRM_SYNC_LIMIT', DEFAULT_SYNC_LIMIT);
+  let bookings = [];
+
+  try {
+    bookings = await prisma.booking.findMany({
+      where: {
+        scheduledAt: { gt: new Date() },
+        status: { in: ['confirmed', 'rescheduled'] },
+        NOT: {
+          calEventId: {
+            startsWith: 'site-payment-',
+          },
+        },
+      },
+      orderBy: { scheduledAt: 'asc' },
+      take: limit,
+      include: bookingInclude,
+    });
+  } catch (error) {
+    if (isDatabaseUnavailableError(error)) {
+      logDatabaseUnavailableWarning('Confirmacao automatica no Cal.com', error);
+      return 0;
+    }
+    throw error;
+  }
+
+  const pendingConfirmation = bookings.filter((booking) =>
+    booking.calEventId
+    && !bookingHasCalFallback(booking)
+    && !booking.calPayload?.calConfirmation,
+  );
+
+  for (const booking of pendingConfirmation) {
+    try {
+      const calConfirmedBooking = await confirmCalBooking(booking.calEventId);
+      await prisma.booking.update({
+        where: { id: booking.id },
+        data: {
+          calPayload: {
+            ...(booking.calPayload || {}),
+            calConfirmation: {
+              confirmedAt: new Date().toISOString(),
+              confirmedBy: 'system',
+              status: calConfirmedBooking?.status || 'accepted',
+              alreadyConfirmed: Boolean(calConfirmedBooking?.alreadyConfirmed),
+              automatic: true,
+            },
+            calConfirmationError: null,
+          },
+        },
+      });
+    } catch (error) {
+      await prisma.booking.update({
+        where: { id: booking.id },
+        data: {
+          calPayload: {
+            ...(booking.calPayload || {}),
+            calConfirmationError: error.message || 'Erro ao confirmar no Cal.com.',
+            lastCalConfirmationAttemptAt: new Date().toISOString(),
+          },
+        },
+      }).catch((updateError) => {
+        console.error('Erro ao registrar falha de confirmacao no Cal.com:', {
+          bookingId: booking.id,
+          error: updateError.message,
+        });
+      });
+      console.error('Confirmacao automatica no Cal.com falhou:', {
+        bookingId: booking.id,
+        calEventId: booking.calEventId,
+        error: error.message,
+      });
+    }
+  }
+
+  return pendingConfirmation.length;
+};
+
 export const startCalFallbackSyncService = () => {
   if (process.env.CAL_FALLBACK_SYNC_ENABLED === 'false') {
     console.log('Sincronizacao de fallback com Cal.com desativada.');
@@ -199,10 +295,16 @@ export const startCalFallbackSyncService = () => {
   void syncDueFallbackBookingsToCal().catch((error) => {
     console.error('Erro ao executar sincronizacao inicial com Cal.com:', error);
   });
+  void confirmDueCalBookings().catch((error) => {
+    console.error('Erro ao executar confirmacao inicial no Cal.com:', error);
+  });
 
   const timer = setInterval(() => {
     void syncDueFallbackBookingsToCal().catch((error) => {
       console.error('Erro ao executar sincronizacao com Cal.com:', error);
+    });
+    void confirmDueCalBookings().catch((error) => {
+      console.error('Erro ao executar confirmacao automatica no Cal.com:', error);
     });
   }, minutesToMs(intervalMinutes));
 
