@@ -127,6 +127,13 @@ const sendText = async ({ chatId, text }) => {
 };
 
 const getBookingWhatsapp = (booking) => booking.user?.whatsappPhone || booking.attendeePhone;
+const minutesToMs = (minutes) => minutes * 60 * 1000;
+const DEFAULT_FAILED_RETRY_INTERVAL_MINUTES = 5;
+const RETRYABLE_BOOKING_NOTIFICATION_TYPES = [
+  'booking_created_owner',
+  'booking_created_client',
+  'booking_reminder_1h_client',
+];
 
 const buildBookingSummaryLines = (booking) => {
   const whatsapp = booking.user?.whatsappPhone || booking.attendeePhone;
@@ -194,24 +201,48 @@ const buildBirthdayRewardMessage = (user, amount = 0) => {
   ].join('\n');
 };
 
-const alreadyLogged = async (prisma, { bookingId, type, target }) => {
+const getExistingNotification = async (prisma, { bookingId, type, target }) => {
   const existing = await prisma.notificationLog.findUnique({
     where: {
       bookingId_type_target: { bookingId, type, target },
     },
   });
-  return Boolean(existing);
+  return existing;
+};
+
+const shouldSkipNotification = (existing) => {
+  return existing && ['sent', 'skipped'].includes(existing.status);
 };
 
 const logNotification = async (prisma, data) => {
-  await prisma.notificationLog.create({ data }).catch((error) => {
+  const now = new Date();
+
+  await prisma.notificationLog.upsert({
+    where: {
+      bookingId_type_target: {
+        bookingId: data.bookingId,
+        type: data.type,
+        target: data.target,
+      },
+    },
+    create: {
+      ...data,
+      createdAt: now,
+    },
+    update: {
+      status: data.status,
+      error: data.error,
+      createdAt: now,
+    },
+  }).catch((error) => {
     if (error.code !== 'P2002') throw error;
   });
 };
 
 const sendOnce = async (prisma, { booking, type, target, text }) => {
   if (!target) return;
-  if (await alreadyLogged(prisma, { bookingId: booking.id, type, target })) return;
+  const existing = await getExistingNotification(prisma, { bookingId: booking.id, type, target });
+  if (shouldSkipNotification(existing)) return;
 
   try {
     const result = await sendText({ chatId: target, text });
@@ -232,6 +263,107 @@ const sendOnce = async (prisma, { booking, type, target, text }) => {
     });
     throw error;
   }
+};
+
+const getNumberEnv = (name, fallback) => {
+  const value = Number.parseInt(process.env[name] || '', 10);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+};
+
+const getRetryText = (booking, type) => {
+  if (type === 'booking_created_owner') return buildOwnerBookingMessage(booking);
+  if (type === 'booking_created_client') return buildClientBookingMessage(booking);
+  if (type === 'booking_reminder_1h_client') return buildClientReminderMessage(booking);
+  return null;
+};
+
+const canRetryFailedNotification = (booking, type, now) => {
+  if (!booking || ['cancelled', 'no_show'].includes(booking.status)) return false;
+  if (type === 'booking_reminder_1h_client') return booking.scheduledAt > now;
+  return booking.scheduledAt >= now;
+};
+
+export const retryFailedBookingNotifications = async (prisma) => {
+  const now = new Date();
+  const batchSize = getNumberEnv('WHATSAPP_FAILED_RETRY_BATCH_SIZE', 25);
+
+  const failedLogs = await prisma.notificationLog.findMany({
+    where: {
+      status: 'failed',
+      type: { in: RETRYABLE_BOOKING_NOTIFICATION_TYPES },
+    },
+    orderBy: { createdAt: 'asc' },
+    take: batchSize,
+  });
+
+  if (!failedLogs.length) return 0;
+
+  const bookings = await prisma.booking.findMany({
+    where: {
+      id: { in: [...new Set(failedLogs.map((log) => log.bookingId))] },
+    },
+    include: {
+      user: {
+        select: { id: true, name: true, email: true, whatsappPhone: true },
+      },
+      payment: true,
+    },
+  });
+  const bookingsById = new Map(bookings.map((booking) => [booking.id, booking]));
+
+  let retried = 0;
+  for (const log of failedLogs) {
+    const booking = bookingsById.get(log.bookingId);
+    const text = getRetryText(booking, log.type);
+
+    if (!text || !canRetryFailedNotification(booking, log.type, now)) continue;
+
+    try {
+      await sendOnce(prisma, {
+        booking,
+        type: log.type,
+        target: log.target,
+        text,
+      });
+      retried += 1;
+    } catch (error) {
+      console.error(`Erro ao retentar WhatsApp ${log.type} do agendamento ${log.bookingId}:`, error);
+    }
+  }
+
+  return retried;
+};
+
+export const startFailedWhatsAppRetryService = (prisma) => {
+  if (process.env.WHATSAPP_FAILED_RETRY_ENABLED === 'false') {
+    console.log('Retentativas de WhatsApp com falha desativadas.');
+    return null;
+  }
+
+  if (!enabled()) {
+    console.log('Retentativas de WhatsApp com falha desativadas porque WHATSAPP_ENABLED=false.');
+    return null;
+  }
+
+  const intervalMinutes = getNumberEnv(
+    'WHATSAPP_FAILED_RETRY_INTERVAL_MINUTES',
+    DEFAULT_FAILED_RETRY_INTERVAL_MINUTES,
+  );
+
+  void retryFailedBookingNotifications(prisma).catch((error) => {
+    console.error('Erro ao executar retentativas iniciais de WhatsApp:', error);
+  });
+
+  const timer = setInterval(() => {
+    void retryFailedBookingNotifications(prisma).catch((error) => {
+      console.error('Erro ao executar retentativas de WhatsApp:', error);
+    });
+  }, minutesToMs(intervalMinutes));
+
+  if (typeof timer.unref === 'function') timer.unref();
+  console.log(`Retentativas de WhatsApp com falha ativas a cada ${intervalMinutes} minuto(s).`);
+
+  return timer;
 };
 
 export const notifyBookingCreated = async (prisma, booking) => {

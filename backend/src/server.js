@@ -11,9 +11,11 @@ import paymentRoutes from './routes/paymentRoutes.js';
 import testimonialRoutes from './routes/testimonialRoutes.js';
 import scheduleBlockRoutes from './routes/scheduleBlockRoutes.js';
 import financeRoutes from './routes/financeRoutes.js';
+import prisma from './config/prisma.js';
 import { startBookingReminderService } from './services/bookingReminderService.js';
 import { startBirthdayRewardService } from './services/birthdayRewardService.js';
 import { startCalFallbackSyncService } from './services/calSyncService.js';
+import { startFailedWhatsAppRetryService } from './services/whatsappService.js';
 
 dotenv.config();
 
@@ -73,4 +75,5 @@ app.listen(PORT, () => {
   startBookingReminderService();
   startBirthdayRewardService();
   startCalFallbackSyncService();
+  startFailedWhatsAppRetryService(prisma);
 });
