@@ -2,6 +2,7 @@ export const services = [
   { id: 'gel', name: 'Alongamento em gel', price: 150, calSlug: 'alongamento-em-gel', durationMin: 150 },
   { id: 'manutencao', name: 'Manutencao', price: 130, calSlug: 'servicos-gerais', durationMin: 90 },
   { id: 'banho-gel', name: 'Banho em gel', price: 100, calSlug: 'servicos-gerais', durationMin: 90 },
+  { id: 'banho-gel-baby-boomer', name: 'Banho em gel - Baby Boomer', price: 120, calSlug: 'banho-em-gel-baby-boomer', durationMin: 120 },
   { id: 'blindagem', name: 'Blindagem + esmaltacao em gel', price: 70, calSlug: 'servicos-gerais', durationMin: 90 },
   { id: 'postica', name: 'Postica realista', price: 70, calSlug: 'servicos-gerais', durationMin: 90 },
   { id: 'remocao', name: 'Remocao', price: 40, calSlug: 'remocao', durationMin: 60 },

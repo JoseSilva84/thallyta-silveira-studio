@@ -10,6 +10,9 @@ https://cal.com/thallyta-silveira-hxfjrf/servicos-gerais
 Banho em gel - 1h30
 https://cal.com/thallyta-silveira-hxfjrf/servicos-gerais
 
+banho em gel - Baby Boomer- 2 h
+https://cal.com/thallyta-silveira-hxfjrf/banho-em-gel-baby-boomer
+
 Blindagem + esmaltação em gel - 1h30
 https://cal.com/thallyta-silveira-hxfjrf/servicos-gerais
 

@@ -6,6 +6,7 @@ export const serviceGroups = [
       { id: 'gel', name: 'Alongamento em gel', price: 'R$ 150,00', duration: '2h30', calUrl: 'https://cal.com/thallyta-silveira-hxfjrf/alongamento-em-gel', image: '/img/unha1.jpeg' },
       { id: 'manutencao', name: 'Manutenção', price: 'R$ 130,00', duration: '1h30', calUrl: 'https://cal.com/thallyta-silveira-hxfjrf/servicos-gerais', image: '/img/unha2.jpeg' },
       { id: 'banho-gel', name: 'Banho em gel', price: 'R$ 100,00', duration: '1h30', calUrl: 'https://cal.com/thallyta-silveira-hxfjrf/servicos-gerais', image: '/img/unha3.jpeg' },
+      { id: 'banho-gel-baby-boomer', name: 'Banho em gel - Baby Boomer', price: 'R$ 120,00', duration: '2h', calUrl: 'https://cal.com/thallyta-silveira-hxfjrf/banho-em-gel-baby-boomer', image: '/img/banho-gel-baby-boomer.png' },
       { id: 'blindagem', name: 'Blindagem + esmaltação em gel', price: 'R$ 70,00', duration: '1h30', calUrl: 'https://cal.com/thallyta-silveira-hxfjrf/servicos-gerais', image: '/img/unha4.jpeg' },
       { id: 'postica', name: 'Postiça realista', price: 'R$ 70,00', duration: '1h30', calUrl: 'https://cal.com/thallyta-silveira-hxfjrf/servicos-gerais', image: '/img/unha5.jpeg' },
       { id: 'remocao', name: 'Remoção', price: 'R$ 40,00', duration: '1h', calUrl: 'https://cal.com/thallyta-silveira-hxfjrf/remocao', image: '/img/unha6.jpeg' },
