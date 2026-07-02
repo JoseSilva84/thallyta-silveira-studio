@@ -126,11 +126,52 @@ const sendText = async ({ chatId, text }) => {
   return { ...result, resolvedChatId };
 };
 
+const getProviderMessageId = (result) => {
+  const id = result?.id || result?._data?.id;
+  if (!id) return null;
+  if (typeof id === 'string') return id;
+  return id._serialized || id.id || null;
+};
+
+const getProviderAck = (result) => {
+  const ack = result?.ack ?? result?._data?.ack;
+  return Number.isInteger(ack) ? ack : null;
+};
+
+const getProviderAckName = (result) => {
+  const ackName = result?.ackName || result?._data?.ackName;
+  if (ackName) return String(ackName).toUpperCase();
+
+  const ack = getProviderAck(result);
+  if (ack === -1) return 'ERROR';
+  if (ack === 0) return 'PENDING';
+  if (ack === 1) return 'SERVER';
+  if (ack === 2) return 'DEVICE';
+  if (ack === 3) return 'READ';
+  if (ack === 4) return 'PLAYED';
+  return null;
+};
+
+const getNotificationStatusFromAck = ({ skipped, ack, ackName }) => {
+  if (skipped) return 'skipped';
+  if (ackName === 'ERROR' || ack === -1) return 'failed';
+  if (ackName === 'READ' || ackName === 'PLAYED' || ack >= 3) return 'read';
+  if (ackName === 'DEVICE' || ack === 2) return 'delivered';
+  if (ackName === 'SERVER' || ack === 1) return 'sent';
+  return 'accepted';
+};
+
 const getBookingWhatsapp = (booking) => booking.user?.whatsappPhone || booking.attendeePhone;
 const minutesToMs = (minutes) => minutes * 60 * 1000;
 const DEFAULT_FAILED_RETRY_INTERVAL_MINUTES = 5;
+const DEFAULT_FAILED_RETRY_DELAYS_MINUTES = [5, 15, 30, 60];
+const DEFAULT_FAILED_RETRY_MAX_ATTEMPTS = 4;
 const RETRYABLE_BOOKING_NOTIFICATION_TYPES = [
   'booking_created_owner',
+  'booking_created_client',
+  'booking_reminder_1h_client',
+];
+const CLIENT_NOTIFICATION_TYPES = [
   'booking_created_client',
   'booking_reminder_1h_client',
 ];
@@ -201,6 +242,25 @@ const buildBirthdayRewardMessage = (user, amount = 0) => {
   ].join('\n');
 };
 
+const buildClientDeliveryFailureAlertMessage = (booking, log) => {
+  const notificationLabel = log.type === 'booking_reminder_1h_client'
+    ? 'lembrete de agendamento'
+    : 'confirmacao de agendamento';
+
+  return [
+    `Falha ao enviar ${notificationLabel} para a cliente.`,
+    '',
+    ...buildBookingSummaryLines(booking),
+    '',
+    `WhatsApp tentado: ${log.target}`,
+    log.resolvedTarget ? `Contato WAHA: ${log.resolvedTarget}` : null,
+    `Tentativas automaticas: ${log.retryCount}`,
+    log.error ? `Erro: ${log.error}` : null,
+    '',
+    'O WhatsApp nao confirmou a entrega. Confira o numero e, se necessario, fale manualmente com a cliente.',
+  ].filter(Boolean).join('\n');
+};
+
 const getExistingNotification = async (prisma, { bookingId, type, target }) => {
   const existing = await prisma.notificationLog.findUnique({
     where: {
@@ -211,7 +271,7 @@ const getExistingNotification = async (prisma, { bookingId, type, target }) => {
 };
 
 const shouldSkipNotification = (existing) => {
-  return existing && ['sent', 'skipped'].includes(existing.status);
+  return existing && ['accepted', 'sent', 'delivered', 'read', 'skipped'].includes(existing.status);
 };
 
 const logNotification = async (prisma, data) => {
@@ -232,6 +292,13 @@ const logNotification = async (prisma, data) => {
     update: {
       status: data.status,
       error: data.error,
+      providerMessageId: data.providerMessageId,
+      providerAck: data.providerAck,
+      providerAckName: data.providerAckName,
+      resolvedTarget: data.resolvedTarget,
+      retryCount: data.retryCount,
+      nextRetryAt: data.nextRetryAt,
+      adminAlertedAt: data.adminAlertedAt,
       createdAt: now,
     },
   }).catch((error) => {
@@ -239,27 +306,48 @@ const logNotification = async (prisma, data) => {
   });
 };
 
-const sendOnce = async (prisma, { booking, type, target, text }) => {
+const sendOnce = async (prisma, { booking, type, target, text, force = false }) => {
   if (!target) return;
   const existing = await getExistingNotification(prisma, { bookingId: booking.id, type, target });
-  if (shouldSkipNotification(existing)) return;
+  if (!force && shouldSkipNotification(existing)) return;
 
   try {
     const result = await sendText({ chatId: target, text });
+    const providerAck = getProviderAck(result);
+    const providerAckName = getProviderAckName(result);
+    const status = getNotificationStatusFromAck({
+      skipped: result.skipped,
+      ack: providerAck,
+      ackName: providerAckName,
+    });
+
     await logNotification(prisma, {
       bookingId: booking.id,
       type,
       target,
-      status: result.skipped ? 'skipped' : 'sent',
-      error: result.skipped ? result.reason : null,
+      status,
+      error: result.skipped
+        ? result.reason
+        : status === 'failed'
+          ? `WAHA retornou ack de erro (${providerAckName || providerAck})`
+          : null,
+      providerMessageId: getProviderMessageId(result),
+      providerAck,
+      providerAckName,
+      resolvedTarget: result.resolvedChatId || null,
+      retryCount: status === 'accepted' ? existing?.retryCount || 0 : 0,
+      nextRetryAt: null,
     });
   } catch (error) {
+    const retryCount = (existing?.retryCount || 0) + 1;
     await logNotification(prisma, {
       bookingId: booking.id,
       type,
       target,
       status: 'failed',
       error: error.message?.slice(0, 1000) || 'Erro desconhecido',
+      retryCount,
+      nextRetryAt: getNextRetryAt(retryCount),
     });
     throw error;
   }
@@ -268,6 +356,25 @@ const sendOnce = async (prisma, { booking, type, target, text }) => {
 const getNumberEnv = (name, fallback) => {
   const value = Number.parseInt(process.env[name] || '', 10);
   return Number.isFinite(value) && value > 0 ? value : fallback;
+};
+
+const getRetryDelayMinutes = (retryCount) => {
+  const configured = (process.env.WHATSAPP_FAILED_RETRY_DELAYS_MINUTES || '')
+    .split(',')
+    .map((value) => Number.parseInt(value.trim(), 10))
+    .filter((value) => Number.isFinite(value) && value > 0);
+  const delays = configured.length ? configured : DEFAULT_FAILED_RETRY_DELAYS_MINUTES;
+  return delays[Math.min(Math.max(retryCount - 1, 0), delays.length - 1)];
+};
+
+const getMaxRetryAttempts = () => getNumberEnv(
+  'WHATSAPP_FAILED_RETRY_MAX_ATTEMPTS',
+  DEFAULT_FAILED_RETRY_MAX_ATTEMPTS,
+);
+
+const getNextRetryAt = (retryCount) => {
+  if (retryCount >= getMaxRetryAttempts()) return null;
+  return new Date(Date.now() + minutesToMs(getRetryDelayMinutes(retryCount)));
 };
 
 const getRetryText = (booking, type) => {
@@ -283,6 +390,33 @@ const canRetryFailedNotification = (booking, type, now) => {
   return booking.scheduledAt >= now;
 };
 
+const shouldAlertOwnerAboutFailure = (log) => {
+  if (log.adminAlertedAt) return false;
+  if (!CLIENT_NOTIFICATION_TYPES.includes(log.type)) return false;
+  return (log.retryCount || 0) >= getMaxRetryAttempts();
+};
+
+const alertOwnerAboutClientNotificationFailure = async (prisma, booking, log) => {
+  const ownerChatId = toChatId(process.env.OWNER_WHATSAPP);
+  if (!ownerChatId) return false;
+
+  try {
+    await sendText({
+      chatId: ownerChatId,
+      text: buildClientDeliveryFailureAlertMessage(booking, log),
+    });
+
+    await prisma.notificationLog.update({
+      where: { id: log.id },
+      data: { adminAlertedAt: new Date() },
+    });
+    return true;
+  } catch (error) {
+    console.error(`Erro ao avisar admin sobre falha de WhatsApp do agendamento ${log.bookingId}:`, error);
+    return false;
+  }
+};
+
 export const retryFailedBookingNotifications = async (prisma) => {
   const now = new Date();
   const batchSize = getNumberEnv('WHATSAPP_FAILED_RETRY_BATCH_SIZE', 25);
@@ -291,6 +425,10 @@ export const retryFailedBookingNotifications = async (prisma) => {
     where: {
       status: 'failed',
       type: { in: RETRYABLE_BOOKING_NOTIFICATION_TYPES },
+      OR: [
+        { nextRetryAt: null },
+        { nextRetryAt: { lte: now } },
+      ],
     },
     orderBy: { createdAt: 'asc' },
     take: batchSize,
@@ -318,6 +456,13 @@ export const retryFailedBookingNotifications = async (prisma) => {
 
     if (!text || !canRetryFailedNotification(booking, log.type, now)) continue;
 
+    if ((log.retryCount || 0) >= getMaxRetryAttempts()) {
+      if (shouldAlertOwnerAboutFailure(log)) {
+        await alertOwnerAboutClientNotificationFailure(prisma, booking, log);
+      }
+      continue;
+    }
+
     try {
       await sendOnce(prisma, {
         booking,
@@ -328,6 +473,10 @@ export const retryFailedBookingNotifications = async (prisma) => {
       retried += 1;
     } catch (error) {
       console.error(`Erro ao retentar WhatsApp ${log.type} do agendamento ${log.bookingId}:`, error);
+      const latestLog = await prisma.notificationLog.findUnique({ where: { id: log.id } });
+      if (latestLog && shouldAlertOwnerAboutFailure(latestLog)) {
+        await alertOwnerAboutClientNotificationFailure(prisma, booking, latestLog);
+      }
     }
   }
 
@@ -387,6 +536,23 @@ export const notifyBookingCreated = async (prisma, booking) => {
     type: 'booking_created_client',
     target: clientChatId,
     text: buildClientBookingMessage(booking),
+  });
+};
+
+export const resendBookingClientNotification = async (prisma, booking) => {
+  const clientPhone = getBookingWhatsapp(booking);
+  const clientChatId = toChatId(clientPhone);
+
+  if (!clientChatId) {
+    throw new Error('Cliente sem WhatsApp para reenviar notificacao.');
+  }
+
+  await sendOnce(prisma, {
+    booking,
+    type: 'booking_created_client',
+    target: clientChatId,
+    text: buildClientBookingMessage(booking),
+    force: true,
   });
 };
 

@@ -3,6 +3,71 @@ import { notifyBookingCreated } from '../services/whatsappService.js';
 import { validateBookingWindow } from '../utils/bookingHours.js';
 import { findScheduleBlockConflict } from '../utils/scheduleAvailability.js';
 
+const getWahaAckStatus = (payload = {}) => {
+  const ack = Number.isInteger(payload.ack) ? payload.ack : null;
+  const ackName = payload.ackName ? String(payload.ackName).toUpperCase() : null;
+
+  if (ackName === 'ERROR' || ack === -1) return 'failed';
+  if (ackName === 'READ' || ackName === 'PLAYED' || ack >= 3) return 'read';
+  if (ackName === 'DEVICE' || ack === 2) return 'delivered';
+  if (ackName === 'SERVER' || ack === 1) return 'sent';
+  return 'accepted';
+};
+
+const minutesToMs = (minutes) => minutes * 60 * 1000;
+
+const getWahaAckFailureNextRetryAt = () => {
+  const minutes = Number.parseInt(process.env.WHATSAPP_FAILED_ACK_RETRY_DELAY_MINUTES || '5', 10);
+  const delayMinutes = Number.isFinite(minutes) && minutes > 0 ? minutes : 5;
+  return new Date(Date.now() + minutesToMs(delayMinutes));
+};
+
+export const handleWahaWebhook = async (req, res) => {
+  try {
+    const { event, payload, session } = req.body || {};
+
+    if (event !== 'message.ack') {
+      return res.status(200).json({ received: true, ignored: true });
+    }
+
+    const providerMessageId = payload?.id;
+    if (!providerMessageId) {
+      return res.status(200).json({ received: true, ignored: true, reason: 'message id ausente' });
+    }
+
+    const status = getWahaAckStatus(payload);
+    const ackName = payload.ackName ? String(payload.ackName).toUpperCase() : null;
+    const error = status === 'failed'
+      ? `WAHA confirmou falha no envio (${ackName || payload.ack})`
+      : null;
+
+    const updated = await prisma.notificationLog.updateMany({
+      where: { providerMessageId },
+      data: {
+        status,
+        error,
+        providerAck: Number.isInteger(payload.ack) ? payload.ack : null,
+        providerAckName: ackName,
+        resolvedTarget: payload.from || payload.to || undefined,
+        retryCount: status === 'failed' ? { increment: 1 } : 0,
+        nextRetryAt: status === 'failed' ? getWahaAckFailureNextRetryAt() : null,
+        createdAt: new Date(),
+      },
+    });
+
+    if (updated.count > 0) {
+      console.log(`WAHA ack ${ackName || payload.ack} recebido para ${providerMessageId} (${session || 'sessao desconhecida'})`);
+    } else {
+      console.log(`WAHA ack recebido para mensagem sem NotificationLog: ${providerMessageId}`);
+    }
+
+    res.status(200).json({ received: true, updated: updated.count });
+  } catch (error) {
+    console.error('Erro ao processar webhook WAHA:', error);
+    res.status(200).json({ received: true, error: error.message });
+  }
+};
+
 const cancelUnauthorizedCalBooking = async (calEventId, reason = 'Agendamento cancelado automaticamente: pagamento minimo nao aprovado.') => {
   const apiKey = process.env.CAL_API_KEY;
   if (!apiKey || !calEventId) return;

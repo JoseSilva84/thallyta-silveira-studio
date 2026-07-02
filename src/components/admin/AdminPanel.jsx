@@ -580,6 +580,27 @@ export default function AdminPanel() {
     });
   };
 
+  const handleResendBookingWhatsapp = async (booking) => {
+    showConfirmToast({
+      message: `Reenviar confirmacao por WhatsApp para "${booking.attendeeName || booking.user?.name || 'cliente'}"?`,
+      confirmLabel: 'Reenviar',
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`${API}/bookings/${booking.id}/resend-whatsapp`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${getToken()}` },
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.error || 'Erro ao reenviar WhatsApp');
+          if (data.booking) updateBookingInList(data.booking);
+          toast.success(data.message || 'WhatsApp reenviado para a cliente.');
+        } catch (error) {
+          toast.error(error.message || 'Erro ao reenviar WhatsApp.');
+        }
+      },
+    });
+  };
+
   const handleDeleteClient = async (clientEmail, clientName) => {
     showConfirmToast({
       message: `Excluir "${clientName}" e todos os dados (agendamentos, pagamentos, selos)? Esta ação não pode ser desfeita.`,
@@ -991,6 +1012,7 @@ export default function AdminPanel() {
                 onMarkNoShow={handleMarkNoShow}
                 onCancelBooking={handleCancelBooking}
                 onMarkRemainingPaid={handleMarkRemainingPaid}
+                onResendWhatsapp={handleResendBookingWhatsapp}
                 onSyncBookingToCal={handleSyncBookingToCal}
               />
             )}
@@ -1508,7 +1530,7 @@ function PaymentInfoLine({ label, value }) {
   );
 }
 
-function BookingsTable({ bookings, fetching, statusFilter, statusBadge, onCompleteService, onUndoCompleteService, onMarkNoShow, onCancelBooking, onMarkRemainingPaid, onSyncBookingToCal }) {
+function BookingsTable({ bookings, fetching, statusFilter, statusBadge, onCompleteService, onUndoCompleteService, onMarkNoShow, onCancelBooking, onMarkRemainingPaid, onResendWhatsapp, onSyncBookingToCal }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-gold/20 bg-black/40 backdrop-blur-md">
       {fetching ? (
@@ -1582,6 +1604,7 @@ function BookingsTable({ bookings, fetching, statusFilter, statusBadge, onComple
                         onMarkNoShow={onMarkNoShow}
                         onCancelBooking={onCancelBooking}
                         onMarkRemainingPaid={onMarkRemainingPaid}
+                        onResendWhatsapp={onResendWhatsapp}
                       />
                     </td>
                   </tr>
@@ -1595,10 +1618,16 @@ function BookingsTable({ bookings, fetching, statusFilter, statusBadge, onComple
   );
 }
 
-function CompletionAction({ booking, onCompleteService, onUndoCompleteService, onMarkNoShow, onCancelBooking, onMarkRemainingPaid }) {
+function CompletionAction({ booking, onCompleteService, onUndoCompleteService, onMarkNoShow, onCancelBooking, onMarkRemainingPaid, onResendWhatsapp }) {
   const payment = getBookingPaymentSummary(booking);
   const hasRemaining = payment.remaining > 0;
   const canMarkRemainingPaid = hasRemaining && typeof onMarkRemainingPaid === 'function';
+  const clientWhatsappNotification = booking.whatsappNotifications?.booking_created_client;
+  const hasClientWhatsappFailure = clientWhatsappNotification?.status === 'failed';
+  const canResendWhatsapp = hasClientWhatsappFailure
+    && typeof onResendWhatsapp === 'function'
+    && !['cancelled', 'no_show'].includes(booking.status)
+    && Boolean(booking.attendeePhone || booking.user?.whatsappPhone);
 
   if (booking.status === 'cancelled') {
     return <span className="text-xs font-semibold uppercase tracking-wider text-cream/35">Sem fidelidade</span>;
@@ -1651,6 +1680,16 @@ function CompletionAction({ booking, onCompleteService, onUndoCompleteService, o
         <FiCheckCircle className="size-4 shrink-0" />
         <span className="whitespace-nowrap">Confirmar ida</span>
       </button>
+      {canResendWhatsapp && (
+        <button
+          onClick={() => onResendWhatsapp(booking)}
+          className="group relative inline-flex items-center justify-center gap-2 rounded-xl border border-amber-400/35 bg-amber-400/10 px-4 py-2 text-[0.65rem] font-bold uppercase tracking-wider text-amber-200 transition-all hover:bg-amber-400/20"
+          title={clientWhatsappNotification?.error || 'Falha no WhatsApp da cliente. Clique para reenviar.'}
+        >
+          <FiMessageSquare className="size-3.5 shrink-0" />
+          <span className="whitespace-nowrap">Reenviar WhatsApp</span>
+        </button>
+      )}
       
       <div className="flex items-center gap-2">
         <button

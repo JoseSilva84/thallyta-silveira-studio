@@ -2,7 +2,7 @@ import prisma from '../config/prisma.js';
 import { confirmCalBooking, createCalBooking } from '../services/calService.js';
 import { syncBookingToCalById } from '../services/calSyncService.js';
 import { findServiceById } from '../data/services.js';
-import { notifyBookingCreated } from '../services/whatsappService.js';
+import { notifyBookingCreated, resendBookingClientNotification } from '../services/whatsappService.js';
 import { buildPublicAgendaDays, validateBookingWindow } from '../utils/bookingHours.js';
 import { randomUUID } from 'node:crypto';
 
@@ -11,6 +11,32 @@ const bookingInclude = {
     select: { id: true, name: true, email: true, whatsappPhone: true, dateOfBirth: true },
   },
   payment: true,
+};
+
+const attachNotificationStatus = async (bookings) => {
+  const items = Array.isArray(bookings) ? bookings : [bookings].filter(Boolean);
+  if (!items.length) return bookings;
+
+  const logs = await prisma.notificationLog.findMany({
+    where: {
+      bookingId: { in: items.map((booking) => booking.id) },
+      type: { in: ['booking_created_owner', 'booking_created_client', 'booking_reminder_1h_client'] },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  const logsByBooking = new Map();
+  for (const log of logs) {
+    if (!logsByBooking.has(log.bookingId)) logsByBooking.set(log.bookingId, {});
+    const group = logsByBooking.get(log.bookingId);
+    if (!group[log.type]) group[log.type] = log;
+  }
+
+  for (const booking of items) {
+    booking.whatsappNotifications = logsByBooking.get(booking.id) || {};
+  }
+
+  return bookings;
 };
 
 /**
@@ -75,6 +101,7 @@ export const getBookings = async (req, res) => {
       }
     }
 
+    await attachNotificationStatus(bookings);
     res.json(bookings);
   } catch (error) {
     console.error('Erro ao buscar agendamentos:', error);
@@ -404,6 +431,7 @@ export const getBookingById = async (req, res) => {
       return res.status(403).json({ error: 'Acesso negado.' });
     }
 
+    await attachNotificationStatus(booking);
     res.json(booking);
   } catch (error) {
     console.error('Erro ao buscar agendamento:', error);
@@ -651,6 +679,37 @@ export const markRemainingPaymentPaid = async (req, res) => {
   } catch (error) {
     console.error('Erro ao dar baixa no restante:', error);
     res.status(500).json({ error: 'Erro ao dar baixa no restante.' });
+  }
+};
+
+export const resendBookingWhatsapp = async (req, res) => {
+  try {
+    if (req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Acesso negado. Apenas administradores.' });
+    }
+
+    const booking = await prisma.booking.findUnique({
+      where: { id: req.params.id },
+      include: bookingInclude,
+    });
+
+    if (!booking) {
+      return res.status(404).json({ error: 'Agendamento nao encontrado.' });
+    }
+
+    if (['cancelled', 'no_show'].includes(booking.status)) {
+      return res.status(409).json({ error: 'Nao e possivel reenviar WhatsApp de agendamento cancelado ou marcado como falta.' });
+    }
+
+    await resendBookingClientNotification(prisma, booking);
+
+    res.json({
+      message: 'WhatsApp reenviado para a cliente.',
+      booking,
+    });
+  } catch (error) {
+    console.error('Erro ao reenviar WhatsApp do agendamento:', error);
+    res.status(500).json({ error: error.message || 'Erro ao reenviar WhatsApp.' });
   }
 };
 
