@@ -361,7 +361,11 @@ export default function AdminPanel() {
       body: JSON.stringify(payload),
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(handleAuthFailure(data.error) || 'Erro ao criar bloqueio');
+    if (!res.ok) {
+      const error = new Error(handleAuthFailure(data.error) || 'Erro ao criar bloqueio');
+      error.bookingWarnings = Array.isArray(data.bookingWarnings) ? data.bookingWarnings : [];
+      throw error;
+    }
     setScheduleBlocks((prev) => [data, ...prev]);
     return data;
   };
@@ -4849,7 +4853,7 @@ function BookingBlockWarningToast({ bookings }) {
         ))}
       </div>
       <p className="text-xs text-cream/55">
-        O bloqueio foi criado mesmo assim; os agendamentos existentes não foram cancelados.
+        O bloqueio não foi criado. Ajuste o horário ou resolva a reserva antes de bloquear.
       </p>
     </div>
   );
@@ -4891,7 +4895,7 @@ function ScheduleBlocksTab({ blocks, fetching, onRefresh, onCreate, onDelete }) 
     }
     try {
       setSaving(true);
-      const createdBlock = await onCreate({
+      await onCreate({
         date: form.date,
         allDay: form.allDay,
         startTime: form.allDay ? undefined : form.startTime,
@@ -4899,15 +4903,16 @@ function ScheduleBlocksTab({ blocks, fetching, onRefresh, onCreate, onDelete }) 
         reason: form.reason.trim() || undefined,
       });
       toast.success('Bloqueio criado! A agenda do site já impedirá novos agendamentos nesse período.');
-      if (createdBlock?.bookingWarnings?.length) {
-        toast.warning(
-          <BookingBlockWarningToast bookings={createdBlock.bookingWarnings} />,
-          { autoClose: 9000 },
-        );
-      }
       setForm(emptyBlockForm);
     } catch (error) {
-      toast.error(error.message || 'Erro ao criar bloqueio.');
+      if (error.bookingWarnings?.length) {
+        toast.warning(
+          <BookingBlockWarningToast bookings={error.bookingWarnings} />,
+          { autoClose: 12000 },
+        );
+      } else {
+        toast.error(error.message || 'Erro ao criar bloqueio.');
+      }
     } finally {
       setSaving(false);
     }

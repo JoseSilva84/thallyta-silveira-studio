@@ -190,6 +190,13 @@ export async function createScheduleBlock(req, res) {
 
   try {
     const existingBookings = await findBookingsInBlockPeriod(start, end);
+    if (existingBookings.length) {
+      return res.status(409).json({
+        error: 'Ha reserva no periodo selecionado.',
+        bookingWarnings: existingBookings.map(publicBookingWarning),
+      });
+    }
+
     const block = await prisma.scheduleBlock.create({
       data: {
         start,
@@ -200,10 +207,7 @@ export async function createScheduleBlock(req, res) {
       },
     });
 
-    return res.status(201).json({
-      ...publicBlock(block),
-      bookingWarnings: existingBookings.map(publicBookingWarning),
-    });
+    return res.status(201).json(publicBlock(block));
   } catch (error) {
     console.error('[scheduleBlock] createScheduleBlock unexpected error:', error);
     return res.status(500).json({ error: 'Erro interno ao criar bloqueio.' });
