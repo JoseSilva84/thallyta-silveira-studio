@@ -17,6 +17,7 @@ import {
   FiImage,
   FiGift,
   FiLogOut,
+  FiMenu,
   FiMessageSquare,
   FiRefreshCw,
   FiSave,
@@ -85,6 +86,7 @@ export default function AdminPanel() {
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState('bookings');
+  const [mobileAdminMenuOpen, setMobileAdminMenuOpen] = useState(false);
   const [bookingView, setBookingView] = useState('table');
   const [monthCursor, setMonthCursor] = useState(() => new Date());
   const [birthdayMonthCursor, setBirthdayMonthCursor] = useState(() => new Date());
@@ -1078,6 +1080,21 @@ export default function AdminPanel() {
   const moveBirthdayMonth = (amount) => {
     setBirthdayMonthCursor((current) => new Date(current.getFullYear(), current.getMonth() + amount, 1));
   };
+  const adminTabs = [
+    { value: 'bookings', icon: <FiCalendar />, label: 'Agenda', count: bookings.length + unresolvedApprovedPayments.length },
+    { value: 'analytics', icon: <FiBarChart2 />, label: 'Análises' },
+    { value: 'finance', icon: <FiDollarSign />, label: 'Financeiro', count: financeExpenses.length || undefined },
+    { value: 'loyalty', icon: <FiAward />, label: 'Fidelidade', count: pendingCompletionBookings.length },
+    { value: 'clients', icon: <FiUsers />, label: 'Clientes', count: clientProfiles.length },
+    { value: 'gallery', icon: <FiImage />, label: 'Galeria', count: images.length },
+    { value: 'testimonials', icon: <FiMessageSquare />, label: 'Depoimentos', count: testimonials.length },
+    { value: 'blocks', icon: <FiSlash />, label: 'Bloqueios', count: scheduleBlocks.length || undefined },
+  ];
+  const activeAdminTab = adminTabs.find((tab) => tab.value === activeTab) || adminTabs[0];
+  const selectAdminTab = (tab) => {
+    setActiveTab(tab.value);
+    setMobileAdminMenuOpen(false);
+  };
 
   return (
     <div className="min-h-screen bg-dark p-4 text-cream md:p-8">
@@ -1114,7 +1131,57 @@ export default function AdminPanel() {
           </div>
         </div>
 
-        <div className="mb-6 flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-black/30 p-1 backdrop-blur-md">
+        <div className="relative mb-6 md:hidden">
+          <button
+            type="button"
+            onClick={() => setMobileAdminMenuOpen((open) => !open)}
+            className="flex w-full items-center justify-between gap-3 rounded-2xl border border-gold/25 bg-black/45 px-4 py-3 text-left text-sm font-semibold text-gold-light backdrop-blur-md"
+            aria-expanded={mobileAdminMenuOpen}
+            aria-label="Abrir menu do painel"
+          >
+            <span className="flex min-w-0 items-center gap-3">
+              <FiMenu className="shrink-0" />
+              <span className="flex min-w-0 items-center gap-2">
+                {activeAdminTab.icon}
+                <span className="truncate">{activeAdminTab.label}</span>
+              </span>
+            </span>
+            {typeof activeAdminTab.count === 'number' && activeAdminTab.count > 0 && (
+              <span className="shrink-0 rounded-full bg-gold/20 px-2 py-0.5 text-xs font-bold text-gold">
+                {activeAdminTab.count}
+              </span>
+            )}
+          </button>
+
+          {mobileAdminMenuOpen && (
+            <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-40 grid gap-1 rounded-2xl border border-white/10 bg-[#090706]/95 p-2 shadow-2xl shadow-black/50 backdrop-blur-md">
+              {adminTabs.map((tab) => (
+                <button
+                  key={tab.value}
+                  type="button"
+                  onClick={() => selectAdminTab(tab)}
+                  className={`flex items-center justify-between gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition ${
+                    activeTab === tab.value
+                      ? 'bg-gradient-to-r from-gold to-gold-light text-dark'
+                      : 'text-cream/70 hover:bg-white/5 hover:text-cream'
+                  }`}
+                >
+                  <span className="flex min-w-0 items-center gap-3">
+                    {tab.icon}
+                    <span className="truncate">{tab.label}</span>
+                  </span>
+                  {typeof tab.count === 'number' && tab.count > 0 && (
+                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${activeTab === tab.value ? 'bg-dark/20 text-dark' : 'bg-gold/20 text-gold'}`}>
+                      {tab.count}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="mb-6 hidden flex-wrap gap-2 rounded-2xl border border-white/10 bg-black/30 p-1 backdrop-blur-md md:flex">
           <TabButton active={activeTab === 'bookings'} icon={<FiCalendar />} label="Agenda" count={bookings.length + unresolvedApprovedPayments.length} onClick={() => setActiveTab('bookings')} />
           <TabButton active={activeTab === 'analytics'} icon={<FiBarChart2 />} label="Análises" onClick={() => setActiveTab('analytics')} />
           <TabButton active={activeTab === 'finance'} icon={<FiDollarSign />} label="Financeiro" count={financeExpenses.length || undefined} onClick={() => setActiveTab('finance')} />
@@ -3580,6 +3647,7 @@ function ClientsView({ clients, search, setSearch, statusBadge, onCompleteServic
   const [editingBirthdayKey, setEditingBirthdayKey] = useState(null);
   const [birthdayDraft, setBirthdayDraft] = useState('');
   const [savingBirthday, setSavingBirthday] = useState(false);
+  const [mobileDetailsKey, setMobileDetailsKey] = useState(null);
   const normalizedSearch = search.trim().toLowerCase();
   const filteredClients = useMemo(() => (
     normalizedSearch
@@ -3587,6 +3655,7 @@ function ClientsView({ clients, search, setSearch, statusBadge, onCompleteServic
       : clients
   ), [clients, normalizedSearch]);
   const selectedClient = filteredClients.find((client) => client.key === selectedKey) || filteredClients[0] || null;
+  const mobileDetailsClient = filteredClients.find((client) => client.key === mobileDetailsKey) || null;
   const isEditingWhatsapp = Boolean(selectedClient && editingWhatsappKey === selectedClient.key);
   const isEditingBirthday = Boolean(selectedClient && editingBirthdayKey === selectedClient.key);
 
@@ -3606,6 +3675,17 @@ function ClientsView({ clients, search, setSearch, statusBadge, onCompleteServic
     setEditingBirthdayKey(null);
     setBirthdayDraft('');
   }, [editingBirthdayKey, selectedClient]);
+
+  useEffect(() => {
+    if (mobileDetailsKey && !mobileDetailsClient) setMobileDetailsKey(null);
+  }, [mobileDetailsClient, mobileDetailsKey]);
+
+  const handleClientSelect = (client) => {
+    setSelectedKey(client.key);
+    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 1279px)').matches) {
+      setMobileDetailsKey(client.key);
+    }
+  };
 
   const startWhatsappEdit = () => {
     if (!selectedClient) return;
@@ -3687,7 +3767,7 @@ function ClientsView({ clients, search, setSearch, statusBadge, onCompleteServic
               <button
                 key={client.key}
                 type="button"
-                onClick={() => setSelectedKey(client.key)}
+                onClick={() => handleClientSelect(client)}
                 className={`w-full rounded-xl border p-4 text-left transition ${
                   selectedClient?.key === client.key
                     ? 'border-gold/40 bg-gold/10'
@@ -3712,7 +3792,7 @@ function ClientsView({ clients, search, setSearch, statusBadge, onCompleteServic
         )}
       </section>
 
-      <section className="rounded-2xl border border-gold/20 bg-black/40 p-5">
+      <section className="hidden rounded-2xl border border-gold/20 bg-black/40 p-5 xl:block">
         {!selectedClient ? (
           <p className="text-sm text-cream/50">Selecione um cliente para ver detalhes.</p>
         ) : (
@@ -3927,7 +4007,226 @@ function ClientsView({ clients, search, setSearch, statusBadge, onCompleteServic
           </div>
         )}
       </section>
+
+      {mobileDetailsClient && createPortal(
+        <MobileClientDetailsModal
+          client={mobileDetailsClient}
+          statusBadge={statusBadge}
+          isEditingWhatsapp={isEditingWhatsapp}
+          whatsappDraft={whatsappDraft}
+          setWhatsappDraft={setWhatsappDraft}
+          savingWhatsapp={savingWhatsapp}
+          startWhatsappEdit={startWhatsappEdit}
+          cancelWhatsappEdit={cancelWhatsappEdit}
+          saveWhatsappEdit={saveWhatsappEdit}
+          canUpdateWhatsapp={Boolean(onUpdateClientWhatsapp)}
+          isEditingBirthday={isEditingBirthday}
+          birthdayDraft={birthdayDraft}
+          setBirthdayDraft={setBirthdayDraft}
+          savingBirthday={savingBirthday}
+          startBirthdayEdit={startBirthdayEdit}
+          cancelBirthdayEdit={cancelBirthdayEdit}
+          saveBirthdayEdit={saveBirthdayEdit}
+          canUpdateBirthday={Boolean(onUpdateClientBirthday && mobileDetailsClient.userId)}
+          onCompleteService={onCompleteService}
+          onUndoCompleteService={onUndoCompleteService}
+          onMarkNoShow={onMarkNoShow}
+          onMarkRemainingPaid={onMarkRemainingPaid}
+          onClose={() => setMobileDetailsKey(null)}
+        />,
+        document.body,
+      )}
     </div>
+  );
+}
+
+function MobileClientDetailsModal({
+  client,
+  statusBadge,
+  isEditingWhatsapp,
+  whatsappDraft,
+  setWhatsappDraft,
+  savingWhatsapp,
+  startWhatsappEdit,
+  cancelWhatsappEdit,
+  saveWhatsappEdit,
+  canUpdateWhatsapp,
+  isEditingBirthday,
+  birthdayDraft,
+  setBirthdayDraft,
+  savingBirthday,
+  startBirthdayEdit,
+  cancelBirthdayEdit,
+  saveBirthdayEdit,
+  canUpdateBirthday,
+  onCompleteService,
+  onUndoCompleteService,
+  onMarkNoShow,
+  onMarkRemainingPaid,
+  onClose,
+}) {
+  return (
+    <div className="fixed inset-0 z-50 bg-black/75 p-3 backdrop-blur-sm xl:hidden" role="dialog" aria-modal="true">
+      <div className="mx-auto flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-gold/25 bg-[#090706] shadow-2xl shadow-black/60">
+        <div className="flex items-start justify-between gap-3 border-b border-white/10 p-4">
+          <div className="min-w-0">
+            <p className="text-xs font-bold uppercase tracking-wider text-gold-light/60">Detalhes do cliente</p>
+            <h2 className="mt-1 truncate text-2xl font-bold text-cream">{client.name}</h2>
+            {client.email && <p className="mt-1 truncate text-sm text-cream/50">{client.email}</p>}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="grid size-10 shrink-0 place-items-center rounded-full border border-white/10 text-cream/60 transition hover:border-gold/30 hover:text-gold-light"
+            aria-label="Fechar detalhes do cliente"
+          >
+            <FiX />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto p-4">
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                {isEditingWhatsapp ? (
+                  <>
+                    <input
+                      value={whatsappDraft}
+                      onChange={(event) => setWhatsappDraft(formatBrazilWhatsappInput(event.target.value))}
+                      placeholder="WhatsApp com DDD"
+                      className="min-h-[36px] min-w-0 flex-1 rounded-lg border border-gold/25 bg-black/35 px-3 text-sm text-cream outline-none transition placeholder:text-cream/30 focus:border-gold/60"
+                    />
+                    <IconActionButton onClick={saveWhatsappEdit} disabled={savingWhatsapp} label="Salvar WhatsApp" tone="success" icon={<FiSave size={15} />} />
+                    <IconActionButton onClick={cancelWhatsappEdit} disabled={savingWhatsapp} label="Cancelar edicao do WhatsApp" icon={<FiX size={16} />} />
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm text-cream/45">{client.phone || 'WhatsApp nao informado'}</p>
+                    {canUpdateWhatsapp && (
+                      <IconActionButton onClick={startWhatsappEdit} label="Editar WhatsApp" tone="gold" icon={<FiEdit3 size={14} />} />
+                    )}
+                  </>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {isEditingBirthday ? (
+                  <>
+                    <input
+                      type="date"
+                      value={birthdayDraft}
+                      onChange={(event) => setBirthdayDraft(event.target.value)}
+                      className="min-h-[36px] min-w-0 flex-1 rounded-lg border border-gold/25 bg-black/35 px-3 text-sm text-cream outline-none transition focus:border-gold/60"
+                    />
+                    <IconActionButton onClick={saveBirthdayEdit} disabled={savingBirthday} label="Salvar aniversario" tone="success" icon={<FiSave size={15} />} />
+                    <IconActionButton onClick={cancelBirthdayEdit} disabled={savingBirthday} label="Cancelar edicao do aniversario" icon={<FiX size={16} />} />
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm text-cream/45">
+                      Aniversário: {client.dateOfBirth ? new Date(client.dateOfBirth).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'UTC' }) : 'Não informado'}
+                    </p>
+                    {canUpdateBirthday && (
+                      <IconActionButton onClick={startBirthdayEdit} label="Editar aniversario" tone="gold" icon={<FiCalendar size={14} />} />
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <SmallStat label="Serviços" value={client.totalServices} tone="gold" />
+              <SmallStat label="Valor" value={formatCurrency(client.totalRevenue)} tone="gold" />
+              <SmallStat label="Pago" value={formatCurrency(client.totalPaid)} tone="success" />
+              <SmallStat label="A receber" value={formatCurrency(client.totalRemaining)} tone="warning" />
+              <SmallStat label="Faltas" value={client.noShowCount} tone={client.noShowCount ? 'danger' : 'default'} />
+              <SmallStat label="Cancelados" value={client.cancelledCount} tone={client.cancelledCount ? 'danger' : 'default'} />
+            </div>
+
+            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+              <p className="mb-3 text-xs font-bold uppercase tracking-wider text-cream/40">Resumo</p>
+              <div className="space-y-2 text-sm text-cream/65">
+                <p>Primeiro agendamento: <strong className="text-cream">{client.firstBooking ? formatDate(client.firstBooking.scheduledAt) : '-'}</strong></p>
+                <p>Último agendamento: <strong className="text-cream">{client.lastBooking ? formatDate(client.lastBooking.scheduledAt) : '-'}</strong></p>
+                <p>Ticket médio: <strong className="text-cream">{formatCurrency(client.averageTicket)}</strong></p>
+                <p>Selos liberados: <strong className="text-cream">{client.completedStamps}</strong></p>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+              <p className="mb-3 text-xs font-bold uppercase tracking-wider text-cream/40">Serviços mais feitos</p>
+              {client.serviceStats.length === 0 ? (
+                <p className="text-sm text-cream/45">Nenhum serviço registrado.</p>
+              ) : (
+                <div className="space-y-2">
+                  {client.serviceStats.map((service) => (
+                    <div key={service.name} className="flex items-center justify-between gap-3 text-sm">
+                      <span className="truncate text-cream/75">{service.name}</span>
+                      <span className="font-bold text-gold">{service.count}x</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <h3 className="mb-3 text-lg font-semibold text-gold-light">Histórico de serviços</h3>
+              <div className="space-y-3">
+                {client.bookings.map((booking) => {
+                  const payment = getBookingPaymentSummary(booking);
+                  return (
+                    <article key={booking.id} className="rounded-xl border border-white/10 bg-black/25 p-4">
+                      <div className="mb-2 flex flex-wrap items-center gap-2">
+                        {statusBadge(booking.status)}
+                        {booking.serviceCompletedAt && <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-emerald-300">Fidelidade liberada</span>}
+                      </div>
+                      <h4 className="text-base font-semibold text-cream">{booking.service || 'Servico nao informado'}</h4>
+                      <p className="mt-1 text-sm text-cream/45">{formatDate(booking.scheduledAt)} - {formatTime(booking.scheduledAt)}{booking.endTime && ` ate ${formatTime(booking.endTime)}`}</p>
+                      <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold">
+                        <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-emerald-300">Pago: {formatCurrency(payment.paid)}</span>
+                        <span className={`rounded-full border px-3 py-1 ${payment.remaining > 0 ? 'border-amber-300/25 bg-amber-300/10 text-amber-100' : 'border-white/10 bg-white/5 text-cream/45'}`}>
+                          A receber: {formatCurrency(payment.remaining)}
+                        </span>
+                      </div>
+                      <div className="mt-3">
+                        <CompletionAction
+                          booking={booking}
+                          onCompleteService={onCompleteService}
+                          onUndoCompleteService={onUndoCompleteService}
+                          onMarkNoShow={onMarkNoShow}
+                          onMarkRemainingPaid={onMarkRemainingPaid}
+                        />
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function IconActionButton({ icon, label, tone = 'default', disabled, onClick }) {
+  const tones = {
+    default: 'border-white/10 bg-white/[0.04] text-cream/60 hover:border-white/20 hover:text-cream',
+    gold: 'border-gold/20 bg-gold/10 text-gold-light hover:border-gold/45 hover:bg-gold/15',
+    success: 'border-emerald-400/25 bg-emerald-500/10 text-emerald-200 hover:border-emerald-400/45 hover:bg-emerald-500/20',
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border transition disabled:cursor-not-allowed disabled:opacity-60 ${tones[tone]}`}
+      title={label}
+      aria-label={label}
+    >
+      {icon}
+    </button>
   );
 }
 
