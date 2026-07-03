@@ -719,8 +719,10 @@ export default function AdminPanel() {
       }
       toast.success(data.message || 'Data de nascimento salva.');
       await fetchMonthlyBirthdays();
+      return true;
     } catch (error) {
       toast.error(error.message || 'Erro ao salvar data de nascimento.');
+      return false;
     } finally {
       setSavingBirthdayClientIds((current) => {
         const next = { ...current };
@@ -750,6 +752,20 @@ export default function AdminPanel() {
         }
       },
     });
+  };
+
+  const handleUpdateClientBirthday = async (client, dateOfBirth) => {
+    if (!client.userId) {
+      toast.error('Este cliente nao tem cadastro vinculado para salvar aniversario.');
+      return false;
+    }
+
+    const saved = await handleSaveClientBirthday({ id: client.userId }, dateOfBirth);
+    if (saved) {
+      await fetchBookings();
+      await fetchClientBirthdays();
+    }
+    return saved;
   };
 
   const handleUpdateClientWhatsapp = async (client, whatsappPhone) => {
@@ -1243,6 +1259,7 @@ export default function AdminPanel() {
             onMarkRemainingPaid={handleMarkRemainingPaid}
             onDeleteClient={handleDeleteClient}
             onUpdateClientWhatsapp={handleUpdateClientWhatsapp}
+            onUpdateClientBirthday={handleUpdateClientBirthday}
             birthdayCount={pendingBirthdayCount}
             onOpenBirthdays={() => setActiveTab('birthdays')}
           />
@@ -3555,11 +3572,14 @@ function LoyaltyAdminView({ clients, pendingBookings, onCompleteService, onUndoC
   );
 }
 
-function ClientsView({ clients, search, setSearch, statusBadge, onCompleteService, onUndoCompleteService, onMarkNoShow, onMarkRemainingPaid, onDeleteClient, onUpdateClientWhatsapp, birthdayCount, onOpenBirthdays }) {
+function ClientsView({ clients, search, setSearch, statusBadge, onCompleteService, onUndoCompleteService, onMarkNoShow, onMarkRemainingPaid, onDeleteClient, onUpdateClientWhatsapp, onUpdateClientBirthday, birthdayCount, onOpenBirthdays }) {
   const [selectedKey, setSelectedKey] = useState(null);
   const [editingWhatsappKey, setEditingWhatsappKey] = useState(null);
   const [whatsappDraft, setWhatsappDraft] = useState('');
   const [savingWhatsapp, setSavingWhatsapp] = useState(false);
+  const [editingBirthdayKey, setEditingBirthdayKey] = useState(null);
+  const [birthdayDraft, setBirthdayDraft] = useState('');
+  const [savingBirthday, setSavingBirthday] = useState(false);
   const normalizedSearch = search.trim().toLowerCase();
   const filteredClients = useMemo(() => (
     normalizedSearch
@@ -3568,6 +3588,7 @@ function ClientsView({ clients, search, setSearch, statusBadge, onCompleteServic
   ), [clients, normalizedSearch]);
   const selectedClient = filteredClients.find((client) => client.key === selectedKey) || filteredClients[0] || null;
   const isEditingWhatsapp = Boolean(selectedClient && editingWhatsappKey === selectedClient.key);
+  const isEditingBirthday = Boolean(selectedClient && editingBirthdayKey === selectedClient.key);
 
   useEffect(() => {
     if (selectedClient && selectedClient.key !== selectedKey) setSelectedKey(selectedClient.key);
@@ -3579,6 +3600,12 @@ function ClientsView({ clients, search, setSearch, statusBadge, onCompleteServic
     setEditingWhatsappKey(null);
     setWhatsappDraft('');
   }, [editingWhatsappKey, selectedClient]);
+
+  useEffect(() => {
+    if (!selectedClient || editingBirthdayKey === selectedClient.key) return;
+    setEditingBirthdayKey(null);
+    setBirthdayDraft('');
+  }, [editingBirthdayKey, selectedClient]);
 
   const startWhatsappEdit = () => {
     if (!selectedClient) return;
@@ -3597,6 +3624,25 @@ function ClientsView({ clients, search, setSearch, statusBadge, onCompleteServic
     const saved = await onUpdateClientWhatsapp(selectedClient, whatsappDraft);
     setSavingWhatsapp(false);
     if (saved) cancelWhatsappEdit();
+  };
+
+  const startBirthdayEdit = () => {
+    if (!selectedClient) return;
+    setEditingBirthdayKey(selectedClient.key);
+    setBirthdayDraft(toDateInputValue(selectedClient.dateOfBirth));
+  };
+
+  const cancelBirthdayEdit = () => {
+    setEditingBirthdayKey(null);
+    setBirthdayDraft('');
+  };
+
+  const saveBirthdayEdit = async () => {
+    if (!selectedClient || !onUpdateClientBirthday) return;
+    setSavingBirthday(true);
+    const saved = await onUpdateClientBirthday(selectedClient, birthdayDraft);
+    setSavingBirthday(false);
+    if (saved) cancelBirthdayEdit();
   };
 
   return (
@@ -3724,9 +3770,55 @@ function ClientsView({ clients, search, setSearch, statusBadge, onCompleteServic
                       </>
                     )}
                   </div>
-                  <p className="text-sm text-cream/40 mt-1">
-                    Aniversário: {selectedClient.dateOfBirth ? new Date(selectedClient.dateOfBirth).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'UTC' }) : 'Não informado'}
-                  </p>
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    {isEditingBirthday ? (
+                      <>
+                        <input
+                          type="date"
+                          value={birthdayDraft}
+                          onChange={(event) => setBirthdayDraft(event.target.value)}
+                          className="min-h-[36px] w-full max-w-[170px] rounded-lg border border-gold/25 bg-black/35 px-3 text-sm text-cream outline-none transition focus:border-gold/60 sm:w-auto"
+                        />
+                        <button
+                          type="button"
+                          onClick={saveBirthdayEdit}
+                          disabled={savingBirthday}
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-emerald-400/25 bg-emerald-500/10 text-emerald-200 transition hover:border-emerald-400/45 hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                          title="Salvar aniversario"
+                          aria-label="Salvar aniversario"
+                        >
+                          <FiSave size={15} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={cancelBirthdayEdit}
+                          disabled={savingBirthday}
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-cream/60 transition hover:border-white/20 hover:text-cream disabled:cursor-not-allowed disabled:opacity-60"
+                          title="Cancelar edicao"
+                          aria-label="Cancelar edicao do aniversario"
+                        >
+                          <FiX size={16} />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-sm text-cream/40">
+                          Aniversário: {selectedClient.dateOfBirth ? new Date(selectedClient.dateOfBirth).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'UTC' }) : 'Não informado'}
+                        </p>
+                        {onUpdateClientBirthday && selectedClient.userId && (
+                          <button
+                            type="button"
+                            onClick={startBirthdayEdit}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gold/20 bg-gold/10 text-gold-light transition hover:border-gold/45 hover:bg-gold/15"
+                            title="Editar aniversario"
+                            aria-label="Editar aniversario"
+                          >
+                            <FiCalendar size={14} />
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
                 {onDeleteClient && selectedClient.email && (
                   <button
