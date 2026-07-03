@@ -1131,7 +1131,7 @@ export default function AdminPanel() {
           </div>
         </div>
 
-        <div className="relative mb-6 md:hidden">
+        <div className="admin-tablet-portrait-block relative mb-6 md:hidden">
           <button
             type="button"
             onClick={() => setMobileAdminMenuOpen((open) => !open)}
@@ -1181,7 +1181,7 @@ export default function AdminPanel() {
           )}
         </div>
 
-        <div className="mb-6 hidden flex-wrap gap-2 rounded-2xl border border-white/10 bg-black/30 p-1 backdrop-blur-md md:flex">
+        <div className="admin-tablet-portrait-hidden mb-6 hidden flex-wrap gap-2 rounded-2xl border border-white/10 bg-black/30 p-1 backdrop-blur-md md:flex">
           <TabButton active={activeTab === 'bookings'} icon={<FiCalendar />} label="Agenda" count={bookings.length + unresolvedApprovedPayments.length} onClick={() => setActiveTab('bookings')} />
           <TabButton active={activeTab === 'analytics'} icon={<FiBarChart2 />} label="Análises" onClick={() => setActiveTab('analytics')} />
           <TabButton active={activeTab === 'finance'} icon={<FiDollarSign />} label="Financeiro" count={financeExpenses.length || undefined} onClick={() => setActiveTab('finance')} />

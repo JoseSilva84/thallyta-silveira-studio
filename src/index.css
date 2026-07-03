@@ -1023,6 +1023,16 @@ label.cursor-pointer:active {
   }
 }
 
+@media (min-width: 768px) and (max-width: 1023px) and (orientation: portrait) {
+  .admin-tablet-portrait-block {
+    display: block;
+  }
+
+  .admin-tablet-portrait-hidden {
+    display: none;
+  }
+}
+
 /* ──────────────────────────────────────────────
    Cal.com Embed — Customização visual
    ────────────────────────────────────────────── */
