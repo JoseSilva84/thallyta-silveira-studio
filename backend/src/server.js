@@ -11,9 +11,9 @@ import paymentRoutes from './routes/paymentRoutes.js';
 import testimonialRoutes from './routes/testimonialRoutes.js';
 import scheduleBlockRoutes from './routes/scheduleBlockRoutes.js';
 import financeRoutes from './routes/financeRoutes.js';
+import birthdayRewardRoutes from './routes/birthdayRewardRoutes.js';
 import prisma from './config/prisma.js';
 import { startBookingReminderService } from './services/bookingReminderService.js';
-import { startBirthdayRewardService } from './services/birthdayRewardService.js';
 import { startCalFallbackSyncService } from './services/calSyncService.js';
 import { startFailedWhatsAppRetryService } from './services/whatsappService.js';
 
@@ -65,6 +65,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/testimonials', testimonialRoutes);
 app.use('/api/schedule-blocks', scheduleBlockRoutes);
 app.use('/api/finance', financeRoutes);
+app.use('/api/birthday-rewards', birthdayRewardRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', timestamp: new Date() }));
@@ -73,7 +74,6 @@ app.get('/api/health', (_req, res) => res.json({ status: 'ok', timestamp: new Da
 app.listen(PORT, () => {
   console.log(`✅ Servidor rodando na porta ${PORT}`);
   startBookingReminderService();
-  startBirthdayRewardService();
   startCalFallbackSyncService();
   startFailedWhatsAppRetryService(prisma);
 });

@@ -15,6 +15,7 @@ import {
   FiEyeOff,
   FiHome,
   FiImage,
+  FiGift,
   FiLogOut,
   FiMessageSquare,
   FiRefreshCw,
@@ -85,6 +86,7 @@ export default function AdminPanel() {
   const [activeTab, setActiveTab] = useState('bookings');
   const [bookingView, setBookingView] = useState('table');
   const [monthCursor, setMonthCursor] = useState(() => new Date());
+  const [birthdayMonthCursor, setBirthdayMonthCursor] = useState(() => new Date());
 
   const [images, setImages] = useState([]);
   const [files, setFiles] = useState([]);
@@ -99,6 +101,10 @@ export default function AdminPanel() {
   const [showPaymentIssueModal, setShowPaymentIssueModal] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
   const [clientSearch, setClientSearch] = useState('');
+  const [monthlyBirthdays, setMonthlyBirthdays] = useState({ year: null, month: null, monthName: '', celebrants: [] });
+  const [fetchingBirthdays, setFetchingBirthdays] = useState(true);
+  const [birthdayFilter, setBirthdayFilter] = useState('pending');
+  const [sendingBirthdayIds, setSendingBirthdayIds] = useState({});
 
   // ── Schedule Blocks ──────────────────────────────────────────────
   const [scheduleBlocks, setScheduleBlocks] = useState([]);
@@ -277,6 +283,33 @@ export default function AdminPanel() {
     }
   }, [getToken]);
 
+  const fetchMonthlyBirthdays = useCallback(async () => {
+    try {
+      setFetchingBirthdays(true);
+      const token = requireAdminToken();
+      const params = new URLSearchParams({
+        year: String(birthdayMonthCursor.getFullYear()),
+        month: String(birthdayMonthCursor.getMonth() + 1),
+      });
+      const res = await fetch(`${API}/birthday-rewards/admin/monthly?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(handleAuthFailure(data.error) || 'Falha ao buscar aniversariantes');
+      setMonthlyBirthdays({
+        year: data.year,
+        month: data.month,
+        monthName: data.monthName || '',
+        celebrants: Array.isArray(data.celebrants) ? data.celebrants : [],
+      });
+    } catch (error) {
+      toast.error(error.message || 'Erro ao carregar aniversariantes');
+      console.error(error);
+    } finally {
+      setFetchingBirthdays(false);
+    }
+  }, [birthdayMonthCursor, handleAuthFailure, requireAdminToken]);
+
   const fetchScheduleBlocks = useCallback(async () => {
     try {
       setFetchingBlocks(true);
@@ -331,6 +364,10 @@ export default function AdminPanel() {
     fetchFinanceExpenses();
   }, [fetchApprovedPaymentsWithoutBooking, fetchBookings, fetchFinanceExpenses, fetchImages, fetchTestimonials]);
 
+  useEffect(() => {
+    fetchMonthlyBirthdays();
+  }, [fetchMonthlyBirthdays]);
+
   // Carrega bloqueios quando a aba é aberta pela primeira vez
   useEffect(() => {
     if (activeTab === 'blocks' && !blocksLoadedRef.current && !fetchingBlocks) {
@@ -344,6 +381,7 @@ export default function AdminPanel() {
     fetchImages();
     fetchTestimonials();
     fetchFinanceExpenses();
+    fetchMonthlyBirthdays();
     if (activeTab === 'blocks') fetchScheduleBlocks();
   };
 
@@ -596,6 +634,39 @@ export default function AdminPanel() {
           toast.success(data.message || 'WhatsApp reenviado para a cliente.');
         } catch (error) {
           toast.error(error.message || 'Erro ao reenviar WhatsApp.');
+        }
+      },
+    });
+  };
+
+  const handleSendBirthdayWhatsapp = async (celebrant) => {
+    showConfirmToast({
+      message: `Enviar mensagem de aniversario para "${celebrant.name}"?`,
+      confirmLabel: 'Enviar',
+      onConfirm: async () => {
+        setSendingBirthdayIds((current) => ({ ...current, [celebrant.id]: true }));
+        try {
+          const token = requireAdminToken();
+          const res = await fetch(`${API}/birthday-rewards/admin/${celebrant.id}/send`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ year: monthlyBirthdays.year || new Date().getFullYear() }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(handleAuthFailure(data.error) || 'Erro ao enviar aniversario');
+          toast.success(data.message || 'Mensagem de aniversario enviada.');
+          await fetchMonthlyBirthdays();
+        } catch (error) {
+          toast.error(error.message || 'Erro ao enviar aniversario.');
+        } finally {
+          setSendingBirthdayIds((current) => {
+            const next = { ...current };
+            delete next[celebrant.id];
+            return next;
+          });
         }
       },
     });
@@ -873,6 +944,20 @@ export default function AdminPanel() {
   );
   const loyaltyClients = useMemo(() => buildLoyaltyClients(bookings), [bookings]);
   const clientProfiles = useMemo(() => buildClientProfiles(bookings), [bookings]);
+  const birthdayCelebrants = monthlyBirthdays.celebrants || [];
+  const filteredBirthdayCelebrants = useMemo(() => (
+    birthdayCelebrants.filter((celebrant) => {
+      if (birthdayFilter === 'today') return celebrant.isToday;
+      if (birthdayFilter === 'pending') return celebrant.rewardStatus !== 'sent' && Boolean(celebrant.whatsappPhone);
+      if (birthdayFilter === 'sent') return celebrant.rewardStatus === 'sent';
+      if (birthdayFilter === 'no_whatsapp') return !celebrant.whatsappPhone;
+      return true;
+    })
+  ), [birthdayCelebrants, birthdayFilter]);
+  const pendingBirthdayCount = useMemo(
+    () => birthdayCelebrants.filter((celebrant) => celebrant.rewardStatus !== 'sent' && Boolean(celebrant.whatsappPhone)).length,
+    [birthdayCelebrants],
+  );
 
   const analytics = useMemo(() => buildAnalytics(bookings), [bookings]);
   const financeSummary = useMemo(() => buildFinanceSummary(bookings, financeExpenses), [bookings, financeExpenses]);
@@ -881,6 +966,10 @@ export default function AdminPanel() {
 
   const moveMonth = (amount) => {
     setMonthCursor((current) => new Date(current.getFullYear(), current.getMonth() + amount, 1));
+  };
+
+  const moveBirthdayMonth = (amount) => {
+    setBirthdayMonthCursor((current) => new Date(current.getFullYear(), current.getMonth() + amount, 1));
   };
 
   return (
@@ -924,6 +1013,7 @@ export default function AdminPanel() {
           <TabButton active={activeTab === 'finance'} icon={<FiDollarSign />} label="Financeiro" count={financeExpenses.length || undefined} onClick={() => setActiveTab('finance')} />
           <TabButton active={activeTab === 'loyalty'} icon={<FiAward />} label="Fidelidade" count={pendingCompletionBookings.length} onClick={() => setActiveTab('loyalty')} />
           <TabButton active={activeTab === 'clients'} icon={<FiUsers />} label="Clientes" count={clientProfiles.length} onClick={() => setActiveTab('clients')} />
+          <TabButton active={activeTab === 'birthdays'} icon={<FiGift />} label="Aniversariantes" count={pendingBirthdayCount} onClick={() => setActiveTab('birthdays')} />
           <TabButton active={activeTab === 'gallery'} icon={<FiImage />} label="Galeria" count={images.length} onClick={() => setActiveTab('gallery')} />
           <TabButton active={activeTab === 'testimonials'} icon={<FiMessageSquare />} label="Depoimentos" count={testimonials.length} onClick={() => setActiveTab('testimonials')} />
           <TabButton active={activeTab === 'blocks'} icon={<FiSlash />} label="Bloqueios" count={scheduleBlocks.length || undefined} onClick={() => setActiveTab('blocks')} />
@@ -1062,6 +1152,22 @@ export default function AdminPanel() {
             onCancelBooking={handleCancelBooking}
             onMarkRemainingPaid={handleMarkRemainingPaid}
             onDeleteClient={handleDeleteClient}
+          />
+        )}
+
+        {activeTab === 'birthdays' && (
+          <BirthdaysAdminView
+            monthLabel={monthlyBirthdays.monthName ? `${monthlyBirthdays.monthName} de ${monthlyBirthdays.year}` : birthdayMonthCursor.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+            celebrants={filteredBirthdayCelebrants}
+            allCelebrants={birthdayCelebrants}
+            fetching={fetchingBirthdays}
+            filter={birthdayFilter}
+            setFilter={setBirthdayFilter}
+            sendingIds={sendingBirthdayIds}
+            onSend={handleSendBirthdayWhatsapp}
+            onRefresh={fetchMonthlyBirthdays}
+            onPrev={() => moveBirthdayMonth(-1)}
+            onNext={() => moveBirthdayMonth(1)}
           />
         )}
 
@@ -3542,6 +3648,146 @@ function ClientsView({ clients, search, setSearch, statusBadge, onCompleteServic
   );
 }
 
+function BirthdaysAdminView({ monthLabel, celebrants, allCelebrants, fetching, filter, setFilter, sendingIds, onSend, onRefresh, onPrev, onNext }) {
+  const stats = useMemo(() => ({
+    total: allCelebrants.length,
+    today: allCelebrants.filter((item) => item.isToday).length,
+    pending: allCelebrants.filter((item) => item.rewardStatus !== 'sent' && item.whatsappPhone).length,
+    sent: allCelebrants.filter((item) => item.rewardStatus === 'sent').length,
+    noWhatsapp: allCelebrants.filter((item) => !item.whatsappPhone).length,
+  }), [allCelebrants]);
+
+  const filters = [
+    { value: 'pending', label: 'Pendentes', count: stats.pending },
+    { value: 'today', label: 'Hoje', count: stats.today },
+    { value: 'all', label: 'Todos', count: stats.total },
+    { value: 'sent', label: 'Enviados', count: stats.sent },
+    { value: 'no_whatsapp', label: 'Sem WhatsApp', count: stats.noWhatsapp },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <section className="rounded-2xl border border-gold/20 bg-black/40 p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider text-gold-light/60">Aniversariantes do mês</p>
+            <h2 className="mt-1 text-2xl font-semibold capitalize text-cream">{monthLabel}</h2>
+            <p className="mt-2 max-w-2xl text-sm text-cream/50">
+              O sistema apenas lista os clientes. A mensagem de parabens so e enviada quando a administradora clicar em enviar.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={onPrev}
+              className="grid size-10 place-items-center rounded-full border border-white/10 text-cream/60 hover:border-gold/30 hover:text-gold-light"
+              aria-label="Mes anterior"
+            >
+              <FiChevronLeft />
+            </button>
+            <button
+              type="button"
+              onClick={onNext}
+              className="grid size-10 place-items-center rounded-full border border-white/10 text-cream/60 hover:border-gold/30 hover:text-gold-light"
+              aria-label="Proximo mes"
+            >
+              <FiChevronRight />
+            </button>
+            <button
+              type="button"
+              onClick={onRefresh}
+              className="inline-flex items-center gap-2 rounded-full border border-gold/25 px-4 py-2 text-sm font-semibold text-gold-light hover:bg-gold/10"
+            >
+              <FiRefreshCw /> Atualizar
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <SmallStat label="No mês" value={stats.total} tone="gold" />
+          <SmallStat label="Hoje" value={stats.today} tone={stats.today ? 'success' : 'default'} />
+          <SmallStat label="Pendentes" value={stats.pending} tone={stats.pending ? 'warning' : 'default'} />
+          <SmallStat label="Enviados" value={stats.sent} tone="success" />
+          <SmallStat label="Sem WhatsApp" value={stats.noWhatsapp} tone={stats.noWhatsapp ? 'danger' : 'default'} />
+        </div>
+      </section>
+
+      <div className="flex flex-wrap gap-2">
+        {filters.map((item) => (
+          <SegmentedButton key={item.value} active={filter === item.value} onClick={() => setFilter(item.value)}>
+            {item.label}{item.count ? ` (${item.count})` : ''}
+          </SegmentedButton>
+        ))}
+      </div>
+
+      {fetching ? (
+        <div className="rounded-2xl border border-white/10 bg-black/35 p-8 text-center text-cream/50">Carregando aniversariantes...</div>
+      ) : celebrants.length === 0 ? (
+        <div className="rounded-2xl border border-white/10 bg-black/35 p-8 text-center text-cream/50">
+          Nenhum aniversariante encontrado para este filtro.
+        </div>
+      ) : (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {celebrants.map((celebrant) => (
+            <BirthdayCelebrantCard
+              key={celebrant.id}
+              celebrant={celebrant}
+              sending={Boolean(sendingIds[celebrant.id])}
+              onSend={() => onSend(celebrant)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BirthdayCelebrantCard({ celebrant, sending, onSend }) {
+  const status = getBirthdayStatusMeta(celebrant);
+  const birthdayLabel = celebrant.dateOfBirth
+    ? new Date(celebrant.dateOfBirth).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', timeZone: 'UTC' })
+    : `Dia ${String(celebrant.birthdayDay || '').padStart(2, '0')}`;
+  const sentAt = celebrant.reward?.sentAt ? formatDate(celebrant.reward.sentAt) : null;
+
+  return (
+    <article className="rounded-2xl border border-white/10 bg-black/35 p-5">
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div className="min-w-0">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            {celebrant.isToday && (
+              <span className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-emerald-200">
+                Hoje
+              </span>
+            )}
+            <span className={`rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wider ${status.classes}`}>
+              {status.label}
+            </span>
+          </div>
+          <h3 className="truncate text-xl font-semibold text-cream">{celebrant.name}</h3>
+          <p className="mt-1 text-sm text-cream/45">{celebrant.email || 'Email nao informado'}</p>
+          <p className="mt-1 text-sm text-cream/45">{formatWhatsappDisplay(celebrant.whatsappPhone) || 'WhatsApp nao informado'}</p>
+          <p className="mt-3 text-sm text-cream/65">
+            Aniversario: <strong className="capitalize text-gold-light">{birthdayLabel}</strong>
+          </p>
+          {sentAt && <p className="mt-1 text-xs text-emerald-200/75">Enviado em {sentAt}</p>}
+          {celebrant.reward?.error && <p className="mt-2 text-xs text-red-200/80">Erro anterior: {celebrant.reward.error}</p>}
+        </div>
+
+        <button
+          type="button"
+          onClick={onSend}
+          disabled={!celebrant.canSend || sending}
+          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-gold/25 bg-gold/10 px-4 py-3 text-sm font-bold text-gold-light transition hover:bg-gold/20 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/5 disabled:text-cream/35"
+        >
+          <FiMessageSquare />
+          {sending ? 'Enviando...' : celebrant.rewardStatus === 'sent' ? 'Enviado' : 'Enviar parabens'}
+        </button>
+      </div>
+    </article>
+  );
+}
+
 function GalleryView({ categories, category, setCategory, files, setFiles, loading, handleUpload, fetching, images, handleDeleteImage }) {
   return (
     <div className="grid gap-8 md:grid-cols-3">
@@ -4337,6 +4583,31 @@ function formatDate(dateStr) {
 
 function formatTime(dateStr) {
   return new Date(dateStr).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatWhatsappDisplay(value) {
+  const digits = String(value || '').replace(/\D/g, '');
+  if (!digits) return '';
+  const local = digits.startsWith('55') ? digits.slice(2) : digits;
+  if (local.length === 11) return `(${local.slice(0, 2)}) ${local.slice(2, 7)}-${local.slice(7)}`;
+  if (local.length === 10) return `(${local.slice(0, 2)}) ${local.slice(2, 6)}-${local.slice(6)}`;
+  return digits;
+}
+
+function getBirthdayStatusMeta(celebrant) {
+  if (!celebrant.whatsappPhone) {
+    return { label: 'Sem WhatsApp', classes: 'border-red-400/25 bg-red-500/10 text-red-200' };
+  }
+  if (celebrant.rewardStatus === 'sent') {
+    return { label: 'Enviado este ano', classes: 'border-emerald-500/25 bg-emerald-500/10 text-emerald-300' };
+  }
+  if (celebrant.rewardStatus === 'failed') {
+    return { label: 'Falhou', classes: 'border-red-400/25 bg-red-500/10 text-red-200' };
+  }
+  if (celebrant.rewardStatus === 'skipped') {
+    return { label: 'Ignorado', classes: 'border-amber-300/25 bg-amber-300/10 text-amber-100' };
+  }
+  return { label: 'Ainda nao enviado', classes: 'border-amber-300/25 bg-amber-300/10 text-amber-100' };
 }
 
 function formatCurrency(value) {
