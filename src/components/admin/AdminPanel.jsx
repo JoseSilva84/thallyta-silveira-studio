@@ -103,8 +103,11 @@ export default function AdminPanel() {
   const [clientSearch, setClientSearch] = useState('');
   const [monthlyBirthdays, setMonthlyBirthdays] = useState({ year: null, month: null, monthName: '', celebrants: [] });
   const [fetchingBirthdays, setFetchingBirthdays] = useState(true);
+  const [clientBirthdays, setClientBirthdays] = useState([]);
+  const [fetchingClientBirthdays, setFetchingClientBirthdays] = useState(true);
   const [birthdayFilter, setBirthdayFilter] = useState('pending');
   const [sendingBirthdayIds, setSendingBirthdayIds] = useState({});
+  const [savingBirthdayClientIds, setSavingBirthdayClientIds] = useState({});
 
   // ── Schedule Blocks ──────────────────────────────────────────────
   const [scheduleBlocks, setScheduleBlocks] = useState([]);
@@ -310,6 +313,24 @@ export default function AdminPanel() {
     }
   }, [birthdayMonthCursor, handleAuthFailure, requireAdminToken]);
 
+  const fetchClientBirthdays = useCallback(async () => {
+    try {
+      setFetchingClientBirthdays(true);
+      const token = requireAdminToken();
+      const res = await fetch(`${API}/birthday-rewards/admin/clients`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(handleAuthFailure(data.error) || 'Falha ao buscar datas de nascimento');
+      setClientBirthdays(Array.isArray(data.clients) ? data.clients : []);
+    } catch (error) {
+      toast.error(error.message || 'Erro ao carregar datas de nascimento');
+      console.error(error);
+    } finally {
+      setFetchingClientBirthdays(false);
+    }
+  }, [handleAuthFailure, requireAdminToken]);
+
   const fetchScheduleBlocks = useCallback(async () => {
     try {
       setFetchingBlocks(true);
@@ -362,7 +383,8 @@ export default function AdminPanel() {
     fetchApprovedPaymentsWithoutBooking();
     fetchTestimonials();
     fetchFinanceExpenses();
-  }, [fetchApprovedPaymentsWithoutBooking, fetchBookings, fetchFinanceExpenses, fetchImages, fetchTestimonials]);
+    fetchClientBirthdays();
+  }, [fetchApprovedPaymentsWithoutBooking, fetchBookings, fetchClientBirthdays, fetchFinanceExpenses, fetchImages, fetchTestimonials]);
 
   useEffect(() => {
     fetchMonthlyBirthdays();
@@ -382,6 +404,7 @@ export default function AdminPanel() {
     fetchTestimonials();
     fetchFinanceExpenses();
     fetchMonthlyBirthdays();
+    fetchClientBirthdays();
     if (activeTab === 'blocks') fetchScheduleBlocks();
   };
 
@@ -670,6 +693,36 @@ export default function AdminPanel() {
         }
       },
     });
+  };
+
+  const handleSaveClientBirthday = async (client, dateOfBirth) => {
+    setSavingBirthdayClientIds((current) => ({ ...current, [client.id]: true }));
+    try {
+      const token = requireAdminToken();
+      const res = await fetch(`${API}/birthday-rewards/admin/${client.id}/date-of-birth`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ dateOfBirth: dateOfBirth || null }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(handleAuthFailure(data.error) || 'Erro ao salvar data de nascimento');
+      if (data.user) {
+        setClientBirthdays((current) => current.map((item) => (item.id === data.user.id ? data.user : item)));
+      }
+      toast.success(data.message || 'Data de nascimento salva.');
+      await fetchMonthlyBirthdays();
+    } catch (error) {
+      toast.error(error.message || 'Erro ao salvar data de nascimento.');
+    } finally {
+      setSavingBirthdayClientIds((current) => {
+        const next = { ...current };
+        delete next[client.id];
+        return next;
+      });
+    }
   };
 
   const handleDeleteClient = async (clientEmail, clientName) => {
@@ -1161,12 +1214,19 @@ export default function AdminPanel() {
             monthLabel={monthlyBirthdays.monthName ? `${monthlyBirthdays.monthName} de ${monthlyBirthdays.year}` : birthdayMonthCursor.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
             celebrants={filteredBirthdayCelebrants}
             allCelebrants={birthdayCelebrants}
+            clients={clientBirthdays}
             fetching={fetchingBirthdays}
+            fetchingClients={fetchingClientBirthdays}
             filter={birthdayFilter}
             setFilter={setBirthdayFilter}
             sendingIds={sendingBirthdayIds}
+            savingClientIds={savingBirthdayClientIds}
             onSend={handleSendBirthdayWhatsapp}
-            onRefresh={fetchMonthlyBirthdays}
+            onSaveClientBirthday={handleSaveClientBirthday}
+            onRefresh={() => {
+              fetchMonthlyBirthdays();
+              fetchClientBirthdays();
+            }}
             onPrev={() => moveBirthdayMonth(-1)}
             onNext={() => moveBirthdayMonth(1)}
           />
@@ -3665,7 +3725,7 @@ function ClientsView({ clients, search, setSearch, statusBadge, onCompleteServic
   );
 }
 
-function BirthdaysAdminView({ monthLabel, celebrants, allCelebrants, fetching, filter, setFilter, sendingIds, onSend, onRefresh, onPrev, onNext }) {
+function BirthdaysAdminView({ monthLabel, celebrants, allCelebrants, clients, fetching, fetchingClients, filter, setFilter, sendingIds, savingClientIds, onSend, onSaveClientBirthday, onRefresh, onPrev, onNext }) {
   const stats = useMemo(() => ({
     total: allCelebrants.length,
     today: allCelebrants.filter((item) => item.isToday).length,
@@ -3684,6 +3744,13 @@ function BirthdaysAdminView({ monthLabel, celebrants, allCelebrants, fetching, f
 
   return (
     <div className="space-y-6">
+      <ClientBirthdayDirectory
+        clients={clients}
+        fetching={fetchingClients}
+        savingIds={savingClientIds}
+        onSave={onSaveClientBirthday}
+      />
+
       <section className="rounded-2xl border border-gold/20 bg-black/40 p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
@@ -3756,6 +3823,93 @@ function BirthdaysAdminView({ monthLabel, celebrants, allCelebrants, fetching, f
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function ClientBirthdayDirectory({ clients, fetching, savingIds, onSave }) {
+  return (
+    <section className="rounded-2xl border border-white/10 bg-black/35 p-5">
+      <div className="mb-4">
+        <p className="text-xs font-bold uppercase tracking-wider text-gold-light/60">Datas de nascimento</p>
+        <h2 className="mt-1 text-xl font-semibold text-cream">Clientes cadastrados</h2>
+      </div>
+
+      {fetching ? (
+        <div className="rounded-xl border border-white/10 bg-white/[0.03] p-5 text-sm text-cream/45">
+          Carregando clientes...
+        </div>
+      ) : clients.length === 0 ? (
+        <div className="rounded-xl border border-white/10 bg-white/[0.03] p-5 text-sm text-cream/45">
+          Nenhum cliente cadastrado.
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-xl border border-white/10">
+          <div className="hidden grid-cols-[minmax(220px,1fr)_170px_220px] gap-4 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-xs font-bold uppercase tracking-wider text-cream/45 md:grid">
+            <span>Cliente</span>
+            <span>Data atual</span>
+            <span>Editar</span>
+          </div>
+          <div className="max-h-[520px] divide-y divide-white/10 overflow-y-auto">
+            {clients.map((client) => (
+              <ClientBirthdayRow
+                key={client.id}
+                client={client}
+                saving={Boolean(savingIds[client.id])}
+                onSave={onSave}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ClientBirthdayRow({ client, saving, onSave }) {
+  const currentValue = toDateInputValue(client.dateOfBirth);
+  const [dateValue, setDateValue] = useState(currentValue);
+
+  useEffect(() => {
+    setDateValue(currentValue);
+  }, [currentValue]);
+
+  return (
+    <div className="grid gap-3 px-4 py-4 md:grid-cols-[minmax(220px,1fr)_170px_220px] md:items-center md:gap-4">
+      <div className="min-w-0">
+        <h3 className="truncate font-semibold text-cream">{client.name || 'Cliente'}</h3>
+        <p className="truncate text-sm text-cream/45">{client.email || formatWhatsappDisplay(client.whatsappPhone) || 'Contato não informado'}</p>
+      </div>
+
+      <div>
+        <p className="text-[0.65rem] font-bold uppercase tracking-wider text-cream/35 md:hidden">Data atual</p>
+        <p className={client.dateOfBirth ? 'text-sm font-semibold text-gold-light' : 'text-sm text-cream/45'}>
+          {client.dateOfBirth ? new Date(client.dateOfBirth).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : 'Não informada'}
+        </p>
+      </div>
+
+      <form
+        className="flex flex-col gap-2 sm:flex-row"
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSave(client, dateValue);
+        }}
+      >
+        <input
+          type="date"
+          value={dateValue}
+          onChange={(event) => setDateValue(event.target.value)}
+          className="min-h-11 flex-1 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-cream outline-none [color-scheme:dark] focus:border-gold/40"
+        />
+        <button
+          type="submit"
+          disabled={saving || dateValue === currentValue}
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-gold/25 bg-gold/10 px-4 py-2 text-sm font-bold text-gold-light transition hover:bg-gold/20 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/5 disabled:text-cream/35"
+        >
+          <FiSave />
+          {saving ? 'Salvando...' : 'Salvar'}
+        </button>
+      </form>
     </div>
   );
 }
@@ -4596,6 +4750,13 @@ function dateKey(date) {
 
 function formatDate(dateStr) {
   return new Date(dateStr).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function toDateInputValue(dateStr) {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return '';
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
 }
 
 function formatTime(dateStr) {

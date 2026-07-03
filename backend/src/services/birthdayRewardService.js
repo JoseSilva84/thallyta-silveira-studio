@@ -79,6 +79,92 @@ const mapRewardStatus = (reward) => {
   return 'pending';
 };
 
+const normalizeDateOfBirth = (value) => {
+  const rawValue = String(value || '').trim();
+  if (!rawValue) return null;
+
+  const match = rawValue.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) {
+    const error = new Error('Informe uma data de nascimento valida.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const [, year, month, day] = match;
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+  const isSameDate =
+    date.getUTCFullYear() === Number(year)
+    && date.getUTCMonth() === Number(month) - 1
+    && date.getUTCDate() === Number(day);
+
+  if (!isSameDate) {
+    const error = new Error('Informe uma data de nascimento valida.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const today = new Date();
+  const todayUtc = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+  if (date > todayUtc) {
+    const error = new Error('A data de nascimento nao pode ser futura.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return date;
+};
+
+const serializeClientBirthday = (user) => ({
+  id: user.id,
+  name: user.name,
+  email: user.email,
+  whatsappPhone: user.whatsappPhone,
+  dateOfBirth: user.dateOfBirth,
+});
+
+export const listClientBirthdays = async () => {
+  const users = await prisma.user.findMany({
+    where: { role: 'CLIENT' },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      whatsappPhone: true,
+      dateOfBirth: true,
+    },
+    orderBy: { name: 'asc' },
+  });
+
+  return users.map(serializeClientBirthday);
+};
+
+export const updateClientDateOfBirth = async (userId, dateOfBirth) => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, role: true },
+  });
+
+  if (!user || user.role !== 'CLIENT') {
+    const error = new Error('Cliente nao encontrado.');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const updated = await prisma.user.update({
+    where: { id: user.id },
+    data: { dateOfBirth: normalizeDateOfBirth(dateOfBirth) },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      whatsappPhone: true,
+      dateOfBirth: true,
+    },
+  });
+
+  return serializeClientBirthday(updated);
+};
+
 export const listMonthlyBirthdayRewards = async ({ year, month } = {}) => {
   const target = normalizeYearMonth({ year, month });
   const today = getStudioDateParts();
