@@ -1000,6 +1000,7 @@ export default function AdminPanel() {
   const birthdayCelebrants = monthlyBirthdays.celebrants || [];
   const filteredBirthdayCelebrants = useMemo(() => (
     birthdayCelebrants.filter((celebrant) => {
+      if (birthdayFilter === 'clients') return false;
       if (birthdayFilter === 'today') return celebrant.isToday;
       if (birthdayFilter === 'pending') return celebrant.rewardStatus !== 'sent' && Boolean(celebrant.whatsappPhone);
       if (birthdayFilter === 'sent') return celebrant.rewardStatus === 'sent';
@@ -3740,17 +3741,11 @@ function BirthdaysAdminView({ monthLabel, celebrants, allCelebrants, clients, fe
     { value: 'all', label: 'Todos', count: stats.total },
     { value: 'sent', label: 'Enviados', count: stats.sent },
     { value: 'no_whatsapp', label: 'Sem WhatsApp', count: stats.noWhatsapp },
+    { value: 'clients', label: 'Ver todos os clientes', count: clients.length },
   ];
 
   return (
     <div className="space-y-6">
-      <ClientBirthdayDirectory
-        clients={clients}
-        fetching={fetchingClients}
-        savingIds={savingClientIds}
-        onSave={onSaveClientBirthday}
-      />
-
       <section className="rounded-2xl border border-gold/20 bg-black/40 p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
@@ -3805,7 +3800,14 @@ function BirthdaysAdminView({ monthLabel, celebrants, allCelebrants, clients, fe
         ))}
       </div>
 
-      {fetching ? (
+      {filter === 'clients' ? (
+        <ClientBirthdayDirectory
+          clients={clients}
+          fetching={fetchingClients}
+          savingIds={savingClientIds}
+          onSave={onSaveClientBirthday}
+        />
+      ) : fetching ? (
         <div className="rounded-2xl border border-white/10 bg-black/35 p-8 text-center text-cream/50">Carregando aniversariantes...</div>
       ) : celebrants.length === 0 ? (
         <div className="rounded-2xl border border-white/10 bg-black/35 p-8 text-center text-cream/50">
@@ -3844,13 +3846,13 @@ function ClientBirthdayDirectory({ clients, fetching, savingIds, onSave }) {
           Nenhum cliente cadastrado.
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-white/10">
-          <div className="hidden grid-cols-[minmax(220px,1fr)_170px_220px] gap-4 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-xs font-bold uppercase tracking-wider text-cream/45 md:grid">
+        <div className="rounded-xl border border-white/10">
+          <div className="hidden grid-cols-[minmax(0,1fr)_minmax(120px,170px)_minmax(210px,260px)] gap-4 border-b border-white/10 bg-white/[0.03] px-4 py-3 text-xs font-bold uppercase tracking-wider text-cream/45 md:grid">
             <span>Cliente</span>
             <span>Data atual</span>
             <span>Editar</span>
           </div>
-          <div className="max-h-[520px] divide-y divide-white/10 overflow-y-auto">
+          <div className="divide-y divide-white/10">
             {clients.map((client) => (
               <ClientBirthdayRow
                 key={client.id}
@@ -3875,7 +3877,7 @@ function ClientBirthdayRow({ client, saving, onSave }) {
   }, [currentValue]);
 
   return (
-    <div className="grid gap-3 px-4 py-4 md:grid-cols-[minmax(220px,1fr)_170px_220px] md:items-center md:gap-4">
+    <div className="grid gap-3 px-4 py-4 md:grid-cols-[minmax(0,1fr)_minmax(120px,170px)_minmax(210px,260px)] md:items-center md:gap-4">
       <div className="min-w-0">
         <h3 className="truncate font-semibold text-cream">{client.name || 'Cliente'}</h3>
         <p className="truncate text-sm text-cream/45">{client.email || formatWhatsappDisplay(client.whatsappPhone) || 'Contato não informado'}</p>
@@ -3889,7 +3891,7 @@ function ClientBirthdayRow({ client, saving, onSave }) {
       </div>
 
       <form
-        className="flex flex-col gap-2 sm:flex-row"
+        className="flex min-w-0 flex-col gap-2 sm:flex-row"
         onSubmit={(event) => {
           event.preventDefault();
           onSave(client, dateValue);
@@ -3899,12 +3901,12 @@ function ClientBirthdayRow({ client, saving, onSave }) {
           type="date"
           value={dateValue}
           onChange={(event) => setDateValue(event.target.value)}
-          className="min-h-11 flex-1 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-cream outline-none [color-scheme:dark] focus:border-gold/40"
+          className="min-h-11 min-w-0 flex-1 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-cream outline-none [color-scheme:dark] focus:border-gold/40"
         />
         <button
           type="submit"
           disabled={saving || dateValue === currentValue}
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-gold/25 bg-gold/10 px-4 py-2 text-sm font-bold text-gold-light transition hover:bg-gold/20 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/5 disabled:text-cream/35"
+          className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-gold/25 bg-gold/10 px-4 py-2 text-sm font-bold text-gold-light transition hover:bg-gold/20 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/5 disabled:text-cream/35"
         >
           <FiSave />
           {saving ? 'Salvando...' : 'Salvar'}
