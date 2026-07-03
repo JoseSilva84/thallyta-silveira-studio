@@ -36,7 +36,7 @@ export default function WhatsappPromptModal() {
       return
     }
 
-    const result = await updateWhatsapp(normalizeBrazilWhatsapp(phone), dateOfBirth || undefined)
+    const result = await updateWhatsapp(normalizeBrazilWhatsapp(phone), dateOfBirth || null)
     if (!result.ok) {
       setError(result.error)
     } else {

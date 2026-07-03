@@ -68,6 +68,13 @@ const getAvailableBirthdayReward = async (userId) => {
   if (!userId) return null;
   const today = getCurrentStudioDateParts();
 
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, dateOfBirth: true },
+  });
+
+  if (!isBirthdayToday(user?.dateOfBirth, today)) return null;
+
   const reward = await prisma.birthdayReward.findFirst({
     where: {
       userId,
@@ -77,13 +84,6 @@ const getAvailableBirthdayReward = async (userId) => {
     orderBy: { createdAt: 'asc' },
   });
   if (reward) return reward;
-
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { id: true, dateOfBirth: true },
-  });
-
-  if (!isBirthdayToday(user?.dateOfBirth, today)) return null;
 
   return prisma.birthdayReward.upsert({
     where: {

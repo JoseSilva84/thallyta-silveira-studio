@@ -246,14 +246,15 @@ export const getMe = async (req, res) => {
 export const updateWhatsapp = async (req, res) => {
   try {
     const normalizedWhatsapp = normalizeWhatsappPhone(req.body.whatsappPhone);
+    const hasDateOfBirthField = Object.prototype.hasOwnProperty.call(req.body, 'dateOfBirth');
     const dataToUpdate = {
       whatsappPhone: normalizedWhatsapp,
       whatsappOptIn: true,
       whatsappUpdatedAt: new Date(),
     };
 
-    if (req.body.dateOfBirth) {
-      dataToUpdate.dateOfBirth = new Date(`${req.body.dateOfBirth}T12:00:00Z`);
+    if (hasDateOfBirthField) {
+      dataToUpdate.dateOfBirth = normalizeDateOfBirth(req.body.dateOfBirth);
     }
 
     const user = await prisma.user.update({
@@ -265,7 +266,7 @@ export const updateWhatsapp = async (req, res) => {
     res.json(user);
   } catch (error) {
     console.error('Erro ao atualizar WhatsApp:', error);
-    if (error.message?.includes('WhatsApp')) {
+    if (error.message?.includes('WhatsApp') || error.message?.includes('nascimento')) {
       return res.status(400).json({ error: error.message });
     }
     res.status(500).json({ error: 'Erro interno ao atualizar WhatsApp.' });

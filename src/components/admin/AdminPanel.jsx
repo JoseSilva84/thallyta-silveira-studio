@@ -1013,7 +1013,6 @@ export default function AdminPanel() {
           <TabButton active={activeTab === 'finance'} icon={<FiDollarSign />} label="Financeiro" count={financeExpenses.length || undefined} onClick={() => setActiveTab('finance')} />
           <TabButton active={activeTab === 'loyalty'} icon={<FiAward />} label="Fidelidade" count={pendingCompletionBookings.length} onClick={() => setActiveTab('loyalty')} />
           <TabButton active={activeTab === 'clients'} icon={<FiUsers />} label="Clientes" count={clientProfiles.length} onClick={() => setActiveTab('clients')} />
-          <TabButton active={activeTab === 'birthdays'} icon={<FiGift />} label="Aniversariantes" count={pendingBirthdayCount} onClick={() => setActiveTab('birthdays')} />
           <TabButton active={activeTab === 'gallery'} icon={<FiImage />} label="Galeria" count={images.length} onClick={() => setActiveTab('gallery')} />
           <TabButton active={activeTab === 'testimonials'} icon={<FiMessageSquare />} label="Depoimentos" count={testimonials.length} onClick={() => setActiveTab('testimonials')} />
           <TabButton active={activeTab === 'blocks'} icon={<FiSlash />} label="Bloqueios" count={scheduleBlocks.length || undefined} onClick={() => setActiveTab('blocks')} />
@@ -1152,6 +1151,8 @@ export default function AdminPanel() {
             onCancelBooking={handleCancelBooking}
             onMarkRemainingPaid={handleMarkRemainingPaid}
             onDeleteClient={handleDeleteClient}
+            birthdayCount={pendingBirthdayCount}
+            onOpenBirthdays={() => setActiveTab('birthdays')}
           />
         )}
 
@@ -3455,7 +3456,7 @@ function LoyaltyAdminView({ clients, pendingBookings, onCompleteService, onUndoC
   );
 }
 
-function ClientsView({ clients, search, setSearch, statusBadge, onCompleteService, onUndoCompleteService, onMarkNoShow, onMarkRemainingPaid, onDeleteClient }) {
+function ClientsView({ clients, search, setSearch, statusBadge, onCompleteService, onUndoCompleteService, onMarkNoShow, onMarkRemainingPaid, onDeleteClient, birthdayCount, onOpenBirthdays }) {
   const [selectedKey, setSelectedKey] = useState(null);
   const normalizedSearch = search.trim().toLowerCase();
   const filteredClients = useMemo(() => (
@@ -3477,6 +3478,22 @@ function ClientsView({ clients, search, setSearch, statusBadge, onCompleteServic
           <h2 className="text-xl font-semibold text-gold-light">Clientes</h2>
           <p className="mt-1 text-sm text-cream/45">{clients.length} cliente(s) encontrados no histórico</p>
         </div>
+
+        <button
+          type="button"
+          onClick={onOpenBirthdays}
+          className="mb-4 flex w-full items-center justify-between gap-3 rounded-xl border border-gold/25 bg-gold/10 px-4 py-3 text-left text-sm font-semibold text-gold-light transition hover:border-gold/45 hover:bg-gold/15"
+        >
+          <span className="flex min-w-0 items-center gap-2">
+            <FiGift className="shrink-0" />
+            <span>Aniversariantes</span>
+          </span>
+          {birthdayCount > 0 && (
+            <span className="shrink-0 rounded-full bg-gold/20 px-2 py-0.5 text-xs font-bold text-gold">
+              {birthdayCount}
+            </span>
+          )}
+        </button>
 
         <label className="mb-4 flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-cream/70 focus-within:border-gold/40">
           <FiSearch className="text-gold" />
