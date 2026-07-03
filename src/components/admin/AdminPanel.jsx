@@ -4835,6 +4835,26 @@ function statusBadge(status) {
 // ScheduleBlocksTab — Aba de Bloqueios de Agenda
 // ─────────────────────────────────────────────────────────────────────────────
 
+function BookingBlockWarningToast({ bookings }) {
+  return (
+    <div className="space-y-2">
+      <p className="text-sm font-semibold text-cream">Há reserva no horário bloqueado:</p>
+      <div className="space-y-1">
+        {bookings.map((booking) => (
+          <p key={booking.id} className="text-xs text-cream/75">
+            <strong className="text-gold-light">{formatTime(booking.scheduledAt)}</strong>
+            {' '}com <strong className="text-cream">{booking.clientName}</strong>
+            {booking.service ? ` - ${booking.service}` : ''}
+          </p>
+        ))}
+      </div>
+      <p className="text-xs text-cream/55">
+        O bloqueio foi criado mesmo assim; os agendamentos existentes não foram cancelados.
+      </p>
+    </div>
+  );
+}
+
 const emptyBlockForm = {
   date: '',
   allDay: true,
@@ -4871,7 +4891,7 @@ function ScheduleBlocksTab({ blocks, fetching, onRefresh, onCreate, onDelete }) 
     }
     try {
       setSaving(true);
-      await onCreate({
+      const createdBlock = await onCreate({
         date: form.date,
         allDay: form.allDay,
         startTime: form.allDay ? undefined : form.startTime,
@@ -4879,6 +4899,12 @@ function ScheduleBlocksTab({ blocks, fetching, onRefresh, onCreate, onDelete }) 
         reason: form.reason.trim() || undefined,
       });
       toast.success('Bloqueio criado! A agenda do site já impedirá novos agendamentos nesse período.');
+      if (createdBlock?.bookingWarnings?.length) {
+        toast.warning(
+          <BookingBlockWarningToast bookings={createdBlock.bookingWarnings} />,
+          { autoClose: 9000 },
+        );
+      }
       setForm(emptyBlockForm);
     } catch (error) {
       toast.error(error.message || 'Erro ao criar bloqueio.');

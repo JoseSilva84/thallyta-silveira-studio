@@ -51,6 +51,53 @@ function publicBlock(block) {
   };
 }
 
+function publicBookingWarning(booking) {
+  return {
+    id: booking.id,
+    scheduledAt: booking.scheduledAt,
+    endTime: booking.endTime,
+    clientName: booking.attendeeName || booking.user?.name || 'Cliente',
+    service: booking.service || '',
+  };
+}
+
+async function findBookingsInBlockPeriod(start, end) {
+  return prisma.booking.findMany({
+    where: {
+      status: {
+        notIn: ['cancelled', 'no_show'],
+      },
+      scheduledAt: {
+        lt: end,
+      },
+      OR: [
+        {
+          endTime: {
+            gt: start,
+          },
+        },
+        {
+          endTime: null,
+          scheduledAt: {
+            gte: start,
+          },
+        },
+      ],
+    },
+    select: {
+      id: true,
+      service: true,
+      scheduledAt: true,
+      endTime: true,
+      attendeeName: true,
+      user: {
+        select: { name: true },
+      },
+    },
+    orderBy: { scheduledAt: 'asc' },
+  });
+}
+
 async function fetchLegacyCalBlocks() {
   if (!process.env.CAL_API_KEY) return [];
 
@@ -142,6 +189,7 @@ export async function createScheduleBlock(req, res) {
   }
 
   try {
+    const existingBookings = await findBookingsInBlockPeriod(start, end);
     const block = await prisma.scheduleBlock.create({
       data: {
         start,
@@ -152,7 +200,10 @@ export async function createScheduleBlock(req, res) {
       },
     });
 
-    return res.status(201).json(publicBlock(block));
+    return res.status(201).json({
+      ...publicBlock(block),
+      bookingWarnings: existingBookings.map(publicBookingWarning),
+    });
   } catch (error) {
     console.error('[scheduleBlock] createScheduleBlock unexpected error:', error);
     return res.status(500).json({ error: 'Erro interno ao criar bloqueio.' });
