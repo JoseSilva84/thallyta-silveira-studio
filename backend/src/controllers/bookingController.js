@@ -13,6 +13,19 @@ const bookingInclude = {
   payment: true,
 };
 
+const normalizeWhatsappPhone = (value) => {
+  const digits = String(value || '').replace(/\D/g, '');
+  if (!digits) return null;
+
+  const withCountryCode = digits.startsWith('55') ? digits : `55${digits}`;
+
+  if (withCountryCode.length < 12 || withCountryCode.length > 13) {
+    throw new Error('Informe um WhatsApp valido com DDD.');
+  }
+
+  return withCountryCode;
+};
+
 const attachNotificationStatus = async (bookings) => {
   const items = Array.isArray(bookings) ? bookings : [bookings].filter(Boolean);
   if (!items.length) return bookings;
@@ -215,6 +228,64 @@ export const getPublicAgenda = async (req, res) => {
   } catch (error) {
     console.error('Erro ao buscar agenda publica:', error);
     res.status(500).json({ error: 'Erro ao buscar agenda.' });
+  }
+};
+
+export const updateClientWhatsapp = async (req, res) => {
+  try {
+    const normalizedWhatsapp = normalizeWhatsappPhone(req.body.whatsappPhone);
+    const userId = String(req.body.userId || '').trim();
+    const bookingIds = Array.isArray(req.body.bookingIds)
+      ? req.body.bookingIds.map((id) => String(id || '').trim()).filter(Boolean)
+      : [];
+
+    if (!normalizedWhatsapp) {
+      return res.status(400).json({ error: 'Informe um WhatsApp valido com DDD.' });
+    }
+
+    if (!userId && bookingIds.length === 0) {
+      return res.status(400).json({ error: 'Cliente sem cadastro ou agendamentos para atualizar.' });
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      const updates = {};
+
+      if (userId) {
+        updates.user = await tx.user.update({
+          where: { id: userId },
+          data: {
+            whatsappPhone: normalizedWhatsapp,
+            whatsappOptIn: true,
+            whatsappUpdatedAt: new Date(),
+          },
+          select: { id: true, name: true, email: true, whatsappPhone: true },
+        });
+      }
+
+      if (bookingIds.length > 0) {
+        updates.bookings = await tx.booking.updateMany({
+          where: { id: { in: bookingIds } },
+          data: { attendeePhone: normalizedWhatsapp },
+        });
+      }
+
+      return updates;
+    });
+
+    res.json({
+      message: 'WhatsApp atualizado com sucesso.',
+      user: result.user || null,
+      updatedBookings: result.bookings?.count || 0,
+    });
+  } catch (error) {
+    console.error('Erro ao atualizar WhatsApp do cliente:', error);
+    if (error.message?.includes('WhatsApp')) {
+      return res.status(400).json({ error: error.message });
+    }
+    if (error.code === 'P2025') {
+      return res.status(404).json({ error: 'Cliente nao encontrado.' });
+    }
+    res.status(500).json({ error: 'Erro interno ao atualizar WhatsApp do cliente.' });
   }
 };
 

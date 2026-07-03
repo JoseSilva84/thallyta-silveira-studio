@@ -34,6 +34,7 @@ import {
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { allServices } from '../../data/services.js';
+import { formatBrazilWhatsappInput, normalizeBrazilWhatsapp, onlyDigits } from '../../utils/phone.js';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 const ADMIN_SESSION_EXPIRED_MESSAGE = 'Sua sessão expirou. Entre novamente como administradora para continuar.';
@@ -751,6 +752,38 @@ export default function AdminPanel() {
     });
   };
 
+  const handleUpdateClientWhatsapp = async (client, whatsappPhone) => {
+    const digits = onlyDigits(whatsappPhone);
+    if (digits.length < 10) {
+      toast.error('Informe um WhatsApp valido com DDD.');
+      return false;
+    }
+
+    try {
+      const token = requireAdminToken();
+      const res = await fetch(`${API}/bookings/clients/whatsapp`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          userId: client.userId || null,
+          bookingIds: client.bookings.map((booking) => booking.id),
+          whatsappPhone: normalizeBrazilWhatsapp(whatsappPhone),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(handleAuthFailure(data.error) || 'Erro ao atualizar WhatsApp');
+      toast.success(data.message || 'WhatsApp atualizado.');
+      await fetchBookings();
+      return true;
+    } catch (error) {
+      toast.error(error.message || 'Erro ao atualizar WhatsApp.');
+      return false;
+    }
+  };
+
   const handleSyncBookingToCal = async (booking) => {
     try {
       const res = await fetch(`${API}/bookings/${booking.id}/sync-cal`, {
@@ -1209,6 +1242,7 @@ export default function AdminPanel() {
             onCancelBooking={handleCancelBooking}
             onMarkRemainingPaid={handleMarkRemainingPaid}
             onDeleteClient={handleDeleteClient}
+            onUpdateClientWhatsapp={handleUpdateClientWhatsapp}
             birthdayCount={pendingBirthdayCount}
             onOpenBirthdays={() => setActiveTab('birthdays')}
           />
@@ -3521,8 +3555,11 @@ function LoyaltyAdminView({ clients, pendingBookings, onCompleteService, onUndoC
   );
 }
 
-function ClientsView({ clients, search, setSearch, statusBadge, onCompleteService, onUndoCompleteService, onMarkNoShow, onMarkRemainingPaid, onDeleteClient, birthdayCount, onOpenBirthdays }) {
+function ClientsView({ clients, search, setSearch, statusBadge, onCompleteService, onUndoCompleteService, onMarkNoShow, onMarkRemainingPaid, onDeleteClient, onUpdateClientWhatsapp, birthdayCount, onOpenBirthdays }) {
   const [selectedKey, setSelectedKey] = useState(null);
+  const [editingWhatsappKey, setEditingWhatsappKey] = useState(null);
+  const [whatsappDraft, setWhatsappDraft] = useState('');
+  const [savingWhatsapp, setSavingWhatsapp] = useState(false);
   const normalizedSearch = search.trim().toLowerCase();
   const filteredClients = useMemo(() => (
     normalizedSearch
@@ -3530,11 +3567,37 @@ function ClientsView({ clients, search, setSearch, statusBadge, onCompleteServic
       : clients
   ), [clients, normalizedSearch]);
   const selectedClient = filteredClients.find((client) => client.key === selectedKey) || filteredClients[0] || null;
+  const isEditingWhatsapp = Boolean(selectedClient && editingWhatsappKey === selectedClient.key);
 
   useEffect(() => {
     if (selectedClient && selectedClient.key !== selectedKey) setSelectedKey(selectedClient.key);
     if (!selectedClient && selectedKey) setSelectedKey(null);
   }, [selectedClient, selectedKey]);
+
+  useEffect(() => {
+    if (!selectedClient || editingWhatsappKey === selectedClient.key) return;
+    setEditingWhatsappKey(null);
+    setWhatsappDraft('');
+  }, [editingWhatsappKey, selectedClient]);
+
+  const startWhatsappEdit = () => {
+    if (!selectedClient) return;
+    setEditingWhatsappKey(selectedClient.key);
+    setWhatsappDraft(formatBrazilWhatsappInput(selectedClient.phone));
+  };
+
+  const cancelWhatsappEdit = () => {
+    setEditingWhatsappKey(null);
+    setWhatsappDraft('');
+  };
+
+  const saveWhatsappEdit = async () => {
+    if (!selectedClient || !onUpdateClientWhatsapp) return;
+    setSavingWhatsapp(true);
+    const saved = await onUpdateClientWhatsapp(selectedClient, whatsappDraft);
+    setSavingWhatsapp(false);
+    if (saved) cancelWhatsappEdit();
+  };
 
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(300px,420px)_1fr]">
@@ -3613,8 +3676,54 @@ function ClientsView({ clients, search, setSearch, statusBadge, onCompleteServic
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-bold uppercase tracking-wider text-gold-light/60">Detalhes do cliente</p>
                   <h2 className="mt-1 truncate text-2xl font-bold text-cream">{selectedClient.name}</h2>
-                  <p className="mt-1 text-sm text-cream/50">{selectedClient.email || selectedClient.phone || 'Contato nao informado'}</p>
-                  {selectedClient.email && selectedClient.phone && <p className="text-sm text-cream/40">{selectedClient.phone}</p>}
+                  {selectedClient.email && <p className="mt-1 text-sm text-cream/50">{selectedClient.email}</p>}
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    {isEditingWhatsapp ? (
+                      <>
+                        <input
+                          value={whatsappDraft}
+                          onChange={(event) => setWhatsappDraft(formatBrazilWhatsappInput(event.target.value))}
+                          placeholder="WhatsApp com DDD"
+                          className="min-h-[36px] w-full max-w-[220px] rounded-lg border border-gold/25 bg-black/35 px-3 text-sm text-cream outline-none transition placeholder:text-cream/30 focus:border-gold/60 sm:w-auto"
+                        />
+                        <button
+                          type="button"
+                          onClick={saveWhatsappEdit}
+                          disabled={savingWhatsapp}
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-emerald-400/25 bg-emerald-500/10 text-emerald-200 transition hover:border-emerald-400/45 hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                          title="Salvar WhatsApp"
+                          aria-label="Salvar WhatsApp"
+                        >
+                          <FiSave size={15} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={cancelWhatsappEdit}
+                          disabled={savingWhatsapp}
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-cream/60 transition hover:border-white/20 hover:text-cream disabled:cursor-not-allowed disabled:opacity-60"
+                          title="Cancelar edicao"
+                          aria-label="Cancelar edicao do WhatsApp"
+                        >
+                          <FiX size={16} />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-sm text-cream/40">{selectedClient.phone || 'WhatsApp nao informado'}</p>
+                        {onUpdateClientWhatsapp && (
+                          <button
+                            type="button"
+                            onClick={startWhatsappEdit}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gold/20 bg-gold/10 text-gold-light transition hover:border-gold/45 hover:bg-gold/15"
+                            title="Editar WhatsApp"
+                            aria-label="Editar WhatsApp"
+                          >
+                            <FiEdit3 size={14} />
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
                   <p className="text-sm text-cream/40 mt-1">
                     Aniversário: {selectedClient.dateOfBirth ? new Date(selectedClient.dateOfBirth).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'UTC' }) : 'Não informado'}
                   </p>
@@ -4636,7 +4745,8 @@ function buildClientProfiles(bookings) {
         key,
         name: booking.attendeeName || booking.user?.name || 'Cliente',
         email: booking.attendeeEmail || booking.user?.email || '',
-        phone: booking.attendeePhone || booking.user?.whatsappPhone || '',
+        userId: booking.user?.id || null,
+        phone: booking.user?.whatsappPhone || booking.attendeePhone || '',
         dateOfBirth: booking.user?.dateOfBirth || null,
         bookings: [],
         serviceCounts: new Map(),
@@ -4656,6 +4766,12 @@ function buildClientProfiles(bookings) {
     const client = clients.get(key);
     if (!client.dateOfBirth && booking.user?.dateOfBirth) {
       client.dateOfBirth = booking.user.dateOfBirth;
+    }
+    if (!client.userId && booking.user?.id) {
+      client.userId = booking.user.id;
+    }
+    if (booking.user?.whatsappPhone) {
+      client.phone = booking.user.whatsappPhone;
     }
     const services = splitServices(booking.service);
     const serviceList = services.length ? services : ['Servico nao informado'];
@@ -4700,10 +4816,12 @@ function buildClientProfiles(bookings) {
         .map(([name, count]) => ({ name, count }))
         .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
         .slice(0, 6);
-      const contact = client.email || client.phone || 'Sem contato';
+      const contactPhone = formatWhatsappDisplay(client.phone);
+      const contact = client.email || contactPhone || 'Sem contato';
 
       return {
         ...client,
+        phone: contactPhone,
         contact,
         bookings: bookingsSorted,
         firstBooking: bookingsSorted[bookingsSorted.length - 1] || null,
