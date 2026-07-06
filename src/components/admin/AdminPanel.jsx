@@ -2435,7 +2435,7 @@ function BookingsTable({ bookings, fetching, statusFilter, statusBadge, onComple
                     </td>
                     <td className="px-4 py-3 text-sm text-cream/70 whitespace-nowrap">
                       <div className="font-semibold text-cream/80">{formatCurrency(payment.total)}</div>
-                      <div className="mt-1 text-xs text-emerald-300">Pago: {formatCurrency(payment.paid)}</div>
+                      <div className="mt-1 text-xs text-emerald-300">{formatPaidAmountLabel(booking, payment)}</div>
                       <div className={`text-xs ${payment.remaining > 0 ? 'text-amber-300' : 'text-cream/40'}`}>
                         Restante: {formatCurrency(payment.remaining)}
                       </div>
@@ -5309,7 +5309,7 @@ function ClientsView({ clients, search, setSearch, statusBadge, onCompleteServic
                           const payment = getBookingPaymentSummary(booking);
                           return (
                             <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold">
-                              <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-emerald-300">Pago: {formatCurrency(payment.paid)}</span>
+                              <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-emerald-300">{formatPaidAmountLabel(booking, payment)}</span>
                               <span className={`rounded-full border px-3 py-1 ${payment.remaining > 0 ? 'border-amber-300/25 bg-amber-300/10 text-amber-100' : 'border-white/10 bg-white/5 text-cream/45'}`}>
                                 À receber: {formatCurrency(payment.remaining)}
                               </span>
@@ -5508,7 +5508,7 @@ function MobileClientDetailsModal({
                       <h4 className="text-base font-semibold text-cream">{booking.service || 'Servico nao informado'}</h4>
                       <p className="mt-1 text-sm text-cream/45">{formatDate(booking.scheduledAt)} - {formatTime(booking.scheduledAt)}{booking.endTime && ` ate ${formatTime(booking.endTime)}`}</p>
                       <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold">
-                        <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-emerald-300">Pago: {formatCurrency(payment.paid)}</span>
+                        <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-emerald-300">{formatPaidAmountLabel(booking, payment)}</span>
                         <span className={`rounded-full border px-3 py-1 ${payment.remaining > 0 ? 'border-amber-300/25 bg-amber-300/10 text-amber-100' : 'border-white/10 bg-white/5 text-cream/45'}`}>
                           À receber: {formatCurrency(payment.remaining)}
                         </span>
@@ -6809,14 +6809,27 @@ function formatCurrency(value) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 }
 
+function getMercadoPagoMethod(payment) {
+  const mercadoPago = payment?.metadata?.mercadoPago || {};
+  return {
+    method: String(payment?.paymentMethodId || mercadoPago.paymentMethodId || '').toLowerCase(),
+    type: String(payment?.paymentTypeId || mercadoPago.paymentTypeId || '').toLowerCase(),
+  };
+}
+
 function formatPaymentMethod(payment) {
-  const method = String(payment?.paymentMethodId || '').toLowerCase();
-  const type = String(payment?.paymentTypeId || '').toLowerCase();
+  const { method, type } = getMercadoPagoMethod(payment);
   if (method === 'pix') return 'Pix';
-  if (type === 'credit_card') return 'Cartao credito';
-  if (type === 'debit_card') return 'Cartao debito';
-  if (type === 'bank_transfer') return method ? method.toUpperCase() : 'Transferencia';
+  if (type === 'credit_card') return 'cartao de credito';
+  if (type === 'debit_card') return 'cartao de debito';
+  if (type === 'bank_transfer') return method ? method.toUpperCase() : 'transferencia';
   return method || type || 'Pagamento';
+}
+
+function formatPaidAmountLabel(booking, paymentSummary = getBookingPaymentSummary(booking)) {
+  const method = booking?.payment ? formatPaymentMethod(booking.payment) : '';
+  const amount = formatCurrency(paymentSummary.paid);
+  return method && method !== 'Pagamento' ? `Pago via ${method}: ${amount}` : `Pago: ${amount}`;
 }
 
 function getBookingPaymentSummary(booking) {
