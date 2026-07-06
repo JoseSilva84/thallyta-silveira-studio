@@ -3040,7 +3040,7 @@ function ErpView({ summary, onOpenTab }) {
                 </div>
               )}
             />
-            <FinanceInlineStat label="A receber" value={formatCurrency(summary.receivables)} valueClassName="text-amber-200" />
+            <FinanceInlineStat label="À receber" value={formatCurrency(summary.receivables)} valueClassName="text-amber-200" />
             <FinanceInlineStat label="7 dias" value={formatCurrency(summary.nextSevenDaysRevenue)} valueClassName="text-gold-light" />
           </div>
         </div>
@@ -3062,7 +3062,7 @@ function ErpView({ summary, onOpenTab }) {
             <p className="text-xs font-bold uppercase tracking-wider text-cream/40">Fluxo do mes</p>
             <div className="mt-4 space-y-4">
               <BarRow label="Recebido" value={formatCurrency(summary.cashIn)} width={summary.cashScale ? (summary.cashIn / summary.cashScale) * 100 : 0} />
-              <BarRow label="A receber" value={formatCurrency(summary.receivables)} width={summary.cashScale ? (summary.receivables / summary.cashScale) * 100 : 0} />
+              <BarRow label="À receber" value={formatCurrency(summary.receivables)} width={summary.cashScale ? (summary.receivables / summary.cashScale) * 100 : 0} />
               <BarRow label="Despesas" value={formatCurrency(summary.cashOut)} width={summary.cashScale ? (summary.cashOut / summary.cashScale) * 100 : 0} />
             </div>
             <div className="mt-5 grid grid-cols-2 gap-3">
@@ -3100,7 +3100,7 @@ function ErpView({ summary, onOpenTab }) {
           </div>
         </ChartPanel>
 
-        <ChartPanel title="Producao proxima">
+        <ChartPanel title="Produção próxima">
           <div className="space-y-3">
             {summary.nextBookings.length === 0 ? (
               <p className="text-sm text-cream/50">Nenhum atendimento futuro na agenda.</p>
@@ -3121,7 +3121,7 @@ function ErpView({ summary, onOpenTab }) {
           </div>
         </ChartPanel>
 
-        <ChartPanel title="Proximos modulos de gestão">
+        <ChartPanel title="Próximos módulos de gestão">
           <div className="space-y-3">
             {summary.nextModules.map((item) => (
               <div key={item.label} className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
@@ -3322,7 +3322,7 @@ function FinanceView({ summary, expenses, fetching, saving, form, setForm, onAdd
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard icon={<FiDollarSign />} label="Recebido" value={formatCurrency(summary.totalPaid)} hint={`${summary.paidBookings} pagamento(s) no mês`} />
-        <MetricCard icon={<FiTrendingUp />} label="A receber" value={formatCurrency(summary.totalRemaining)} hint={`${summary.pendingPayments.length} atendimento(s) no mes`} />
+        <MetricCard icon={<FiTrendingUp />} label="À receber" value={formatCurrency(summary.totalRemaining)} hint={`${summary.pendingPayments.length} atendimento(s) no mes`} />
         <MetricCard icon={<FiTrash2 />} label="Despesas" value={formatCurrency(summary.totalExpenses)} hint={`${summary.expenseCount} lançamento(s) no mês`} />
         <MetricCard icon={<FiBarChart2 />} label="Lucro atual" value={formatCurrency(summary.netProfit)} hint={`Projetado: ${formatCurrency(summary.projectedProfit)}`} />
       </div>
@@ -3647,7 +3647,7 @@ function MonthlyFinanceHistory({ years, onSelectMonth }) {
           <div className="grid grid-cols-2 gap-3">
             <FinanceMiniStat label="Faturamento" value={formatCurrency(activeYear?.totals.income || 0)} tone="success" />
             <FinanceMiniStat label="Despesas" value={formatCurrency(activeYear?.totals.expenses || 0)} tone="danger" />
-            <FinanceMiniStat label="A receber" value={formatCurrency(activeYear?.totals.pending || 0)} tone="warning" />
+            <FinanceMiniStat label="À receber" value={formatCurrency(activeYear?.totals.pending || 0)} tone="warning" />
             <FinanceMiniStat label="Margem" value={`${(activeYear?.margin || 0).toFixed(0)}%`} tone={activeYear?.margin >= 0 ? 'success' : 'danger'} />
           </div>
 
@@ -3747,7 +3747,7 @@ function MonthPickerButton({ month, onSelectMonth }) {
   const preview = [
     `Entradas: ${formatCurrency(month.income)}`,
     `Despesas: ${formatCurrency(month.expenses)}`,
-    `A receber: ${formatCurrency(month.pending)}`,
+    `À receber: ${formatCurrency(month.pending)}`,
     `Saldo: ${formatCurrency(month.balance)}`,
   ].join(' | ');
 
@@ -3883,7 +3883,7 @@ function MonthlyFinanceModal({ month, onClose, onDeleteExpense, onEditExpense })
             <div>
               <p className="text-xs font-bold uppercase tracking-wider text-gold-light/70">Resumo financeiro mensal</p>
               <h2 className="mt-1 text-2xl font-semibold capitalize text-gold-light sm:text-3xl">{month.label}</h2>
-              <p className="mt-2 text-sm text-cream/50">Detalhamento de entradas confirmadas, despesas registradas e valores a receber.</p>
+              <p className="mt-2 text-sm text-cream/50">Detalhamento de entradas confirmadas, despesas registradas e valores à receber.</p>
             </div>
             <button
               type="button"
@@ -3943,8 +3943,8 @@ function MonthlyFinanceModal({ month, onClose, onDeleteExpense, onEditExpense })
             />
 
             <MonthlyFinanceList
-              title="A receber"
-              emptyText="Nenhum pagamento pendente neste mes."
+              title="À receber"
+              emptyText="Nenhum pagamento pendente neste mês."
               items={month.pendingItems}
               renderItem={(item) => (
                 <FinanceMovementRow
@@ -5241,7 +5241,7 @@ function ClientsView({ clients, search, setSearch, statusBadge, onCompleteServic
                 <SmallStat label="Serviços" value={selectedClient.totalServices} tone="gold" />
                 <SmallStat label="Valor" value={formatCurrency(selectedClient.totalRevenue)} tone="gold" />
                 <SmallStat label="Pago" value={formatCurrency(selectedClient.totalPaid)} tone="success" />
-                <SmallStat label="A receber" value={formatCurrency(selectedClient.totalRemaining)} tone="warning" />
+                <SmallStat label="À receber" value={formatCurrency(selectedClient.totalRemaining)} tone="warning" />
                 <SmallStat label="Faltas" value={selectedClient.noShowCount} tone={selectedClient.noShowCount ? 'danger' : 'default'} />
                 <SmallStat label="Cancelados" value={selectedClient.cancelledCount} tone={selectedClient.cancelledCount ? 'danger' : 'default'} />
               </div>
@@ -5311,7 +5311,7 @@ function ClientsView({ clients, search, setSearch, statusBadge, onCompleteServic
                             <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold">
                               <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-emerald-300">Pago: {formatCurrency(payment.paid)}</span>
                               <span className={`rounded-full border px-3 py-1 ${payment.remaining > 0 ? 'border-amber-300/25 bg-amber-300/10 text-amber-100' : 'border-white/10 bg-white/5 text-cream/45'}`}>
-                                A receber: {formatCurrency(payment.remaining)}
+                                À receber: {formatCurrency(payment.remaining)}
                               </span>
                             </div>
                           );
@@ -5463,7 +5463,7 @@ function MobileClientDetailsModal({
               <SmallStat label="Serviços" value={client.totalServices} tone="gold" />
               <SmallStat label="Valor" value={formatCurrency(client.totalRevenue)} tone="gold" />
               <SmallStat label="Pago" value={formatCurrency(client.totalPaid)} tone="success" />
-              <SmallStat label="A receber" value={formatCurrency(client.totalRemaining)} tone="warning" />
+              <SmallStat label="À receber" value={formatCurrency(client.totalRemaining)} tone="warning" />
               <SmallStat label="Faltas" value={client.noShowCount} tone={client.noShowCount ? 'danger' : 'default'} />
               <SmallStat label="Cancelados" value={client.cancelledCount} tone={client.cancelledCount ? 'danger' : 'default'} />
             </div>
@@ -5510,7 +5510,7 @@ function MobileClientDetailsModal({
                       <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold">
                         <span className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1 text-emerald-300">Pago: {formatCurrency(payment.paid)}</span>
                         <span className={`rounded-full border px-3 py-1 ${payment.remaining > 0 ? 'border-amber-300/25 bg-amber-300/10 text-amber-100' : 'border-white/10 bg-white/5 text-cream/45'}`}>
-                          A receber: {formatCurrency(payment.remaining)}
+                          À receber: {formatCurrency(payment.remaining)}
                         </span>
                       </div>
                       <div className="mt-3">
@@ -6359,7 +6359,7 @@ function buildErpSummary({
       impact: 'alto',
     },
     {
-      label: 'Comissoes e retiradas',
+      label: 'Comissões e retiradas',
       text: 'Separar dinheiro do negócio, retiradas pessoais e lucro reinvestido sem misturar caixa.',
       impact: 'médio',
     },
