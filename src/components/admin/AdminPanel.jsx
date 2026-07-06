@@ -1233,7 +1233,7 @@ export default function AdminPanel() {
   const relationshipCount = clientProfiles.length + (crmStats.missing || 0);
   const adminTabs = [
     { value: 'bookings', icon: <FiCalendar />, label: 'Agenda', count: bookings.length + unresolvedApprovedPayments.length },
-    { value: 'erp', icon: <FiBriefcase />, label: 'ERP', count: erpSummary.priorityCount || undefined },
+    { value: 'erp', icon: <FiBriefcase />, label: 'Gestão', count: erpSummary.priorityCount || undefined },
     { value: 'analytics', icon: <FiBarChart2 />, label: 'Análises' },
     { value: 'finance', icon: <FiDollarSign />, label: 'Financeiro', count: financeExpenses.length || undefined },
     { value: 'relationship', icon: <FiUsers />, label: 'Relacionamento', count: relationshipCount || undefined },
@@ -1369,7 +1369,7 @@ export default function AdminPanel() {
 
         <div className="admin-tablet-portrait-hidden mb-6 hidden flex-wrap gap-2 rounded-2xl border border-white/10 bg-black/30 p-1 backdrop-blur-md md:flex">
           <TabButton active={activeTab === 'bookings'} icon={<FiCalendar />} label="Agenda" count={bookings.length + unresolvedApprovedPayments.length} onClick={() => setActiveTab('bookings')} />
-          <TabButton active={activeTab === 'erp'} icon={<FiBriefcase />} label="ERP" count={erpSummary.priorityCount || undefined} onClick={() => setActiveTab('erp')} />
+          <TabButton active={activeTab === 'erp'} icon={<FiBriefcase />} label="Gestão" count={erpSummary.priorityCount || undefined} onClick={() => setActiveTab('erp')} />
           <TabButton active={activeTab === 'analytics'} icon={<FiBarChart2 />} label="Análises" onClick={() => setActiveTab('analytics')} />
           <TabButton active={activeTab === 'finance'} icon={<FiDollarSign />} label="Financeiro" count={financeExpenses.length || undefined} onClick={() => setActiveTab('finance')} />
           <div
@@ -2746,7 +2746,7 @@ function ErpView({ summary, onOpenTab }) {
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard icon={<FiBriefcase />} label="Saude ERP" value={`${summary.healthScore}%`} hint={summary.healthLabel} />
+        <MetricCard icon={<FiBriefcase />} label="Saúde da gestão" value={`${summary.healthScore}%`} hint={summary.healthLabel} />
         <MetricCard icon={<FiDollarSign />} label="Caixa projetado" value={formatCurrency(summary.projectedCash)} hint={`${formatCurrency(summary.cashIn)} recebido, ${formatCurrency(summary.cashOut)} em despesas`} />
         <MetricCard icon={<FiTrendingUp />} label="Margem do mes" value={`${summary.margin.toFixed(0)}%`} hint={`Lucro atual: ${formatCurrency(summary.netProfit)}`} />
         <MetricCard icon={<FiAlertTriangle />} label="Prioridades" value={summary.priorityCount} hint={`${summary.overdueReceivables.length} vencida(s), ${summary.unresolvedPaymentCount} alerta(s)`} />
@@ -2756,7 +2756,7 @@ function ErpView({ summary, onOpenTab }) {
         <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-gold-light/60">Visao gerencial</p>
-            <h2 className="mt-1 text-2xl font-semibold text-gold-light">ERP do studio</h2>
+              <h2 className="mt-1 text-2xl font-semibold text-gold-light">Gestão do studio</h2>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-cream/50">
               Painel para decidir o que cobrar, confirmar, vender e organizar no mes atual.
             </p>
@@ -2844,7 +2844,7 @@ function ErpView({ summary, onOpenTab }) {
           </div>
         </ChartPanel>
 
-        <ChartPanel title="Proximos modulos ERP">
+        <ChartPanel title="Proximos modulos de gestão">
           <div className="space-y-3">
             {summary.nextModules.map((item) => (
               <div key={item.label} className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
