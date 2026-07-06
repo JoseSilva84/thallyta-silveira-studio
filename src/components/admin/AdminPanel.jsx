@@ -2987,7 +2987,7 @@ function ErpView({ summary, onOpenTab }) {
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard icon={<FiBriefcase />} label="Saúde da gestão" value={`${summary.healthScore}%`} hint={summary.healthLabel} />
         <MetricCard icon={<FiDollarSign />} label="Caixa projetado" value={formatCurrency(summary.projectedCash)} hint={`${formatCurrency(summary.cashIn)} recebido, ${formatCurrency(summary.cashOut)} em despesas`} />
-        <MetricCard icon={<FiTrendingUp />} label="Margem do mes" value={`${summary.margin.toFixed(0)}%`} hint={`Lucro atual: ${formatCurrency(summary.netProfit)}`} />
+        <MetricCard icon={<FiTrendingUp />} label="Margem do mês" value={`${summary.margin.toFixed(0)}%`} hint={`Lucro atual: ${formatCurrency(summary.netProfit)}`} />
         <MetricCard icon={<FiAlertTriangle />} label="Prioridades" value={summary.priorityCount} hint={`${summary.overdueReceivables.length} vencida(s), ${summary.unresolvedPaymentCount} alerta(s)`} />
       </div>
 
@@ -2997,7 +2997,7 @@ function ErpView({ summary, onOpenTab }) {
             <p className="text-xs font-bold uppercase tracking-wider text-gold-light/60">Visao gerencial</p>
               <h2 className="mt-1 text-2xl font-semibold text-gold-light">Gestão do studio</h2>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-cream/50">
-              Painel para decidir o que cobrar, confirmar, vender e organizar no mes atual.
+              Painel para decidir o que cobrar, confirmar, vender e organizar no mês atual.
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
@@ -3017,7 +3017,7 @@ function ErpView({ summary, onOpenTab }) {
                     </span>
                   </div>
                   <p className="mt-3 text-sm leading-relaxed text-cream/60">
-                    Resume a saude do mes em uma nota de 0 a 100. A nota cai quando existem pendencias operacionais ou financeiras.
+                    Resume a saúde do mês em uma nota de 0 a 100. A nota cai quando existem pendências operacionais ou financeiras.
                   </p>
                   <div className="mt-4 grid gap-2 text-xs text-cream/55">
                     <span className="flex items-center justify-between gap-3 rounded-lg bg-white/[0.04] px-3 py-2">
@@ -3200,7 +3200,7 @@ function AnalyticsView({ analytics }) {
         <ChartPanel title="Agenda próxima">
           <div className="space-y-3">
             {analytics.nextBookings.length === 0 ? (
-              <p className="text-sm text-cream/50">Nenhum proximo agendamento.</p>
+              <p className="text-sm text-cream/50">Nenhum próximo agendamento.</p>
             ) : analytics.nextBookings.map((booking) => (
               <div key={booking.id} className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
                 <div className="flex items-center justify-between gap-3">
@@ -3220,7 +3220,7 @@ function AnalyticsView({ analytics }) {
             items={analytics.serviceStats}
             valueKey="count"
             valueFormatter={(value) => `${value}x`}
-            emptyText="Ainda não ha serviços suficientes para analisar."
+            emptyText="Ainda não há serviços suficientes para analisar."
           />
         </ChartPanel>
 
@@ -3245,7 +3245,7 @@ function AnalyticsView({ analytics }) {
             items={analytics.hourStats}
             valueKey="count"
             valueFormatter={(value) => `${value}x`}
-            emptyText="Ainda nao ha horarios suficientes para analisar."
+            emptyText="Ainda não há horários suficientes para analisar."
           />
         </ChartPanel>
 
@@ -3321,9 +3321,9 @@ function FinanceView({ summary, expenses, fetching, saving, form, setForm, onAdd
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard icon={<FiDollarSign />} label="Recebido" value={formatCurrency(summary.totalPaid)} hint={`${summary.paidBookings} pagamento(s) no mes`} />
+        <MetricCard icon={<FiDollarSign />} label="Recebido" value={formatCurrency(summary.totalPaid)} hint={`${summary.paidBookings} pagamento(s) no mês`} />
         <MetricCard icon={<FiTrendingUp />} label="A receber" value={formatCurrency(summary.totalRemaining)} hint={`${summary.pendingPayments.length} atendimento(s) no mes`} />
-        <MetricCard icon={<FiTrash2 />} label="Despesas" value={formatCurrency(summary.totalExpenses)} hint={`${summary.expenseCount} lancamento(s) no mes`} />
+        <MetricCard icon={<FiTrash2 />} label="Despesas" value={formatCurrency(summary.totalExpenses)} hint={`${summary.expenseCount} lançamento(s) no mês`} />
         <MetricCard icon={<FiBarChart2 />} label="Lucro atual" value={formatCurrency(summary.netProfit)} hint={`Projetado: ${formatCurrency(summary.projectedProfit)}`} />
       </div>
 
@@ -3337,7 +3337,7 @@ function FinanceView({ summary, expenses, fetching, saving, form, setForm, onAdd
                 Referente a <span className="capitalize">{summary.currentMonthLabel}</span>
               </span>
             </div>
-            <p className="mt-2 text-sm text-cream/45">Caixa mensal iniciado no primeiro dia e fechado no ultimo dia do mes.</p>
+            <p className="mt-2 text-sm text-cream/45">Caixa mensal iniciado no primeiro dia e fechado no último dia do mes.</p>
           </div>
           <div className="grid gap-3 text-sm sm:grid-cols-3">
             <FinanceInlineStat label="Valor em serviços" value={formatCurrency(summary.totalRevenue)} />
@@ -3357,7 +3357,7 @@ function FinanceView({ summary, expenses, fetching, saving, form, setForm, onAdd
                   items={summary.monthStats}
                   valueKey="value"
                   valueFormatter={formatCurrency}
-                  emptyText="Ainda nao ha valores suficientes para analisar."
+                  emptyText="Ainda não há valores suficientes para analisar."
                 />
               )}
             </div>
@@ -3611,7 +3611,7 @@ function MonthlyFinanceHistory({ years, onSelectMonth }) {
           <p className="text-xs font-bold uppercase tracking-wider text-gold-light/60">Historico mensal</p>
           <h3 className="mt-1 text-xl font-semibold text-cream">Consulta por ano e mes</h3>
           <p className="mt-2 max-w-2xl text-sm text-cream/45">
-            Escolha o ano e passe o mouse sobre um mes para ver uma previa; clique para abrir os lancamentos detalhados.
+            Escolha o ano e passe o mouse sobre um mes para ver uma prévia; clique para abrir os lançamentos detalhados.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -3661,19 +3661,19 @@ function MonthlyFinanceHistory({ years, onSelectMonth }) {
         <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
           <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-cream/40">Analise financeira</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-cream/40">Análise financeira</p>
               <h4 className="mt-1 text-lg font-semibold text-cream">Comparativo mensal de {activeYear?.year}</h4>
             </div>
             {hasValues && (
               <p className="text-sm text-cream/45">
-                Melhor mes: <span className="capitalize text-gold-light">{activeYear.bestIncomeMonth?.monthLabel}</span>
+                Melhor mês: <span className="capitalize text-gold-light">{activeYear.bestIncomeMonth?.monthLabel}</span>
               </p>
             )}
           </div>
 
           {!hasValues ? (
             <p className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-cream/45">
-              Ainda nao ha movimentacao suficiente neste ano para montar os graficos.
+              Ainda não há movimentação suficiente neste ano para montar os gráficos.
             </p>
           ) : (
             <div className="grid gap-4 2xl:grid-cols-2">
@@ -3776,7 +3776,7 @@ function MonthPickerButton({ month, onSelectMonth }) {
         <span className="mt-2 grid gap-1 text-cream/55">
           <span>Entradas: <b className="text-emerald-300">{formatCurrency(month.income)}</b></span>
           <span>Despesas: <b className="text-red-200">{formatCurrency(month.expenses)}</b></span>
-          <span>A receber: <b className="text-amber-200">{formatCurrency(month.pending)}</b></span>
+          <span>À receber: <b className="text-amber-200">{formatCurrency(month.pending)}</b></span>
           <span>Saldo: <b className={balanceTone}>{formatCurrency(month.balance)}</b></span>
         </span>
       </span>
