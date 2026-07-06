@@ -90,6 +90,7 @@ export default function AdminPanel() {
 
   const [activeTab, setActiveTab] = useState('bookings');
   const [mobileAdminMenuOpen, setMobileAdminMenuOpen] = useState(false);
+  const [managementMenuOpen, setManagementMenuOpen] = useState(false);
   const [clientsMenuOpen, setClientsMenuOpen] = useState(false);
   const [bookingView, setBookingView] = useState('table');
   const [monthCursor, setMonthCursor] = useState(() => new Date());
@@ -1229,24 +1230,27 @@ export default function AdminPanel() {
   const moveBirthdayMonth = (amount) => {
     setBirthdayMonthCursor((current) => new Date(current.getFullYear(), current.getMonth() + amount, 1));
   };
+  const managementActive = ['erp', 'analytics', 'finance'].includes(activeTab);
   const relationshipActive = ['clients', 'loyalty', 'crm'].includes(activeTab);
+  const managementCount = erpSummary.priorityCount || financeExpenses.length || 0;
   const relationshipCount = clientProfiles.length + (crmStats.missing || 0);
   const adminTabs = [
     { value: 'bookings', icon: <FiCalendar />, label: 'Agenda', count: bookings.length + unresolvedApprovedPayments.length },
-    { value: 'erp', icon: <FiBriefcase />, label: 'Gestão', count: erpSummary.priorityCount || undefined },
-    { value: 'analytics', icon: <FiBarChart2 />, label: 'Análises' },
-    { value: 'finance', icon: <FiDollarSign />, label: 'Financeiro', count: financeExpenses.length || undefined },
+    { value: 'management', icon: <FiBriefcase />, label: 'Administração', count: managementCount || undefined },
     { value: 'relationship', icon: <FiUsers />, label: 'Relacionamento', count: relationshipCount || undefined },
     { value: 'gallery', icon: <FiImage />, label: 'Galeria', count: images.length },
     { value: 'testimonials', icon: <FiMessageSquare />, label: 'Depoimentos', count: testimonials.length },
     { value: 'blocks', icon: <FiSlash />, label: 'Bloqueios', count: scheduleBlocks.length || undefined },
   ];
-  const activeAdminTab = relationshipActive
+  const activeAdminTab = managementActive
+    ? { value: 'management', icon: <FiBriefcase />, label: 'Administração', count: managementCount || undefined }
+    : relationshipActive
     ? { value: 'relationship', icon: <FiUsers />, label: 'Relacionamento', count: relationshipCount || undefined }
     : adminTabs.find((tab) => tab.value === activeTab) || adminTabs[0];
   const selectAdminTab = (tab) => {
     setActiveTab(tab.value);
     setMobileAdminMenuOpen(false);
+    setManagementMenuOpen(false);
     setClientsMenuOpen(false);
   };
 
@@ -1314,14 +1318,20 @@ export default function AdminPanel() {
                   <button
                     type="button"
                     onClick={() => {
+                      if (tab.value === 'management') {
+                        setManagementMenuOpen((open) => !open);
+                        setClientsMenuOpen(false);
+                        return;
+                      }
                       if (tab.value === 'relationship') {
                         setClientsMenuOpen((open) => !open);
+                        setManagementMenuOpen(false);
                         return;
                       }
                       selectAdminTab(tab);
                     }}
                     className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition ${
-                      (tab.value === 'relationship' ? relationshipActive : activeTab === tab.value)
+                      (tab.value === 'management' ? managementActive : tab.value === 'relationship' ? relationshipActive : activeTab === tab.value)
                         ? 'bg-gradient-to-r from-gold to-gold-light text-dark'
                         : 'text-cream/70 hover:bg-white/5 hover:text-cream'
                     }`}
@@ -1331,11 +1341,35 @@ export default function AdminPanel() {
                       <span className="truncate">{tab.label}</span>
                     </span>
                     {typeof tab.count === 'number' && tab.count > 0 && (
-                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${(tab.value === 'relationship' ? relationshipActive : activeTab === tab.value) ? 'bg-dark/20 text-dark' : 'bg-gold/20 text-gold'}`}>
+                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${(tab.value === 'management' ? managementActive : tab.value === 'relationship' ? relationshipActive : activeTab === tab.value) ? 'bg-dark/20 text-dark' : 'bg-gold/20 text-gold'}`}>
                         {tab.count}
                       </span>
                     )}
                   </button>
+                  {tab.value === 'management' && managementMenuOpen && (
+                    <div className="mt-1 space-y-1">
+                      <MobileSubTabButton
+                        active={activeTab === 'erp'}
+                        icon={<FiBriefcase />}
+                        label="Gestão"
+                        count={erpSummary.priorityCount || undefined}
+                        onClick={() => selectAdminTab({ value: 'erp' })}
+                      />
+                      <MobileSubTabButton
+                        active={activeTab === 'analytics'}
+                        icon={<FiBarChart2 />}
+                        label="Análises"
+                        onClick={() => selectAdminTab({ value: 'analytics' })}
+                      />
+                      <MobileSubTabButton
+                        active={activeTab === 'finance'}
+                        icon={<FiDollarSign />}
+                        label="Financeiro"
+                        count={financeExpenses.length || undefined}
+                        onClick={() => selectAdminTab({ value: 'finance' })}
+                      />
+                    </div>
+                  )}
                   {tab.value === 'relationship' && clientsMenuOpen && (
                     <div className="mt-1 space-y-1">
                       <MobileSubTabButton
@@ -1369,12 +1403,104 @@ export default function AdminPanel() {
 
         <div className="admin-tablet-portrait-hidden mb-6 hidden flex-wrap gap-2 rounded-2xl border border-white/10 bg-black/30 p-1 backdrop-blur-md md:flex">
           <TabButton active={activeTab === 'bookings'} icon={<FiCalendar />} label="Agenda" count={bookings.length + unresolvedApprovedPayments.length} onClick={() => setActiveTab('bookings')} />
-          <TabButton active={activeTab === 'erp'} icon={<FiBriefcase />} label="Gestão" count={erpSummary.priorityCount || undefined} onClick={() => setActiveTab('erp')} />
-          <TabButton active={activeTab === 'analytics'} icon={<FiBarChart2 />} label="Análises" onClick={() => setActiveTab('analytics')} />
-          <TabButton active={activeTab === 'finance'} icon={<FiDollarSign />} label="Financeiro" count={financeExpenses.length || undefined} onClick={() => setActiveTab('finance')} />
           <div
             className="group relative"
-            onMouseEnter={() => setClientsMenuOpen(true)}
+            onMouseEnter={() => {
+              setManagementMenuOpen(true);
+              setClientsMenuOpen(false);
+            }}
+            onMouseLeave={() => setManagementMenuOpen(false)}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                setManagementMenuOpen((open) => !open);
+              }}
+              onFocus={() => setManagementMenuOpen(true)}
+              className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition-all ${
+                managementActive
+                  ? 'bg-gradient-to-r from-gold to-gold-light text-dark shadow-lg shadow-gold/20'
+                  : 'text-cream/55 hover:bg-white/5 hover:text-cream'
+              }`}
+            >
+              <FiBriefcase />
+              Administração
+              {managementCount > 0 && (
+                <span className={`rounded-full px-2 py-0.5 text-xs ${managementActive ? 'bg-dark/20 text-dark' : 'bg-gold/20 text-gold'}`}>
+                  {managementCount}
+                </span>
+              )}
+              <FiChevronDown className="text-xs" />
+            </button>
+            {managementMenuOpen && (
+              <div className="absolute left-0 top-[calc(100%+0.35rem)] z-30 min-w-48 rounded-2xl border border-white/10 bg-[#090706]/95 p-2 shadow-2xl shadow-black/50 backdrop-blur-md">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('erp');
+                    setManagementMenuOpen(false);
+                  }}
+                  className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition ${
+                    activeTab === 'erp'
+                      ? 'bg-gradient-to-r from-gold to-gold-light text-dark'
+                      : 'text-cream/70 hover:bg-white/5 hover:text-cream'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <FiBriefcase /> Gestão
+                  </span>
+                  {erpSummary.priorityCount > 0 && (
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${activeTab === 'erp' ? 'bg-dark/20 text-dark' : 'bg-gold/20 text-gold'}`}>
+                      {erpSummary.priorityCount}
+                    </span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('analytics');
+                    setManagementMenuOpen(false);
+                  }}
+                  className={`mt-1 flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition ${
+                    activeTab === 'analytics'
+                      ? 'bg-gradient-to-r from-gold to-gold-light text-dark'
+                      : 'text-cream/70 hover:bg-white/5 hover:text-cream'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <FiBarChart2 /> Análises
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('finance');
+                    setManagementMenuOpen(false);
+                  }}
+                  className={`mt-1 flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition ${
+                    activeTab === 'finance'
+                      ? 'bg-gradient-to-r from-gold to-gold-light text-dark'
+                      : 'text-cream/70 hover:bg-white/5 hover:text-cream'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <FiDollarSign /> Financeiro
+                  </span>
+                  {financeExpenses.length > 0 && (
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${activeTab === 'finance' ? 'bg-dark/20 text-dark' : 'bg-gold/20 text-gold'}`}>
+                      {financeExpenses.length}
+                    </span>
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
+          <div
+            className="group relative"
+            onMouseEnter={() => {
+              setClientsMenuOpen(true);
+              setManagementMenuOpen(false);
+            }}
             onMouseLeave={() => setClientsMenuOpen(false)}
           >
             <button
