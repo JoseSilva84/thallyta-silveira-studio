@@ -580,3 +580,22 @@ export const notifyBirthdayReward = async (user, amount = 0) => {
     text: buildBirthdayRewardMessage(user, amount),
   });
 };
+
+export const sendCrmProfileInvite = async (user, link) => {
+  const clientChatId = toChatId(user.whatsappPhone);
+  if (!clientChatId) return { skipped: true, reason: 'Cliente sem WhatsApp' };
+
+  const firstName = String(user.name || '').trim().split(/\s+/)[0] || 'cliente';
+  const text = [
+    `Oi, ${firstName}! Tudo bem?`,
+    '',
+    'Para deixar seu atendimento no Studio Thallyta Silveira ainda mais personalizado, voce pode preencher rapidinho suas preferencias.',
+    '',
+    `Acesse: ${link}`,
+    '',
+    'E opcional e leva menos de 1 minuto.',
+  ].join('\n');
+
+  const result = await sendText({ chatId: clientChatId, text });
+  return { ...result, text };
+};

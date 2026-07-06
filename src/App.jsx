@@ -18,7 +18,9 @@ import RegisterPage from './pages/RegisterPage.jsx'
 import QuickBookingPage from './pages/QuickBookingPage.jsx'
 import ProtectedRoute from './components/auth/ProtectedRoute.jsx'
 import MyBookingsPage from './pages/MyBookingsPage.jsx'
+import PreferencesPage from './pages/PreferencesPage.jsx'
 import WhatsappPromptModal from './components/auth/WhatsappPromptModal.jsx'
+import CrmProfilePromptModal from './components/auth/CrmProfilePromptModal.jsx'
 import GoogleBrowserWarning from './components/auth/GoogleBrowserWarning.jsx'
 import Seo from './components/Seo.jsx'
 import { useAuth } from './context/AuthContext.jsx'
@@ -116,6 +118,14 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/preferencias"
+          element={
+            <ProtectedRoute>
+              <PreferencesPage />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Painel Admin — apenas administradores autenticados */}
         <Route
@@ -131,6 +141,7 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <WhatsappPromptModal />
+      <CrmProfilePromptModal />
       <GoogleBrowserWarning />
     </div>
   )

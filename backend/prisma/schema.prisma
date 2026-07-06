@@ -33,6 +33,7 @@ model User {
   bookingPayments BookingPayment[]
   financeExpenses FinanceExpense[]
   birthdayRewards BirthdayReward[]
+  crmProfile   ClientCrmProfile?
 }
 
 model Booking {
@@ -167,4 +168,29 @@ model BirthdayReward {
   @@unique([userId, year])
   @@index([year])
   @@index([status])
+}
+
+model ClientCrmProfile {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  source            String?
+  status            String   @default("active")
+  interests         Json?
+  preferredPeriods  Json?
+  contactPreference String?
+  tags              Json?
+  notes             String?
+  allowPromotions   Boolean  @default(true)
+  dismissedAt       DateTime?
+  completedAt       DateTime?
+  inviteSentAt      DateTime?
+  inviteSentById    String?
+  lastInviteMessage String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([status])
+  @@index([completedAt])
+  @@index([inviteSentAt])
 }

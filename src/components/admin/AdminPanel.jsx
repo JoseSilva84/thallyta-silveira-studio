@@ -22,6 +22,7 @@ import {
   FiRefreshCw,
   FiSave,
   FiSearch,
+  FiSend,
   FiStar,
   FiClock,
   FiPlus,
@@ -104,6 +105,12 @@ export default function AdminPanel() {
   const [showPaymentIssueModal, setShowPaymentIssueModal] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
   const [clientSearch, setClientSearch] = useState('');
+  const [crmClients, setCrmClients] = useState([]);
+  const [crmStats, setCrmStats] = useState({ total: 0, completed: 0, missing: 0, withWhatsappMissing: 0, invited: 0 });
+  const [crmInviteLink, setCrmInviteLink] = useState('');
+  const [fetchingCrm, setFetchingCrm] = useState(true);
+  const [sendingCrmInviteIds, setSendingCrmInviteIds] = useState({});
+  const [sendingCrmBulkInvite, setSendingCrmBulkInvite] = useState(false);
   const [monthlyBirthdays, setMonthlyBirthdays] = useState({ year: null, month: null, monthName: '', celebrants: [] });
   const [fetchingBirthdays, setFetchingBirthdays] = useState(true);
   const [clientBirthdays, setClientBirthdays] = useState([]);
@@ -334,6 +341,26 @@ export default function AdminPanel() {
     }
   }, [handleAuthFailure, requireAdminToken]);
 
+  const fetchCrmClients = useCallback(async () => {
+    try {
+      setFetchingCrm(true);
+      const token = requireAdminToken();
+      const res = await fetch(`${API}/crm/admin/clients`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(handleAuthFailure(data.error) || 'Falha ao buscar CRM');
+      setCrmClients(Array.isArray(data.clients) ? data.clients : []);
+      setCrmStats(data.stats || { total: 0, completed: 0, missing: 0, withWhatsappMissing: 0, invited: 0 });
+      setCrmInviteLink(data.inviteLink || '');
+    } catch (error) {
+      toast.error(error.message || 'Erro ao carregar CRM');
+      console.error(error);
+    } finally {
+      setFetchingCrm(false);
+    }
+  }, [handleAuthFailure, requireAdminToken]);
+
   const fetchScheduleBlocks = useCallback(async () => {
     try {
       setFetchingBlocks(true);
@@ -391,7 +418,8 @@ export default function AdminPanel() {
     fetchTestimonials();
     fetchFinanceExpenses();
     fetchClientBirthdays();
-  }, [fetchApprovedPaymentsWithoutBooking, fetchBookings, fetchClientBirthdays, fetchFinanceExpenses, fetchImages, fetchTestimonials]);
+    fetchCrmClients();
+  }, [fetchApprovedPaymentsWithoutBooking, fetchBookings, fetchClientBirthdays, fetchCrmClients, fetchFinanceExpenses, fetchImages, fetchTestimonials]);
 
   useEffect(() => {
     fetchMonthlyBirthdays();
@@ -412,6 +440,7 @@ export default function AdminPanel() {
     fetchFinanceExpenses();
     fetchMonthlyBirthdays();
     fetchClientBirthdays();
+    fetchCrmClients();
     if (activeTab === 'blocks') fetchScheduleBlocks();
   };
 
@@ -734,6 +763,76 @@ export default function AdminPanel() {
     }
   };
 
+  const handleSendCrmInvite = async (client) => {
+    setSendingCrmInviteIds((current) => ({ ...current, [client.id]: true }));
+    try {
+      const token = requireAdminToken();
+      const res = await fetch(`${API}/crm/admin/clients/${client.id}/invite`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(handleAuthFailure(data.error) || 'Erro ao enviar convite CRM');
+      toast.success(data.message || 'Convite CRM enviado.');
+      await fetchCrmClients();
+    } catch (error) {
+      toast.error(error.message || 'Erro ao enviar convite CRM.');
+    } finally {
+      setSendingCrmInviteIds((current) => {
+        const next = { ...current };
+        delete next[client.id];
+        return next;
+      });
+    }
+  };
+
+  const handleSendCrmInviteToMissing = async () => {
+    showConfirmToast({
+      message: `Enviar convite pelo WhatsApp para ${crmStats.withWhatsappMissing || 0} cliente(s) sem perfil CRM preenchido?`,
+      confirmLabel: 'Enviar',
+      onConfirm: async () => {
+        setSendingCrmBulkInvite(true);
+        try {
+          const token = requireAdminToken();
+          const res = await fetch(`${API}/crm/admin/invite-missing`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({}),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(handleAuthFailure(data.error) || 'Erro ao enviar convites CRM');
+          toast.success(`${data.sent || 0} convite(s) enviado(s).`);
+          if (data.failed) toast.info(`${data.failed} convite(s) nao foram enviados.`);
+          await fetchCrmClients();
+        } catch (error) {
+          toast.error(error.message || 'Erro ao enviar convites CRM.');
+        } finally {
+          setSendingCrmBulkInvite(false);
+        }
+      },
+    });
+  };
+
+  const handleCopyCrmInviteText = async () => {
+    const text = [
+      'Oi! Para deixar seu atendimento no Studio Thallyta Silveira ainda mais personalizado, voce pode preencher rapidinho suas preferencias.',
+      '',
+      `Acesse: ${crmInviteLink || `${window.location.origin}/preferencias`}`,
+      '',
+      'E opcional e leva menos de 1 minuto.',
+    ].join('\n');
+
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success('Texto do convite copiado.');
+    } catch {
+      toast.info(text);
+    }
+  };
+
   const handleDeleteClient = async (clientEmail, clientName) => {
     showConfirmToast({
       message: `Excluir "${clientName}" e todos os dados (agendamentos, pagamentos, selos)? Esta ação não pode ser desfeita.`,
@@ -749,6 +848,7 @@ export default function AdminPanel() {
           if (!res.ok) throw new Error(data.error || 'Erro ao excluir cliente');
           toast.success(data.message || 'Cliente excluído com sucesso.');
           await fetchBookings();
+          await fetchCrmClients();
         } catch (error) {
           toast.error(error.message);
         }
@@ -766,6 +866,7 @@ export default function AdminPanel() {
     if (saved) {
       await fetchBookings();
       await fetchClientBirthdays();
+      await fetchCrmClients();
     }
     return saved;
   };
@@ -795,6 +896,7 @@ export default function AdminPanel() {
       if (!res.ok) throw new Error(handleAuthFailure(data.error) || 'Erro ao atualizar WhatsApp');
       toast.success(data.message || 'WhatsApp atualizado.');
       await fetchBookings();
+      await fetchCrmClients();
       return true;
     } catch (error) {
       toast.error(error.message || 'Erro ao atualizar WhatsApp.');
@@ -1086,6 +1188,7 @@ export default function AdminPanel() {
     { value: 'finance', icon: <FiDollarSign />, label: 'Financeiro', count: financeExpenses.length || undefined },
     { value: 'loyalty', icon: <FiAward />, label: 'Fidelidade', count: pendingCompletionBookings.length },
     { value: 'clients', icon: <FiUsers />, label: 'Clientes', count: clientProfiles.length },
+    { value: 'crm', icon: <FiSend />, label: 'CRM', count: crmStats.missing || undefined },
     { value: 'gallery', icon: <FiImage />, label: 'Galeria', count: images.length },
     { value: 'testimonials', icon: <FiMessageSquare />, label: 'Depoimentos', count: testimonials.length },
     { value: 'blocks', icon: <FiSlash />, label: 'Bloqueios', count: scheduleBlocks.length || undefined },
@@ -1187,6 +1290,7 @@ export default function AdminPanel() {
           <TabButton active={activeTab === 'finance'} icon={<FiDollarSign />} label="Financeiro" count={financeExpenses.length || undefined} onClick={() => setActiveTab('finance')} />
           <TabButton active={activeTab === 'loyalty'} icon={<FiAward />} label="Fidelidade" count={pendingCompletionBookings.length} onClick={() => setActiveTab('loyalty')} />
           <TabButton active={activeTab === 'clients'} icon={<FiUsers />} label="Clientes" count={clientProfiles.length} onClick={() => setActiveTab('clients')} />
+          <TabButton active={activeTab === 'crm'} icon={<FiSend />} label="CRM" count={crmStats.missing || undefined} onClick={() => setActiveTab('crm')} />
           <TabButton active={activeTab === 'gallery'} icon={<FiImage />} label="Galeria" count={images.length} onClick={() => setActiveTab('gallery')} />
           <TabButton active={activeTab === 'testimonials'} icon={<FiMessageSquare />} label="Depoimentos" count={testimonials.length} onClick={() => setActiveTab('testimonials')} />
           <TabButton active={activeTab === 'blocks'} icon={<FiSlash />} label="Bloqueios" count={scheduleBlocks.length || undefined} onClick={() => setActiveTab('blocks')} />
@@ -1329,6 +1433,21 @@ export default function AdminPanel() {
             onUpdateClientBirthday={handleUpdateClientBirthday}
             birthdayCount={pendingBirthdayCount}
             onOpenBirthdays={() => setActiveTab('birthdays')}
+          />
+        )}
+
+        {activeTab === 'crm' && (
+          <CrmAdminView
+            clients={crmClients}
+            stats={crmStats}
+            inviteLink={crmInviteLink}
+            fetching={fetchingCrm}
+            sendingIds={sendingCrmInviteIds}
+            sendingBulk={sendingCrmBulkInvite}
+            onRefresh={fetchCrmClients}
+            onSendInvite={handleSendCrmInvite}
+            onSendBulkInvite={handleSendCrmInviteToMissing}
+            onCopyInviteText={handleCopyCrmInviteText}
           />
         )}
 
@@ -3637,6 +3756,242 @@ function LoyaltyAdminView({ clients, pendingBookings, onCompleteService, onUndoC
       </section>
     </div>
   );
+}
+
+function CrmAdminView({ clients, stats, inviteLink, fetching, sendingIds, sendingBulk, onRefresh, onSendInvite, onSendBulkInvite, onCopyInviteText }) {
+  const [filter, setFilter] = useState('missing');
+  const [search, setSearch] = useState('');
+
+  const filteredClients = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return clients
+      .filter((client) => {
+        if (filter === 'completed') return client.hasCompletedProfile;
+        if (filter === 'invited') return Boolean(client.profile?.inviteSentAt);
+        if (filter === 'no_whatsapp') return !client.hasWhatsapp;
+        if (filter === 'all') return true;
+        return !client.hasCompletedProfile;
+      })
+      .filter((client) => {
+        if (!term) return true;
+        return [
+          client.name,
+          client.email,
+          client.whatsappPhone,
+          client.profile?.source,
+          client.profile?.contactPreference,
+          ...(client.profile?.interests || []),
+          ...(client.profile?.preferredPeriods || []),
+        ].filter(Boolean).join(' ').toLowerCase().includes(term);
+      });
+  }, [clients, filter, search]);
+
+  const filters = [
+    { value: 'missing', label: 'Pendentes', count: stats.missing },
+    { value: 'completed', label: 'Preenchidos', count: stats.completed },
+    { value: 'invited', label: 'Convidados', count: stats.invited },
+    { value: 'no_whatsapp', label: 'Sem WhatsApp', count: clients.filter((client) => !client.hasWhatsapp).length },
+    { value: 'all', label: 'Todos', count: stats.total },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <section className="rounded-2xl border border-gold/20 bg-black/40 p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider text-gold-light/60">CRM</p>
+            <h2 className="mt-1 text-2xl font-semibold text-cream">Perfil e relacionamento das clientes</h2>
+            <p className="mt-2 max-w-2xl text-sm text-cream/50">
+              Camada separada do agendamento rapido. Use para coletar preferencias e convidar clientes pelo WhatsApp.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={onRefresh}
+              className="inline-flex items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-cream/60 hover:border-gold/30 hover:text-gold-light"
+            >
+              <FiRefreshCw /> Atualizar
+            </button>
+            <button
+              type="button"
+              onClick={onCopyInviteText}
+              className="inline-flex items-center gap-2 rounded-full border border-gold/25 px-4 py-2 text-sm font-semibold text-gold-light hover:bg-gold/10"
+            >
+              <FiMessageSquare /> Copiar texto
+            </button>
+            <button
+              type="button"
+              onClick={onSendBulkInvite}
+              disabled={sendingBulk || !stats.withWhatsappMissing}
+              className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-gold to-gold-light px-4 py-2 text-sm font-bold text-dark disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <FiSend /> {sendingBulk ? 'Enviando...' : 'Enviar pendentes'}
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <SmallStat label="Clientes" value={stats.total || 0} tone="gold" />
+          <SmallStat label="Preenchidos" value={stats.completed || 0} tone="success" />
+          <SmallStat label="Pendentes" value={stats.missing || 0} tone={stats.missing ? 'warning' : 'default'} />
+          <SmallStat label="Com WhatsApp" value={stats.withWhatsappMissing || 0} tone="gold" />
+          <SmallStat label="Convidados" value={stats.invited || 0} tone="default" />
+        </div>
+
+        {inviteLink && (
+          <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-xs text-cream/45">
+            Link do formulario: <span className="break-all text-gold-light">{inviteLink}</span>
+          </div>
+        )}
+      </section>
+
+      <section className="space-y-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap gap-2">
+            {filters.map((item) => (
+              <SegmentedButton key={item.value} active={filter === item.value} onClick={() => setFilter(item.value)}>
+                {item.label} {typeof item.count === 'number' ? `(${item.count})` : ''}
+              </SegmentedButton>
+            ))}
+          </div>
+
+          <div className="relative w-full lg:max-w-sm">
+            <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gold/50" />
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Buscar cliente ou preferencia"
+              className="w-full rounded-xl border border-white/10 bg-white/[0.04] py-3 pl-11 pr-4 text-sm text-cream outline-none transition placeholder:text-cream/30 focus:border-gold/50"
+            />
+          </div>
+        </div>
+
+        {fetching ? (
+          <div className="rounded-2xl border border-white/10 bg-black/35 p-6 text-sm text-cream/50">Carregando CRM...</div>
+        ) : filteredClients.length === 0 ? (
+          <div className="rounded-2xl border border-white/10 bg-black/35 p-6 text-sm text-cream/50">Nenhuma cliente encontrada neste filtro.</div>
+        ) : (
+          <div className="grid gap-4">
+            {filteredClients.map((client) => (
+              <CrmClientCard
+                key={client.id}
+                client={client}
+                sending={Boolean(sendingIds[client.id])}
+                onSendInvite={() => onSendInvite(client)}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function CrmClientCard({ client, sending, onSendInvite }) {
+  const profile = client.profile || {};
+  const sourceLabel = crmSourceLabel(profile.source);
+  const completed = client.hasCompletedProfile;
+  const phoneDigits = onlyDigits(client.whatsappPhone || '');
+  const whatsappUrl = phoneDigits ? `https://wa.me/${phoneDigits}` : '';
+
+  return (
+    <article className="rounded-2xl border border-white/10 bg-black/35 p-4">
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+        <div className="min-w-0">
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            <span className={`rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wider ${
+              completed
+                ? 'border-emerald-400/25 bg-emerald-500/10 text-emerald-200'
+                : 'border-amber-300/25 bg-amber-300/10 text-amber-100'
+            }`}>
+              {completed ? 'Perfil preenchido' : 'Pendente'}
+            </span>
+            {profile.inviteSentAt && (
+              <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-semibold text-cream/45">
+                Convite: {formatDate(profile.inviteSentAt)}
+              </span>
+            )}
+          </div>
+          <h3 className="truncate text-lg font-semibold text-cream">{client.name}</h3>
+          <p className="mt-1 text-sm text-cream/45">{client.email || 'Email nao informado'} {client.whatsappPhone ? `- ${formatWhatsappDisplay(client.whatsappPhone)}` : ''}</p>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {whatsappUrl && (
+            <a
+              href={whatsappUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-200 hover:bg-emerald-500/15"
+            >
+              <FiMessageSquare /> WhatsApp
+            </a>
+          )}
+          {!completed && client.hasWhatsapp && (
+            <button
+              type="button"
+              onClick={onSendInvite}
+              disabled={sending}
+              className="inline-flex items-center gap-2 rounded-xl border border-gold/25 bg-gold/10 px-4 py-2 text-sm font-semibold text-gold-light hover:bg-gold/15 disabled:opacity-60"
+            >
+              <FiSend /> {sending ? 'Enviando...' : 'Enviar convite'}
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <SmallStat label="Servicos" value={client.summary?.activeBookings || 0} tone="gold" />
+        <SmallStat label="Ticket medio" value={formatCurrency(client.summary?.averageTicket || 0)} tone="gold" />
+        <SmallStat label="Faltas" value={client.summary?.noShowCount || 0} tone={client.summary?.noShowCount ? 'danger' : 'default'} />
+        <SmallStat label="Dias sem voltar" value={client.summary?.daysSinceLastBooking ?? '-'} tone={(client.summary?.daysSinceLastBooking || 0) > 60 ? 'warning' : 'default'} />
+      </div>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+          <p className="mb-3 text-xs font-bold uppercase tracking-wider text-cream/40">Perfil CRM</p>
+          <div className="space-y-2 text-sm text-cream/65">
+            <p>Origem: <strong className="text-cream">{sourceLabel || 'Nao informada'}</strong></p>
+            <p>Contato: <strong className="text-cream">{profile.contactPreference || 'Nao informado'}</strong></p>
+            <p>Promocoes: <strong className="text-cream">{profile.allowPromotions === false ? 'Nao' : 'Sim'}</strong></p>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+          <p className="mb-3 text-xs font-bold uppercase tracking-wider text-cream/40">Preferencias</p>
+          <ChipList items={[...(profile.interests || []), ...(profile.preferredPeriods || [])]} empty="Nenhuma preferencia registrada." />
+          {profile.notes && <p className="mt-3 text-sm leading-relaxed text-cream/60">{profile.notes}</p>}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function ChipList({ items, empty }) {
+  if (!items.length) return <p className="text-sm text-cream/45">{empty}</p>;
+  return (
+    <div className="flex flex-wrap gap-2">
+      {items.map((item) => (
+        <span key={item} className="rounded-full border border-gold/20 bg-gold/10 px-3 py-1 text-xs font-semibold text-gold-light">
+          {item}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function crmSourceLabel(value) {
+  const labels = {
+    instagram: 'Instagram',
+    indicacao: 'Indicacao',
+    google: 'Google',
+    whatsapp: 'WhatsApp',
+    cliente_antiga: 'Ja era cliente',
+    outro: 'Outro',
+  };
+  return labels[value] || value || '';
 }
 
 function ClientsView({ clients, search, setSearch, statusBadge, onCompleteService, onUndoCompleteService, onMarkNoShow, onMarkRemainingPaid, onDeleteClient, onUpdateClientWhatsapp, onUpdateClientBirthday, birthdayCount, onOpenBirthdays }) {
