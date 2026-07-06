@@ -10,6 +10,7 @@ import {
   FiChevronDown,
   FiChevronLeft,
   FiChevronRight,
+  FiBriefcase,
   FiDollarSign,
   FiEdit3,
   FiEye,
@@ -1210,6 +1211,14 @@ export default function AdminPanel() {
 
   const analytics = useMemo(() => buildAnalytics(bookings), [bookings]);
   const financeSummary = useMemo(() => buildFinanceSummary(bookings, financeExpenses), [bookings, financeExpenses]);
+  const erpSummary = useMemo(() => buildErpSummary({
+    analytics,
+    bookings,
+    crmStats,
+    financeSummary,
+    pendingCompletionBookings,
+    unresolvedApprovedPayments,
+  }), [analytics, bookings, crmStats, financeSummary, pendingCompletionBookings, unresolvedApprovedPayments]);
   const calendarDays = useMemo(() => buildCalendarDays(monthCursor, filteredBookings), [monthCursor, filteredBookings]);
   const monthLabel = monthCursor.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
 
@@ -1224,6 +1233,7 @@ export default function AdminPanel() {
   const relationshipCount = clientProfiles.length + (crmStats.missing || 0);
   const adminTabs = [
     { value: 'bookings', icon: <FiCalendar />, label: 'Agenda', count: bookings.length + unresolvedApprovedPayments.length },
+    { value: 'erp', icon: <FiBriefcase />, label: 'ERP', count: erpSummary.priorityCount || undefined },
     { value: 'analytics', icon: <FiBarChart2 />, label: 'Análises' },
     { value: 'finance', icon: <FiDollarSign />, label: 'Financeiro', count: financeExpenses.length || undefined },
     { value: 'relationship', icon: <FiUsers />, label: 'Relacionamento', count: relationshipCount || undefined },
@@ -1359,6 +1369,7 @@ export default function AdminPanel() {
 
         <div className="admin-tablet-portrait-hidden mb-6 hidden flex-wrap gap-2 rounded-2xl border border-white/10 bg-black/30 p-1 backdrop-blur-md md:flex">
           <TabButton active={activeTab === 'bookings'} icon={<FiCalendar />} label="Agenda" count={bookings.length + unresolvedApprovedPayments.length} onClick={() => setActiveTab('bookings')} />
+          <TabButton active={activeTab === 'erp'} icon={<FiBriefcase />} label="ERP" count={erpSummary.priorityCount || undefined} onClick={() => setActiveTab('erp')} />
           <TabButton active={activeTab === 'analytics'} icon={<FiBarChart2 />} label="Análises" onClick={() => setActiveTab('analytics')} />
           <TabButton active={activeTab === 'finance'} icon={<FiDollarSign />} label="Financeiro" count={financeExpenses.length || undefined} onClick={() => setActiveTab('finance')} />
           <div
@@ -1552,6 +1563,10 @@ export default function AdminPanel() {
 
         {activeTab === 'analytics' && (
           <AnalyticsView analytics={analytics} />
+        )}
+
+        {activeTab === 'erp' && (
+          <ErpView summary={erpSummary} onOpenTab={setActiveTab} />
         )}
 
         {activeTab === 'finance' && (
@@ -2720,6 +2735,163 @@ function BookingDetailModal({ booking, onClose, statusBadge, formatTime, onMarkR
   );
 }
 
+
+function ErpView({ summary, onOpenTab }) {
+  const scoreTone = summary.healthScore >= 80
+    ? 'text-emerald-300'
+    : summary.healthScore >= 55
+      ? 'text-amber-200'
+      : 'text-red-200';
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <MetricCard icon={<FiBriefcase />} label="Saude ERP" value={`${summary.healthScore}%`} hint={summary.healthLabel} />
+        <MetricCard icon={<FiDollarSign />} label="Caixa projetado" value={formatCurrency(summary.projectedCash)} hint={`${formatCurrency(summary.cashIn)} recebido, ${formatCurrency(summary.cashOut)} em despesas`} />
+        <MetricCard icon={<FiTrendingUp />} label="Margem do mes" value={`${summary.margin.toFixed(0)}%`} hint={`Lucro atual: ${formatCurrency(summary.netProfit)}`} />
+        <MetricCard icon={<FiAlertTriangle />} label="Prioridades" value={summary.priorityCount} hint={`${summary.overdueReceivables.length} vencida(s), ${summary.unresolvedPaymentCount} alerta(s)`} />
+      </div>
+
+      <section className="rounded-2xl border border-gold/20 bg-black/40 p-5">
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider text-gold-light/60">Visao gerencial</p>
+            <h2 className="mt-1 text-2xl font-semibold text-gold-light">ERP do studio</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-cream/50">
+              Painel para decidir o que cobrar, confirmar, vender e organizar no mes atual.
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <FinanceInlineStat label="Score" value={`${summary.healthScore}%`} valueClassName={scoreTone} />
+            <FinanceInlineStat label="A receber" value={formatCurrency(summary.receivables)} valueClassName="text-amber-200" />
+            <FinanceInlineStat label="7 dias" value={formatCurrency(summary.nextSevenDaysRevenue)} valueClassName="text-gold-light" />
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <p className="text-xs font-bold uppercase tracking-wider text-cream/40">Prioridades operacionais</p>
+              <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-bold text-cream/55">{summary.actions.length}</span>
+            </div>
+            <div className="space-y-3">
+              {summary.actions.map((action) => (
+                <ErpActionCard key={action.label} action={action} onOpenTab={onOpenTab} />
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+            <p className="text-xs font-bold uppercase tracking-wider text-cream/40">Fluxo do mes</p>
+            <div className="mt-4 space-y-4">
+              <BarRow label="Recebido" value={formatCurrency(summary.cashIn)} width={summary.cashScale ? (summary.cashIn / summary.cashScale) * 100 : 0} />
+              <BarRow label="A receber" value={formatCurrency(summary.receivables)} width={summary.cashScale ? (summary.receivables / summary.cashScale) * 100 : 0} />
+              <BarRow label="Despesas" value={formatCurrency(summary.cashOut)} width={summary.cashScale ? (summary.cashOut / summary.cashScale) * 100 : 0} />
+            </div>
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <SmallStat label="Agend. ativos" value={summary.activeBookings} />
+              <SmallStat label="Clientes unicos" value={summary.uniqueClients} />
+              <SmallStat label="Selos pendentes" value={summary.pendingStamps} tone={summary.pendingStamps ? 'warning' : 'success'} />
+              <SmallStat label="CRM incompleto" value={summary.crmMissing} tone={summary.crmMissing ? 'warning' : 'success'} />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="grid gap-6 xl:grid-cols-3">
+        <ChartPanel title="Contas a receber">
+          <div className="space-y-3">
+            {summary.overdueReceivables.length === 0 && summary.upcomingReceivables.length === 0 ? (
+              <p className="text-sm text-cream/50">Nenhuma cobranca pendente para destacar.</p>
+            ) : [...summary.overdueReceivables, ...summary.upcomingReceivables].slice(0, 6).map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onOpenTab('finance')}
+                className={`w-full rounded-xl border p-3 text-left transition hover:border-gold/30 ${item.overdue ? 'border-red-500/20 bg-red-500/[0.06]' : 'border-amber-300/15 bg-amber-300/10'}`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-cream">{item.client}</p>
+                    <p className="mt-1 truncate text-xs text-cream/45">{item.service}</p>
+                  </div>
+                  <span className={item.overdue ? 'text-sm font-bold text-red-200' : 'text-sm font-bold text-amber-200'}>{formatCurrency(item.remaining)}</span>
+                </div>
+                <p className="mt-2 text-xs text-cream/40">{item.overdue ? 'Vencido em' : 'Previsto para'} {formatDate(item.scheduledAt)}</p>
+              </button>
+            ))}
+          </div>
+        </ChartPanel>
+
+        <ChartPanel title="Producao proxima">
+          <div className="space-y-3">
+            {summary.nextBookings.length === 0 ? (
+              <p className="text-sm text-cream/50">Nenhum atendimento futuro na agenda.</p>
+            ) : summary.nextBookings.map((booking) => (
+              <button
+                key={booking.id}
+                type="button"
+                onClick={() => onOpenTab('bookings')}
+                className="w-full rounded-xl border border-white/10 bg-white/[0.03] p-3 text-left transition hover:border-gold/25"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="truncate font-semibold text-cream">{booking.attendeeName || booking.user?.name || 'Cliente'}</span>
+                  <span className="shrink-0 text-xs text-gold">{formatDate(booking.scheduledAt)}</span>
+                </div>
+                <p className="mt-1 truncate text-sm text-cream/55">{formatTime(booking.scheduledAt)} - {booking.service}</p>
+              </button>
+            ))}
+          </div>
+        </ChartPanel>
+
+        <ChartPanel title="Proximos modulos ERP">
+          <div className="space-y-3">
+            {summary.nextModules.map((item) => (
+              <div key={item.label} className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-cream">{item.label}</p>
+                    <p className="mt-1 text-xs leading-relaxed text-cream/45">{item.text}</p>
+                  </div>
+                  <span className="shrink-0 rounded-full border border-gold/20 bg-gold/10 px-2.5 py-1 text-[0.62rem] font-bold uppercase tracking-wider text-gold-light">{item.impact}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </ChartPanel>
+      </div>
+    </div>
+  );
+}
+
+function ErpActionCard({ action, onOpenTab }) {
+  const toneClasses = {
+    danger: 'border-red-500/20 bg-red-500/[0.06] text-red-200',
+    warning: 'border-amber-300/20 bg-amber-300/[0.08] text-amber-100',
+    success: 'border-emerald-400/20 bg-emerald-400/[0.08] text-emerald-200',
+    default: 'border-white/10 bg-white/[0.03] text-cream',
+  };
+
+  return (
+    <article className={`rounded-xl border p-4 ${toneClasses[action.tone] || toneClasses.default}`}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-sm font-semibold text-cream">{action.label}</p>
+          <p className="mt-1 text-sm leading-relaxed text-cream/55">{action.text}</p>
+        </div>
+        {action.tab && (
+          <button
+            type="button"
+            onClick={() => onOpenTab(action.tab)}
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full border border-white/15 px-3 py-2 text-xs font-bold uppercase tracking-wider text-cream transition hover:border-gold/40 hover:text-gold-light"
+          >
+            Abrir
+          </button>
+        )}
+      </div>
+    </article>
+  );
+}
 
 function AnalyticsView({ analytics }) {
   return (
@@ -5469,6 +5641,182 @@ function buildFinanceSummary(bookings, expenses) {
       paidBookings,
       chargeableBookings,
     },
+  };
+}
+
+function buildErpSummary({
+  analytics,
+  bookings,
+  crmStats,
+  financeSummary,
+  pendingCompletionBookings,
+  unresolvedApprovedPayments,
+}) {
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const sevenDaysAhead = new Date(todayStart);
+  sevenDaysAhead.setDate(sevenDaysAhead.getDate() + 7);
+
+  const activeBookings = bookings.filter((booking) => !['cancelled', 'no_show'].includes(booking.status));
+  const receivables = [];
+  let nextSevenDaysRevenue = 0;
+
+  activeBookings.forEach((booking) => {
+    const payment = getBookingPaymentSummary(booking);
+    const scheduledAt = new Date(booking.scheduledAt);
+
+    if (scheduledAt >= todayStart && scheduledAt < sevenDaysAhead) {
+      nextSevenDaysRevenue += payment.total || Number(booking.estimatedValue) || 0;
+    }
+
+    if (payment.remaining > 0) {
+      receivables.push({
+        id: booking.id,
+        client: booking.attendeeName || booking.user?.name || 'Cliente',
+        service: booking.service || booking.payment?.serviceName || 'Servico nao informado',
+        scheduledAt: booking.scheduledAt,
+        remaining: payment.remaining,
+        overdue: scheduledAt < todayStart,
+      });
+    }
+  });
+
+  const overdueReceivables = receivables
+    .filter((item) => item.overdue)
+    .sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt));
+  const upcomingReceivables = receivables
+    .filter((item) => !item.overdue)
+    .sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt));
+  const unresolvedPaymentCount = unresolvedApprovedPayments.length;
+  const crmMissing = crmStats?.missing || 0;
+  const pendingStamps = pendingCompletionBookings.length;
+  const cashIn = financeSummary.totalPaid;
+  const cashOut = financeSummary.totalExpenses;
+  const receivablesTotal = financeSummary.totalRemaining;
+  const projectedCash = cashIn + receivablesTotal - cashOut;
+  const netProfit = financeSummary.netProfit;
+  const margin = cashIn > 0 ? (netProfit / cashIn) * 100 : 0;
+  const cancellationPenalty = analytics.cancellationRate > 25 ? 12 : analytics.cancellationRate > 15 ? 6 : 0;
+  const score = Math.max(0, Math.min(100,
+    100
+    - Math.min(24, overdueReceivables.length * 8)
+    - Math.min(24, unresolvedPaymentCount * 12)
+    - Math.min(16, pendingStamps * 3)
+    - Math.min(14, crmMissing * 1.5)
+    - (netProfit < 0 ? 12 : 0)
+    - cancellationPenalty,
+  ));
+
+  const actions = [];
+
+  if (unresolvedPaymentCount > 0) {
+    actions.push({
+      label: 'Resolver pagamentos aprovados',
+      text: `${unresolvedPaymentCount} pagamento(s) aprovado(s) ainda precisam virar agendamento ou ser marcados como resolvidos.`,
+      tab: 'bookings',
+      tone: 'danger',
+    });
+  }
+
+  if (overdueReceivables.length > 0) {
+    actions.push({
+      label: 'Cobrar valores vencidos',
+      text: `${overdueReceivables.length} atendimento(s) ja passaram da data e ainda tem valor restante em aberto.`,
+      tab: 'finance',
+      tone: 'danger',
+    });
+  }
+
+  if (pendingStamps > 0) {
+    actions.push({
+      label: 'Confirmar presenca',
+      text: `${pendingStamps} atendimento(s) precisam de baixa para liberar fidelidade e manter o historico correto.`,
+      tab: 'loyalty',
+      tone: 'warning',
+    });
+  }
+
+  if (crmMissing > 0) {
+    actions.push({
+      label: 'Completar CRM',
+      text: `${crmMissing} cliente(s) ainda precisam preencher origem, preferencias ou dados de relacionamento.`,
+      tab: 'crm',
+      tone: 'warning',
+    });
+  }
+
+  if (netProfit < 0) {
+    actions.push({
+      label: 'Revisar despesas do mes',
+      text: `O lucro atual esta negativo em ${formatCurrency(Math.abs(netProfit))}. Priorize despesas variaveis e recebimentos pendentes.`,
+      tab: 'finance',
+      tone: 'danger',
+    });
+  }
+
+  if (analytics.missingValueCount > 0) {
+    actions.push({
+      label: 'Corrigir valores ausentes',
+      text: `${analytics.missingValueCount} agendamento(s) ativo(s) estao sem valor, reduzindo a confiabilidade dos indicadores.`,
+      tab: 'analytics',
+      tone: 'warning',
+    });
+  }
+
+  if (actions.length === 0) {
+    actions.push({
+      label: 'Operacao em ordem',
+      text: 'Sem pendencias criticas no momento. Bom momento para revisar metas, fotos de servicos e campanhas para clientes recorrentes.',
+      tab: 'analytics',
+      tone: 'success',
+    });
+  }
+
+  const nextModules = [
+    {
+      label: 'Estoque de produtos',
+      text: 'Controle de esmaltes, gel, descartaveis e alertas de reposicao por consumo estimado em cada servico.',
+      impact: 'alto',
+    },
+    {
+      label: 'Compras e fornecedores',
+      text: 'Cadastro de fornecedores, custos por compra e comparativo de preco para proteger margem.',
+      impact: 'medio',
+    },
+    {
+      label: 'Metas mensais',
+      text: 'Meta de faturamento, agenda ocupada, ticket medio e recorrencia por cliente.',
+      impact: 'alto',
+    },
+    {
+      label: 'Comissoes e retiradas',
+      text: 'Separar dinheiro do negocio, retiradas pessoais e lucro reinvestido sem misturar caixa.',
+      impact: 'medio',
+    },
+  ];
+
+  return {
+    activeBookings: activeBookings.length,
+    actions,
+    cashIn,
+    cashOut,
+    cashScale: Math.max(cashIn, cashOut, receivablesTotal, 1),
+    crmMissing,
+    healthLabel: score >= 80 ? 'Operacao saudavel' : score >= 55 ? 'Exige acompanhamento' : 'Atencao imediata',
+    healthScore: Math.round(score),
+    margin,
+    netProfit,
+    nextBookings: analytics.nextBookings,
+    nextModules,
+    nextSevenDaysRevenue,
+    overdueReceivables,
+    pendingStamps,
+    priorityCount: actions.filter((action) => action.tone !== 'success').length,
+    projectedCash,
+    receivables: receivablesTotal,
+    uniqueClients: analytics.uniqueClients,
+    unresolvedPaymentCount,
+    upcomingReceivables,
   };
 }
 
