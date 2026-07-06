@@ -92,7 +92,7 @@ export default function AdminPanel() {
   const [mobileAdminMenuOpen, setMobileAdminMenuOpen] = useState(false);
   const [managementMenuOpen, setManagementMenuOpen] = useState(false);
   const [clientsMenuOpen, setClientsMenuOpen] = useState(false);
-  const [bookingView, setBookingView] = useState('table');
+  const [bookingView, setBookingView] = useState('calendar');
   const [monthCursor, setMonthCursor] = useState(() => new Date());
   const [birthdayMonthCursor, setBirthdayMonthCursor] = useState(() => new Date());
 
