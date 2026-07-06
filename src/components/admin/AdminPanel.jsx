@@ -192,6 +192,16 @@ export default function AdminPanel() {
   }, [logout, navigate]);
 
   useEffect(() => {
+    if (activeTab !== 'bookings' || bookingView !== 'calendar') return;
+
+    const frame = window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeTab, bookingView]);
+
+  useEffect(() => {
     if (!showAdminBookingModal || !adminBookingForm.serviceId) {
       setAdminBookingAgendaDays([]);
       setAdminBookingAgendaError('');
