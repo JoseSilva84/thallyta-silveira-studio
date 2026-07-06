@@ -1220,18 +1220,19 @@ export default function AdminPanel() {
   const moveBirthdayMonth = (amount) => {
     setBirthdayMonthCursor((current) => new Date(current.getFullYear(), current.getMonth() + amount, 1));
   };
+  const relationshipActive = ['clients', 'loyalty', 'crm'].includes(activeTab);
+  const relationshipCount = clientProfiles.length + (crmStats.missing || 0);
   const adminTabs = [
     { value: 'bookings', icon: <FiCalendar />, label: 'Agenda', count: bookings.length + unresolvedApprovedPayments.length },
     { value: 'analytics', icon: <FiBarChart2 />, label: 'Análises' },
     { value: 'finance', icon: <FiDollarSign />, label: 'Financeiro', count: financeExpenses.length || undefined },
-    { value: 'clients', icon: <FiUsers />, label: 'Clientes', count: clientProfiles.length },
-    { value: 'crm', icon: <FiSend />, label: 'CRM', count: crmStats.missing || undefined },
+    { value: 'relationship', icon: <FiUsers />, label: 'Relacionamento', count: relationshipCount || undefined },
     { value: 'gallery', icon: <FiImage />, label: 'Galeria', count: images.length },
     { value: 'testimonials', icon: <FiMessageSquare />, label: 'Depoimentos', count: testimonials.length },
     { value: 'blocks', icon: <FiSlash />, label: 'Bloqueios', count: scheduleBlocks.length || undefined },
   ];
-  const activeAdminTab = activeTab === 'loyalty'
-    ? { value: 'clients', icon: <FiUsers />, label: 'Clientes', count: clientProfiles.length }
+  const activeAdminTab = relationshipActive
+    ? { value: 'relationship', icon: <FiUsers />, label: 'Relacionamento', count: relationshipCount || undefined }
     : adminTabs.find((tab) => tab.value === activeTab) || adminTabs[0];
   const selectAdminTab = (tab) => {
     setActiveTab(tab.value);
@@ -1302,9 +1303,15 @@ export default function AdminPanel() {
                 <div key={tab.value}>
                   <button
                     type="button"
-                    onClick={() => selectAdminTab(tab)}
+                    onClick={() => {
+                      if (tab.value === 'relationship') {
+                        setClientsMenuOpen((open) => !open);
+                        return;
+                      }
+                      selectAdminTab(tab);
+                    }}
                     className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition ${
-                      activeTab === tab.value
+                      (tab.value === 'relationship' ? relationshipActive : activeTab === tab.value)
                         ? 'bg-gradient-to-r from-gold to-gold-light text-dark'
                         : 'text-cream/70 hover:bg-white/5 hover:text-cream'
                     }`}
@@ -1314,31 +1321,35 @@ export default function AdminPanel() {
                       <span className="truncate">{tab.label}</span>
                     </span>
                     {typeof tab.count === 'number' && tab.count > 0 && (
-                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${activeTab === tab.value ? 'bg-dark/20 text-dark' : 'bg-gold/20 text-gold'}`}>
+                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${(tab.value === 'relationship' ? relationshipActive : activeTab === tab.value) ? 'bg-dark/20 text-dark' : 'bg-gold/20 text-gold'}`}>
                         {tab.count}
                       </span>
                     )}
                   </button>
-                  {tab.value === 'clients' && (
-                    <button
-                      type="button"
-                      onClick={() => selectAdminTab({ value: 'loyalty' })}
-                      className={`mt-1 flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 pl-9 text-sm font-semibold transition ${
-                        activeTab === 'loyalty'
-                          ? 'bg-gradient-to-r from-gold to-gold-light text-dark'
-                          : 'text-cream/55 hover:bg-white/5 hover:text-cream'
-                      }`}
-                    >
-                      <span className="flex min-w-0 items-center gap-3">
-                        <FiAward />
-                        <span className="truncate">Fidelidade</span>
-                      </span>
-                      {pendingCompletionBookings.length > 0 && (
-                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${activeTab === 'loyalty' ? 'bg-dark/20 text-dark' : 'bg-gold/20 text-gold'}`}>
-                          {pendingCompletionBookings.length}
-                        </span>
-                      )}
-                    </button>
+                  {tab.value === 'relationship' && clientsMenuOpen && (
+                    <div className="mt-1 space-y-1">
+                      <MobileSubTabButton
+                        active={activeTab === 'clients'}
+                        icon={<FiUsers />}
+                        label="Clientes"
+                        count={clientProfiles.length}
+                        onClick={() => selectAdminTab({ value: 'clients' })}
+                      />
+                      <MobileSubTabButton
+                        active={activeTab === 'loyalty'}
+                        icon={<FiAward />}
+                        label="Fidelidade"
+                        count={pendingCompletionBookings.length}
+                        onClick={() => selectAdminTab({ value: 'loyalty' })}
+                      />
+                      <MobileSubTabButton
+                        active={activeTab === 'crm'}
+                        icon={<FiSend />}
+                        label="CRM"
+                        count={crmStats.missing || undefined}
+                        onClick={() => selectAdminTab({ value: 'crm' })}
+                      />
+                    </div>
                   )}
                 </div>
               ))}
@@ -1358,27 +1369,47 @@ export default function AdminPanel() {
             <button
               type="button"
               onClick={() => {
-                setActiveTab('clients');
                 setClientsMenuOpen((open) => !open);
               }}
               onFocus={() => setClientsMenuOpen(true)}
               className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition-all ${
-                activeTab === 'clients' || activeTab === 'loyalty'
+                relationshipActive
                   ? 'bg-gradient-to-r from-gold to-gold-light text-dark shadow-lg shadow-gold/20'
                   : 'text-cream/55 hover:bg-white/5 hover:text-cream'
               }`}
             >
               <FiUsers />
-              Clientes
-              {clientProfiles.length > 0 && (
-                <span className={`rounded-full px-2 py-0.5 text-xs ${activeTab === 'clients' || activeTab === 'loyalty' ? 'bg-dark/20 text-dark' : 'bg-gold/20 text-gold'}`}>
-                  {clientProfiles.length}
+              Relacionamento
+              {relationshipCount > 0 && (
+                <span className={`rounded-full px-2 py-0.5 text-xs ${relationshipActive ? 'bg-dark/20 text-dark' : 'bg-gold/20 text-gold'}`}>
+                  {relationshipCount}
                 </span>
               )}
               <FiChevronDown className="text-xs" />
             </button>
             {clientsMenuOpen && (
               <div className="absolute left-0 top-[calc(100%+0.35rem)] z-30 min-w-48 rounded-2xl border border-white/10 bg-[#090706]/95 p-2 shadow-2xl shadow-black/50 backdrop-blur-md">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('clients');
+                    setClientsMenuOpen(false);
+                  }}
+                  className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition ${
+                    activeTab === 'clients'
+                      ? 'bg-gradient-to-r from-gold to-gold-light text-dark'
+                      : 'text-cream/70 hover:bg-white/5 hover:text-cream'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <FiUsers /> Clientes
+                  </span>
+                  {clientProfiles.length > 0 && (
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${activeTab === 'clients' ? 'bg-dark/20 text-dark' : 'bg-gold/20 text-gold'}`}>
+                      {clientProfiles.length}
+                    </span>
+                  )}
+                </button>
                 <button
                   type="button"
                   onClick={() => {
@@ -1400,10 +1431,30 @@ export default function AdminPanel() {
                     </span>
                   )}
                 </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('crm');
+                    setClientsMenuOpen(false);
+                  }}
+                  className={`mt-1 flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition ${
+                    activeTab === 'crm'
+                      ? 'bg-gradient-to-r from-gold to-gold-light text-dark'
+                      : 'text-cream/70 hover:bg-white/5 hover:text-cream'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <FiSend /> CRM
+                  </span>
+                  {crmStats.missing > 0 && (
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${activeTab === 'crm' ? 'bg-dark/20 text-dark' : 'bg-gold/20 text-gold'}`}>
+                      {crmStats.missing}
+                    </span>
+                  )}
+                </button>
               </div>
             )}
           </div>
-          <TabButton active={activeTab === 'crm'} icon={<FiSend />} label="CRM" count={crmStats.missing || undefined} onClick={() => setActiveTab('crm')} />
           <TabButton active={activeTab === 'gallery'} icon={<FiImage />} label="Galeria" count={images.length} onClick={() => setActiveTab('gallery')} />
           <TabButton active={activeTab === 'testimonials'} icon={<FiMessageSquare />} label="Depoimentos" count={testimonials.length} onClick={() => setActiveTab('testimonials')} />
           <TabButton active={activeTab === 'blocks'} icon={<FiSlash />} label="Bloqueios" count={scheduleBlocks.length || undefined} onClick={() => setActiveTab('blocks')} />
@@ -1818,6 +1869,30 @@ function TabButton({ active, icon, label, count, onClick }) {
       {icon} {label}
       {typeof count === 'number' && count > 0 && (
         <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${active ? 'bg-dark/20 text-dark' : 'bg-gold/20 text-gold'}`}>
+          {count}
+        </span>
+      )}
+    </button>
+  );
+}
+
+function MobileSubTabButton({ active, icon, label, count, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 pl-9 text-sm font-semibold transition ${
+        active
+          ? 'bg-gradient-to-r from-gold to-gold-light text-dark'
+          : 'text-cream/55 hover:bg-white/5 hover:text-cream'
+      }`}
+    >
+      <span className="flex min-w-0 items-center gap-3">
+        {icon}
+        <span className="truncate">{label}</span>
+      </span>
+      {typeof count === 'number' && count > 0 && (
+        <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${active ? 'bg-dark/20 text-dark' : 'bg-gold/20 text-gold'}`}>
           {count}
         </span>
       )}
