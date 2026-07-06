@@ -3009,7 +3009,7 @@ function ErpView({ summary, onOpenTab }) {
                 <div>
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <p className="text-xs font-bold uppercase tracking-wider text-gold-light/70">Nota da gestao</p>
+                      <p className="text-xs font-bold uppercase tracking-wider text-gold-light/70">Nota da gestão</p>
                       <p className="mt-1 text-lg font-bold text-cream">{summary.healthScore}% - {summary.healthLabel}</p>
                     </div>
                     <span className={`rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs font-bold ${scoreTone}`}>
