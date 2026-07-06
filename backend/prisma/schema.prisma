@@ -187,10 +187,13 @@ model ClientCrmProfile {
   inviteSentAt      DateTime?
   inviteSentById    String?
   lastInviteMessage String?
+  doNotInviteAt     DateTime?
+  doNotInviteById   String?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
   @@index([status])
   @@index([completedAt])
   @@index([inviteSentAt])
+  @@index([doNotInviteAt])
 }

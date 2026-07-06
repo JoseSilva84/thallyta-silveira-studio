@@ -32,6 +32,7 @@ const emptyForm = {
   interests: [],
   preferredPeriods: [],
   contactPreference: 'WhatsApp',
+  dateOfBirth: '',
   notes: '',
   allowPromotions: true,
 }
@@ -59,6 +60,7 @@ export default function PreferencesPage() {
         interests: Array.isArray(profile.interests) ? profile.interests : [],
         preferredPeriods: Array.isArray(profile.preferredPeriods) ? profile.preferredPeriods : [],
         contactPreference: profile.contactPreference || 'WhatsApp',
+        dateOfBirth: data.user?.dateOfBirth ? new Date(data.user.dateOfBirth).toISOString().split('T')[0] : '',
         notes: profile.notes || '',
         allowPromotions: profile.allowPromotions !== false,
       })
@@ -192,6 +194,19 @@ export default function PreferencesPage() {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              <div>
+                <label className="mb-3 block text-sm font-semibold text-cream">Data de aniversario</label>
+                <input
+                  type="date"
+                  value={form.dateOfBirth}
+                  onChange={(event) => setForm((current) => ({ ...current, dateOfBirth: event.target.value }))}
+                  className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-cream outline-none transition focus:border-gold/50"
+                />
+                <p className="mt-2 text-xs text-cream/40">
+                  Opcional. Ajuda o Studio a lembrar mimos e beneficios de aniversario.
+                </p>
               </div>
 
               <div>

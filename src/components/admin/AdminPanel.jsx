@@ -7,6 +7,7 @@ import {
   FiAward,
   FiCalendar,
   FiCheckCircle,
+  FiChevronDown,
   FiChevronLeft,
   FiChevronRight,
   FiDollarSign,
@@ -88,6 +89,7 @@ export default function AdminPanel() {
 
   const [activeTab, setActiveTab] = useState('bookings');
   const [mobileAdminMenuOpen, setMobileAdminMenuOpen] = useState(false);
+  const [clientsMenuOpen, setClientsMenuOpen] = useState(false);
   const [bookingView, setBookingView] = useState('table');
   const [monthCursor, setMonthCursor] = useState(() => new Date());
   const [birthdayMonthCursor, setBirthdayMonthCursor] = useState(() => new Date());
@@ -106,7 +108,17 @@ export default function AdminPanel() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [clientSearch, setClientSearch] = useState('');
   const [crmClients, setCrmClients] = useState([]);
-  const [crmStats, setCrmStats] = useState({ total: 0, completed: 0, missing: 0, withWhatsappMissing: 0, invited: 0 });
+  const [crmStats, setCrmStats] = useState({
+    total: 0,
+    completed: 0,
+    missing: 0,
+    withWhatsappMissing: 0,
+    invited: 0,
+    noSource: 0,
+    noPreferences: 0,
+    noBirthday: 0,
+    doNotInvite: 0,
+  });
   const [crmInviteLink, setCrmInviteLink] = useState('');
   const [fetchingCrm, setFetchingCrm] = useState(true);
   const [sendingCrmInviteIds, setSendingCrmInviteIds] = useState({});
@@ -816,6 +828,32 @@ export default function AdminPanel() {
     });
   };
 
+  const handleToggleCrmDoNotInvite = async (client) => {
+    if (!client.userId) {
+      toast.info('Esta cliente ainda nao tem conta vinculada. Use o WhatsApp manual para evitar novos convites.');
+      return;
+    }
+
+    const shouldBlock = !client.inviteBlocked;
+    try {
+      const token = requireAdminToken();
+      const res = await fetch(`${API}/crm/admin/clients/${client.userId}/do-not-invite`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ doNotInvite: shouldBlock }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(handleAuthFailure(data.error) || 'Erro ao atualizar controle de convite');
+      toast.success(shouldBlock ? 'Cliente marcada para nao insistir.' : 'Convites liberados para esta cliente.');
+      await fetchCrmClients();
+    } catch (error) {
+      toast.error(error.message || 'Erro ao atualizar controle de convite.');
+    }
+  };
+
   const handleCopyCrmInviteText = async () => {
     const text = [
       'Oi! Para deixar seu atendimento no Studio Thallyta Silveira ainda mais personalizado, voce pode preencher rapidinho suas preferencias.',
@@ -1186,17 +1224,19 @@ export default function AdminPanel() {
     { value: 'bookings', icon: <FiCalendar />, label: 'Agenda', count: bookings.length + unresolvedApprovedPayments.length },
     { value: 'analytics', icon: <FiBarChart2 />, label: 'Análises' },
     { value: 'finance', icon: <FiDollarSign />, label: 'Financeiro', count: financeExpenses.length || undefined },
-    { value: 'loyalty', icon: <FiAward />, label: 'Fidelidade', count: pendingCompletionBookings.length },
     { value: 'clients', icon: <FiUsers />, label: 'Clientes', count: clientProfiles.length },
     { value: 'crm', icon: <FiSend />, label: 'CRM', count: crmStats.missing || undefined },
     { value: 'gallery', icon: <FiImage />, label: 'Galeria', count: images.length },
     { value: 'testimonials', icon: <FiMessageSquare />, label: 'Depoimentos', count: testimonials.length },
     { value: 'blocks', icon: <FiSlash />, label: 'Bloqueios', count: scheduleBlocks.length || undefined },
   ];
-  const activeAdminTab = adminTabs.find((tab) => tab.value === activeTab) || adminTabs[0];
+  const activeAdminTab = activeTab === 'loyalty'
+    ? { value: 'clients', icon: <FiUsers />, label: 'Clientes', count: clientProfiles.length }
+    : adminTabs.find((tab) => tab.value === activeTab) || adminTabs[0];
   const selectAdminTab = (tab) => {
     setActiveTab(tab.value);
     setMobileAdminMenuOpen(false);
+    setClientsMenuOpen(false);
   };
 
   return (
@@ -1259,26 +1299,48 @@ export default function AdminPanel() {
           {mobileAdminMenuOpen && (
             <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-40 grid gap-1 rounded-2xl border border-white/10 bg-[#090706]/95 p-2 shadow-2xl shadow-black/50 backdrop-blur-md">
               {adminTabs.map((tab) => (
-                <button
-                  key={tab.value}
-                  type="button"
-                  onClick={() => selectAdminTab(tab)}
-                  className={`flex items-center justify-between gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition ${
-                    activeTab === tab.value
-                      ? 'bg-gradient-to-r from-gold to-gold-light text-dark'
-                      : 'text-cream/70 hover:bg-white/5 hover:text-cream'
-                  }`}
-                >
-                  <span className="flex min-w-0 items-center gap-3">
-                    {tab.icon}
-                    <span className="truncate">{tab.label}</span>
-                  </span>
-                  {typeof tab.count === 'number' && tab.count > 0 && (
-                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${activeTab === tab.value ? 'bg-dark/20 text-dark' : 'bg-gold/20 text-gold'}`}>
-                      {tab.count}
+                <div key={tab.value}>
+                  <button
+                    type="button"
+                    onClick={() => selectAdminTab(tab)}
+                    className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition ${
+                      activeTab === tab.value
+                        ? 'bg-gradient-to-r from-gold to-gold-light text-dark'
+                        : 'text-cream/70 hover:bg-white/5 hover:text-cream'
+                    }`}
+                  >
+                    <span className="flex min-w-0 items-center gap-3">
+                      {tab.icon}
+                      <span className="truncate">{tab.label}</span>
                     </span>
+                    {typeof tab.count === 'number' && tab.count > 0 && (
+                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${activeTab === tab.value ? 'bg-dark/20 text-dark' : 'bg-gold/20 text-gold'}`}>
+                        {tab.count}
+                      </span>
+                    )}
+                  </button>
+                  {tab.value === 'clients' && (
+                    <button
+                      type="button"
+                      onClick={() => selectAdminTab({ value: 'loyalty' })}
+                      className={`mt-1 flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 pl-9 text-sm font-semibold transition ${
+                        activeTab === 'loyalty'
+                          ? 'bg-gradient-to-r from-gold to-gold-light text-dark'
+                          : 'text-cream/55 hover:bg-white/5 hover:text-cream'
+                      }`}
+                    >
+                      <span className="flex min-w-0 items-center gap-3">
+                        <FiAward />
+                        <span className="truncate">Fidelidade</span>
+                      </span>
+                      {pendingCompletionBookings.length > 0 && (
+                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${activeTab === 'loyalty' ? 'bg-dark/20 text-dark' : 'bg-gold/20 text-gold'}`}>
+                          {pendingCompletionBookings.length}
+                        </span>
+                      )}
+                    </button>
                   )}
-                </button>
+                </div>
               ))}
             </div>
           )}
@@ -1288,8 +1350,59 @@ export default function AdminPanel() {
           <TabButton active={activeTab === 'bookings'} icon={<FiCalendar />} label="Agenda" count={bookings.length + unresolvedApprovedPayments.length} onClick={() => setActiveTab('bookings')} />
           <TabButton active={activeTab === 'analytics'} icon={<FiBarChart2 />} label="Análises" onClick={() => setActiveTab('analytics')} />
           <TabButton active={activeTab === 'finance'} icon={<FiDollarSign />} label="Financeiro" count={financeExpenses.length || undefined} onClick={() => setActiveTab('finance')} />
-          <TabButton active={activeTab === 'loyalty'} icon={<FiAward />} label="Fidelidade" count={pendingCompletionBookings.length} onClick={() => setActiveTab('loyalty')} />
-          <TabButton active={activeTab === 'clients'} icon={<FiUsers />} label="Clientes" count={clientProfiles.length} onClick={() => setActiveTab('clients')} />
+          <div
+            className="group relative"
+            onMouseEnter={() => setClientsMenuOpen(true)}
+            onMouseLeave={() => setClientsMenuOpen(false)}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('clients');
+                setClientsMenuOpen((open) => !open);
+              }}
+              onFocus={() => setClientsMenuOpen(true)}
+              className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition-all ${
+                activeTab === 'clients' || activeTab === 'loyalty'
+                  ? 'bg-gradient-to-r from-gold to-gold-light text-dark shadow-lg shadow-gold/20'
+                  : 'text-cream/55 hover:bg-white/5 hover:text-cream'
+              }`}
+            >
+              <FiUsers />
+              Clientes
+              {clientProfiles.length > 0 && (
+                <span className={`rounded-full px-2 py-0.5 text-xs ${activeTab === 'clients' || activeTab === 'loyalty' ? 'bg-dark/20 text-dark' : 'bg-gold/20 text-gold'}`}>
+                  {clientProfiles.length}
+                </span>
+              )}
+              <FiChevronDown className="text-xs" />
+            </button>
+            {clientsMenuOpen && (
+              <div className="absolute left-0 top-[calc(100%+0.35rem)] z-30 min-w-48 rounded-2xl border border-white/10 bg-[#090706]/95 p-2 shadow-2xl shadow-black/50 backdrop-blur-md">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('loyalty');
+                    setClientsMenuOpen(false);
+                  }}
+                  className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition ${
+                    activeTab === 'loyalty'
+                      ? 'bg-gradient-to-r from-gold to-gold-light text-dark'
+                      : 'text-cream/70 hover:bg-white/5 hover:text-cream'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <FiAward /> Fidelidade
+                  </span>
+                  {pendingCompletionBookings.length > 0 && (
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${activeTab === 'loyalty' ? 'bg-dark/20 text-dark' : 'bg-gold/20 text-gold'}`}>
+                      {pendingCompletionBookings.length}
+                    </span>
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
           <TabButton active={activeTab === 'crm'} icon={<FiSend />} label="CRM" count={crmStats.missing || undefined} onClick={() => setActiveTab('crm')} />
           <TabButton active={activeTab === 'gallery'} icon={<FiImage />} label="Galeria" count={images.length} onClick={() => setActiveTab('gallery')} />
           <TabButton active={activeTab === 'testimonials'} icon={<FiMessageSquare />} label="Depoimentos" count={testimonials.length} onClick={() => setActiveTab('testimonials')} />
@@ -1447,6 +1560,7 @@ export default function AdminPanel() {
             onRefresh={fetchCrmClients}
             onSendInvite={handleSendCrmInvite}
             onSendBulkInvite={handleSendCrmInviteToMissing}
+            onToggleDoNotInvite={handleToggleCrmDoNotInvite}
             onCopyInviteText={handleCopyCrmInviteText}
           />
         )}
@@ -3758,7 +3872,7 @@ function LoyaltyAdminView({ clients, pendingBookings, onCompleteService, onUndoC
   );
 }
 
-function CrmAdminView({ clients, stats, inviteLink, fetching, sendingIds, sendingBulk, onRefresh, onSendInvite, onSendBulkInvite, onCopyInviteText }) {
+function CrmAdminView({ clients, stats, inviteLink, fetching, sendingIds, sendingBulk, onRefresh, onSendInvite, onSendBulkInvite, onToggleDoNotInvite, onCopyInviteText }) {
   const [filter, setFilter] = useState('missing');
   const [search, setSearch] = useState('');
 
@@ -3768,7 +3882,12 @@ function CrmAdminView({ clients, stats, inviteLink, fetching, sendingIds, sendin
       .filter((client) => {
         if (filter === 'completed') return client.hasCompletedProfile;
         if (filter === 'invited') return Boolean(client.profile?.inviteSentAt);
+        if (filter === 'with_whatsapp') return client.hasWhatsapp && !client.hasCompletedProfile;
         if (filter === 'no_whatsapp') return !client.hasWhatsapp;
+        if (filter === 'no_source') return !client.profile?.source;
+        if (filter === 'no_preferences') return !(client.profile?.interests || []).length && !(client.profile?.preferredPeriods || []).length;
+        if (filter === 'no_birthday') return !client.dateOfBirth;
+        if (filter === 'do_not_invite') return client.inviteBlocked;
         if (filter === 'all') return true;
         return !client.hasCompletedProfile;
       })
@@ -3790,7 +3909,12 @@ function CrmAdminView({ clients, stats, inviteLink, fetching, sendingIds, sendin
     { value: 'missing', label: 'Pendentes', count: stats.missing },
     { value: 'completed', label: 'Preenchidos', count: stats.completed },
     { value: 'invited', label: 'Convidados', count: stats.invited },
+    { value: 'with_whatsapp', label: 'Com WhatsApp', count: stats.withWhatsappMissing },
     { value: 'no_whatsapp', label: 'Sem WhatsApp', count: clients.filter((client) => !client.hasWhatsapp).length },
+    { value: 'no_source', label: 'Sem origem', count: stats.noSource },
+    { value: 'no_preferences', label: 'Sem preferencias', count: stats.noPreferences },
+    { value: 'no_birthday', label: 'Sem aniversario', count: stats.noBirthday },
+    { value: 'do_not_invite', label: 'Nao insistir', count: stats.doNotInvite },
     { value: 'all', label: 'Todos', count: stats.total },
   ];
 
@@ -3838,6 +3962,11 @@ function CrmAdminView({ clients, stats, inviteLink, fetching, sendingIds, sendin
           <SmallStat label="Pendentes" value={stats.missing || 0} tone={stats.missing ? 'warning' : 'default'} />
           <SmallStat label="Com WhatsApp" value={stats.withWhatsappMissing || 0} tone="gold" />
           <SmallStat label="Convidados" value={stats.invited || 0} tone="default" />
+          <SmallStat label="Sem origem" value={stats.noSource || 0} tone={stats.noSource ? 'warning' : 'default'} />
+          <SmallStat label="Sem preferencias" value={stats.noPreferences || 0} tone={stats.noPreferences ? 'warning' : 'default'} />
+          <SmallStat label="Sem aniversario" value={stats.noBirthday || 0} tone={stats.noBirthday ? 'warning' : 'default'} />
+          <SmallStat label="Nao insistir" value={stats.doNotInvite || 0} tone={stats.doNotInvite ? 'danger' : 'default'} />
+          <SmallStat label="Sem WhatsApp" value={clients.filter((client) => !client.hasWhatsapp).length} tone="default" />
         </div>
 
         {inviteLink && (
@@ -3880,6 +4009,7 @@ function CrmAdminView({ clients, stats, inviteLink, fetching, sendingIds, sendin
                 client={client}
                 sending={Boolean(sendingIds[client.id])}
                 onSendInvite={() => onSendInvite(client)}
+                onToggleDoNotInvite={() => onToggleDoNotInvite(client)}
               />
             ))}
           </div>
@@ -3889,7 +4019,7 @@ function CrmAdminView({ clients, stats, inviteLink, fetching, sendingIds, sendin
   );
 }
 
-function CrmClientCard({ client, sending, onSendInvite }) {
+function CrmClientCard({ client, sending, onSendInvite, onToggleDoNotInvite }) {
   const profile = client.profile || {};
   const sourceLabel = crmSourceLabel(profile.source);
   const completed = client.hasCompletedProfile;
@@ -3913,6 +4043,16 @@ function CrmClientCard({ client, sending, onSendInvite }) {
                 Convite: {formatDate(profile.inviteSentAt)}
               </span>
             )}
+            {client.inviteBlocked && (
+              <span className="rounded-full border border-red-400/25 bg-red-500/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-red-200">
+                Nao insistir
+              </span>
+            )}
+            {!client.userId && (
+              <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-semibold text-cream/45">
+                Sem conta vinculada
+              </span>
+            )}
           </div>
           <h3 className="truncate text-lg font-semibold text-cream">{client.name}</h3>
           <p className="mt-1 text-sm text-cream/45">{client.email || 'Email nao informado'} {client.whatsappPhone ? `- ${formatWhatsappDisplay(client.whatsappPhone)}` : ''}</p>
@@ -3929,7 +4069,7 @@ function CrmClientCard({ client, sending, onSendInvite }) {
               <FiMessageSquare /> WhatsApp
             </a>
           )}
-          {!completed && client.hasWhatsapp && (
+          {!completed && client.hasWhatsapp && client.canSendSystemInvite && (
             <button
               type="button"
               onClick={onSendInvite}
@@ -3937,6 +4077,19 @@ function CrmClientCard({ client, sending, onSendInvite }) {
               className="inline-flex items-center gap-2 rounded-xl border border-gold/25 bg-gold/10 px-4 py-2 text-sm font-semibold text-gold-light hover:bg-gold/15 disabled:opacity-60"
             >
               <FiSend /> {sending ? 'Enviando...' : 'Enviar convite'}
+            </button>
+          )}
+          {!completed && client.userId && (
+            <button
+              type="button"
+              onClick={onToggleDoNotInvite}
+              className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition ${
+                client.inviteBlocked
+                  ? 'border-emerald-400/25 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/15'
+                  : 'border-red-400/25 bg-red-500/10 text-red-200 hover:bg-red-500/15'
+              }`}
+            >
+              <FiSlash /> {client.inviteBlocked ? 'Permitir convite' : 'Nao insistir'}
             </button>
           )}
         </div>

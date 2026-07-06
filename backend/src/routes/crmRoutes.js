@@ -5,6 +5,7 @@ import {
   inviteCrmClient,
   inviteMissingCrmClients,
   listAdminCrmClients,
+  markCrmClientDoNotInvite,
   saveMyCrmProfile,
   updateAdminCrmProfile,
 } from '../controllers/crmController.js';
@@ -18,6 +19,7 @@ router.post('/profile/dismiss', verifyToken, dismissMyCrmProfilePrompt);
 
 router.get('/admin/clients', verifyToken, verifyAdmin, listAdminCrmClients);
 router.patch('/admin/clients/:userId/profile', verifyToken, verifyAdmin, updateAdminCrmProfile);
+router.patch('/admin/clients/:userId/do-not-invite', verifyToken, verifyAdmin, markCrmClientDoNotInvite);
 router.post('/admin/clients/:userId/invite', verifyToken, verifyAdmin, inviteCrmClient);
 router.post('/admin/invite-missing', verifyToken, verifyAdmin, inviteMissingCrmClients);
 
