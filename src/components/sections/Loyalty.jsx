@@ -42,7 +42,7 @@ export default function Loyalty() {
                 <h3 className="relative z-10 font-display text-3xl">Histórico de visitas</h3>
                 {pendingStamps > 0 && (
                   <p className="relative z-10 mt-3 rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4 text-sm text-amber-100">
-                    {pendingStamps} {pendingStamps === 1 ? 'selo pendente' : 'selos pendentes'} aguardando confirmacao do studio.
+                    {pendingStamps} {pendingStamps === 1 ? 'selo pendente' : 'selos pendentes'} aguardando confirmação do studio.
                   </p>
                 )}
                 <div className="relative z-10 mt-8 space-y-4">

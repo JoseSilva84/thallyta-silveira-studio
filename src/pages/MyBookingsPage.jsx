@@ -323,7 +323,7 @@ function ClientLoyaltySummary({ bookings }) {
               </h3>
               {pendingStamps > 0 && (
                 <p className="mt-2 text-sm text-amber-100">
-                  {pendingStamps} {pendingStamps === 1 ? 'selo pendente' : 'selos pendentes'} aguardando confirmacao do studio.
+                  {pendingStamps} {pendingStamps === 1 ? 'selo pendente' : 'selos pendentes'} aguardando confirmação do studio.
                 </p>
               )}
             </div>

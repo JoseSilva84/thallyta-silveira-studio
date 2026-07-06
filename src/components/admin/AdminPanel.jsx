@@ -1465,7 +1465,7 @@ export default function AdminPanel() {
           )}
         </div>
 
-        <div className="admin-tablet-portrait-hidden mb-6 hidden flex-wrap gap-2 rounded-2xl border border-white/10 bg-black/30 p-1 backdrop-blur-md md:flex">
+        <div className="admin-tablet-portrait-hidden relative z-50 mb-6 hidden flex-wrap gap-2 overflow-visible rounded-2xl border border-white/10 bg-black/30 p-1 backdrop-blur-md md:flex">
           <TabButton active={activeTab === 'bookings'} icon={<FiCalendar />} label="Agenda" count={bookings.length + unresolvedApprovedPayments.length} onClick={() => setActiveTab('bookings')} />
           <div
             className="group relative"
@@ -1497,8 +1497,8 @@ export default function AdminPanel() {
               <FiChevronDown className="text-xs" />
             </button>
             {managementMenuOpen && (
-              <div className="absolute left-0 top-full z-30 min-w-48 pt-2">
-                <div className="rounded-2xl border border-white/10 bg-[#090706]/95 p-2 shadow-2xl shadow-black/50 backdrop-blur-md">
+              <div className="absolute left-0 top-full z-[100] min-w-48 pt-2">
+                <div className="rounded-2xl border border-white/10 bg-[#090706] p-2 shadow-2xl shadow-black/70">
                 <button
                   type="button"
                   onClick={() => {
@@ -1591,8 +1591,8 @@ export default function AdminPanel() {
               <FiChevronDown className="text-xs" />
             </button>
             {clientsMenuOpen && (
-              <div className="absolute left-0 top-full z-30 min-w-48 pt-2">
-                <div className="rounded-2xl border border-white/10 bg-[#090706]/95 p-2 shadow-2xl shadow-black/50 backdrop-blur-md">
+              <div className="absolute left-0 top-full z-[100] min-w-48 pt-2">
+                <div className="rounded-2xl border border-white/10 bg-[#090706] p-2 shadow-2xl shadow-black/70">
                 <button
                   type="button"
                   onClick={() => {
@@ -4302,7 +4302,7 @@ function LoyaltyAdminView({ clients, pendingBookings, onCompleteService, onUndoC
       <section className="rounded-2xl border border-amber-300/20 bg-amber-300/10 p-5">
         <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-amber-100/70">Aguardando confirmacao</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-amber-100/70">Aguardando confirmação</p>
             <h2 className="mt-1 text-2xl font-semibold text-amber-50">
               {pendingBookings.length} {pendingBookings.length === 1 ? 'serviço pendente' : 'serviços pendentes'}
             </h2>
@@ -4461,7 +4461,7 @@ function CrmAdminView({ clients, stats, inviteLink, fetching, sendingIds, sendin
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-gold-light/60">CRM</p>
-            <h2 className="mt-1 text-2xl font-semibold text-cream">Perfil e relacionamento das clientes</h2>
+            <h2 className="mt-1 text-2xl font-semibold text-cream">Perfil e relacionamento dos clientes</h2>
             <p className="mt-2 max-w-2xl text-sm text-cream/50">
               Camada separada do agendamento rápido. Use para coletar preferências e convidar clientes pelo WhatsApp.
             </p>
@@ -4678,7 +4678,7 @@ function CrmCampaignsView({ clients, fetching, sending, onSend }) {
                 onChange={(event) => setAudience(event.target.value)}
                 className="w-full min-w-0 rounded-lg border border-white/10 bg-dark px-3 py-2 text-sm text-cream outline-none focus:border-gold"
               >
-                <option value="all">Todas elegiveis</option>
+                <option value="all">Todas elegíveis</option>
                 <option value="completed">CRM preenchido</option>
                 <option value="missing">CRM pendente</option>
                 <option value="birthday_missing">Sem aniversário</option>
@@ -4711,7 +4711,7 @@ function CrmCampaignsView({ clients, fetching, sending, onSend }) {
 
           <div className="mt-5 flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
             <span className="text-sm text-cream/50">
-              {selectedClients.length} selecionada(s) de {audienceClients.length} elegivel(is)
+              {selectedClients.length} selecionada(s) de {audienceClients.length} elegível(is)
             </span>
             <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
               <button type="button" onClick={() => setSelectedIds(audienceClients.map((client) => client.userId))} className="rounded-full border border-white/10 px-3 py-2 text-sm font-semibold text-cream/60 hover:text-gold-light sm:px-4">Selecionar todas</button>
