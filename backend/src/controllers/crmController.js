@@ -1,5 +1,5 @@
 import prisma from '../config/prisma.js';
-import { sendCrmProfileInvite } from '../services/whatsappService.js';
+import { sendCampaignMessage, sendCrmProfileInvite } from '../services/whatsappService.js';
 
 const PRODUCTION_FRONTEND_URL = 'https://www.thallytasilveira.com.br';
 
@@ -603,5 +603,82 @@ export const inviteMissingCrmClients = async (req, res) => {
   } catch (error) {
     console.error('Erro ao enviar convites CRM em massa:', error);
     res.status(500).json({ error: 'Erro ao enviar convites CRM.' });
+  }
+};
+
+export const sendCrmCampaign = async (req, res) => {
+  try {
+    const message = String(req.body?.message || '').trim();
+    const clientIds = Array.isArray(req.body?.clientIds) ? req.body.clientIds.map(String).filter(Boolean) : [];
+    const promotional = req.body?.promotional !== false;
+
+    if (!message || message.length < 5) {
+      return res.status(400).json({ error: 'Informe uma mensagem para a campanha.' });
+    }
+
+    if (message.length > 1200) {
+      return res.status(400).json({ error: 'Mensagem muito longa. Use no maximo 1200 caracteres.' });
+    }
+
+    if (!clientIds.length) {
+      return res.status(400).json({ error: 'Selecione pelo menos uma cliente.' });
+    }
+
+    const users = await prisma.user.findMany({
+      where: {
+        id: { in: clientIds.slice(0, 200) },
+        role: 'CLIENT',
+        whatsappPhone: { not: null },
+      },
+      select: {
+        id: true,
+        name: true,
+        whatsappPhone: true,
+        crmProfile: true,
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    const results = [];
+
+    for (const user of users) {
+      if (user.crmProfile?.doNotInviteAt) {
+        results.push({ userId: user.id, name: user.name, ok: false, skipped: true, message: 'nao insistir' });
+        continue;
+      }
+
+      if (promotional && user.crmProfile?.allowPromotions === false) {
+        results.push({ userId: user.id, name: user.name, ok: false, skipped: true, message: 'nao aceita promocoes' });
+        continue;
+      }
+
+      try {
+        const firstName = String(user.name || '').trim().split(/\s+/)[0] || 'cliente';
+        const personalizedText = message
+          .replace(/\{nome\}/gi, user.name || firstName)
+          .replace(/\{primeiro_nome\}/gi, firstName);
+        const result = await sendCampaignMessage(user, personalizedText);
+        results.push({
+          userId: user.id,
+          name: user.name,
+          ok: !result.skipped,
+          skipped: Boolean(result.skipped),
+          message: result.reason || 'enviado',
+        });
+      } catch (error) {
+        results.push({ userId: user.id, name: user.name, ok: false, message: error.message || 'erro' });
+      }
+    }
+
+    res.json({
+      total: users.length,
+      sent: results.filter((item) => item.ok).length,
+      skipped: results.filter((item) => item.skipped).length,
+      failed: results.filter((item) => !item.ok && !item.skipped).length,
+      results,
+    });
+  } catch (error) {
+    console.error('Erro ao enviar campanha CRM:', error);
+    res.status(500).json({ error: 'Erro ao enviar campanha CRM.' });
   }
 };

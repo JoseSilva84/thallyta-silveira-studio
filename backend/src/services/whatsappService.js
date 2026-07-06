@@ -599,3 +599,10 @@ export const sendCrmProfileInvite = async (user, link) => {
   const result = await sendText({ chatId: clientChatId, text });
   return { ...result, text };
 };
+
+export const sendCampaignMessage = async (user, text) => {
+  const clientChatId = toChatId(user.whatsappPhone);
+  if (!clientChatId) return { skipped: true, reason: 'Cliente sem WhatsApp' };
+
+  return sendText({ chatId: clientChatId, text });
+};

@@ -125,6 +125,7 @@ export default function AdminPanel() {
   const [fetchingCrm, setFetchingCrm] = useState(true);
   const [sendingCrmInviteIds, setSendingCrmInviteIds] = useState({});
   const [sendingCrmBulkInvite, setSendingCrmBulkInvite] = useState(false);
+  const [sendingCrmCampaign, setSendingCrmCampaign] = useState(false);
   const [monthlyBirthdays, setMonthlyBirthdays] = useState({ year: null, month: null, monthName: '', celebrants: [] });
   const [fetchingBirthdays, setFetchingBirthdays] = useState(true);
   const [clientBirthdays, setClientBirthdays] = useState([]);
@@ -883,6 +884,47 @@ export default function AdminPanel() {
     }
   };
 
+  const handleSendCrmCampaign = async ({ clientIds, message, promotional }) => {
+    if (!clientIds.length) {
+      toast.error('Selecione pelo menos uma cliente.');
+      return;
+    }
+
+    if (!message.trim()) {
+      toast.error('Escreva a mensagem da campanha.');
+      return;
+    }
+
+    showConfirmToast({
+      message: `Enviar campanha por WhatsApp para ${clientIds.length} cliente(s) selecionada(s)?`,
+      confirmLabel: 'Enviar',
+      onConfirm: async () => {
+        setSendingCrmCampaign(true);
+        try {
+          const token = requireAdminToken();
+          const res = await fetch(`${API}/crm/admin/campaigns/send`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ clientIds, message, promotional }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(handleAuthFailure(data.error) || 'Erro ao enviar campanha');
+          toast.success(`${data.sent || 0} mensagem(ns) enviada(s).`);
+          if (data.skipped) toast.info(`${data.skipped} cliente(s) ignorada(s) por regras de contato.`);
+          if (data.failed) toast.warn(`${data.failed} envio(s) falharam.`);
+          await fetchCrmClients();
+        } catch (error) {
+          toast.error(error.message || 'Erro ao enviar campanha.');
+        } finally {
+          setSendingCrmCampaign(false);
+        }
+      },
+    });
+  };
+
   const handleDeleteClient = async (clientEmail, clientName) => {
     showConfirmToast({
       message: `Excluir "${clientName}" e todos os dados (agendamentos, pagamentos, selos)? Esta ação não pode ser desfeita.`,
@@ -1241,7 +1283,7 @@ export default function AdminPanel() {
     setBirthdayMonthCursor((current) => new Date(current.getFullYear(), current.getMonth() + amount, 1));
   };
   const managementActive = ['erp', 'analytics', 'finance'].includes(activeTab);
-  const relationshipActive = ['clients', 'loyalty', 'crm'].includes(activeTab);
+  const relationshipActive = ['clients', 'loyalty', 'crm', 'crmInsights', 'campaigns'].includes(activeTab);
   const managementCount = erpSummary.priorityCount || financeExpenses.length || 0;
   const relationshipCount = clientProfiles.length + (crmStats.missing || 0);
   const adminTabs = [
@@ -1402,6 +1444,18 @@ export default function AdminPanel() {
                         label="CRM"
                         count={crmStats.missing || undefined}
                         onClick={() => selectAdminTab({ value: 'crm' })}
+                      />
+                      <MobileSubTabButton
+                        active={activeTab === 'crmInsights'}
+                        icon={<FiBarChart2 />}
+                        label="Insights"
+                        onClick={() => selectAdminTab({ value: 'crmInsights' })}
+                      />
+                      <MobileSubTabButton
+                        active={activeTab === 'campaigns'}
+                        icon={<FiMessageSquare />}
+                        label="Campanhas"
+                        onClick={() => selectAdminTab({ value: 'campaigns' })}
                       />
                     </div>
                   )}
@@ -1602,6 +1656,38 @@ export default function AdminPanel() {
                     </span>
                   )}
                 </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('crmInsights');
+                    setClientsMenuOpen(false);
+                  }}
+                  className={`mt-1 flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition ${
+                    activeTab === 'crmInsights'
+                      ? 'bg-gradient-to-r from-gold to-gold-light text-dark'
+                      : 'text-cream/70 hover:bg-white/5 hover:text-cream'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <FiBarChart2 /> Insights
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('campaigns');
+                    setClientsMenuOpen(false);
+                  }}
+                  className={`mt-1 flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition ${
+                    activeTab === 'campaigns'
+                      ? 'bg-gradient-to-r from-gold to-gold-light text-dark'
+                      : 'text-cream/70 hover:bg-white/5 hover:text-cream'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <FiMessageSquare /> Campanhas
+                  </span>
+                </button>
                 </div>
               </div>
             )}
@@ -1768,6 +1854,19 @@ export default function AdminPanel() {
             onSendBulkInvite={handleSendCrmInviteToMissing}
             onToggleDoNotInvite={handleToggleCrmDoNotInvite}
             onCopyInviteText={handleCopyCrmInviteText}
+          />
+        )}
+
+        {activeTab === 'crmInsights' && (
+          <CrmInsightsView clients={crmClients} stats={crmStats} fetching={fetchingCrm} onOpenCampaigns={() => setActiveTab('campaigns')} />
+        )}
+
+        {activeTab === 'campaigns' && (
+          <CrmCampaignsView
+            clients={crmClients}
+            fetching={fetchingCrm}
+            sending={sendingCrmCampaign}
+            onSend={handleSendCrmCampaign}
           />
         )}
 
@@ -4457,6 +4556,220 @@ function CrmAdminView({ clients, stats, inviteLink, fetching, sendingIds, sendin
   );
 }
 
+function CrmInsightsView({ clients, stats, fetching, onOpenCampaigns }) {
+  const insights = useMemo(() => buildCrmInsights(clients, stats), [clients, stats]);
+
+  if (fetching) {
+    return <div className="rounded-2xl border border-white/10 bg-black/35 p-6 text-sm text-cream/50">Carregando insights...</div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      <section className="rounded-2xl border border-gold/20 bg-black/40 p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider text-gold-light/60">Relacionamento</p>
+            <h2 className="mt-1 text-2xl font-semibold text-cream">Insights das respostas</h2>
+            <p className="mt-2 max-w-2xl text-sm text-cream/50">
+              Leitura do CRM para orientar campanhas, agenda e relacionamento com clientes.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onOpenCampaigns}
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-gold to-gold-light px-4 py-2 text-sm font-bold text-dark"
+          >
+            <FiMessageSquare /> Criar campanha
+          </button>
+        </div>
+
+        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <MetricCard icon={<FiUsers />} label="Clientes no CRM" value={stats.total || 0} hint={`${stats.completed || 0} perfil(is) preenchido(s)`} />
+          <MetricCard icon={<FiAlertTriangle />} label="Dados pendentes" value={stats.missing || 0} hint={`${stats.noPreferences || 0} sem preferencias`} />
+          <MetricCard icon={<FiMessageSquare />} label="Base acionavel" value={insights.reachableClients.length} hint="com WhatsApp e liberadas" />
+          <MetricCard icon={<FiGift />} label="Aniversarios ausentes" value={stats.noBirthday || 0} hint="impacta campanhas de mimo" />
+        </div>
+      </section>
+
+      <div className="grid gap-6 xl:grid-cols-3">
+        <ChartPanel title="Origem das clientes">
+          <HorizontalBarChart items={insights.sourceStats} valueKey="count" valueFormatter={(value) => `${value}x`} emptyText="Ainda nao ha origem preenchida." />
+        </ChartPanel>
+        <ChartPanel title="Interesses declarados">
+          <HorizontalBarChart items={insights.interestStats} valueKey="count" valueFormatter={(value) => `${value}x`} emptyText="Ainda nao ha interesses suficientes." />
+        </ChartPanel>
+        <ChartPanel title="Periodos preferidos">
+          <HorizontalBarChart items={insights.periodStats} valueKey="count" valueFormatter={(value) => `${value}x`} emptyText="Ainda nao ha periodos informados." />
+        </ChartPanel>
+      </div>
+
+      <section className="rounded-2xl border border-gold/20 bg-black/40 p-5">
+        <h2 className="text-xl font-semibold text-gold-light">Oportunidades de decisao</h2>
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          {insights.recommendations.map((item) => (
+            <article key={item.label} className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+              <p className="text-sm font-semibold text-cream">{item.label}</p>
+              <p className="mt-1 text-sm leading-relaxed text-cream/55">{item.text}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function CrmCampaignsView({ clients, fetching, sending, onSend }) {
+  const [audience, setAudience] = useState('all');
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [promotional, setPromotional] = useState(true);
+  const [message, setMessage] = useState('Oi, {primeiro_nome}! Tudo bem?\n\nPassando para avisar uma novidade do Studio Thallyta Silveira.\n\nSe quiser, responda esta mensagem que eu te ajudo por aqui.');
+  const eligibleClients = useMemo(() => clients.filter((client) => client.userId && client.hasWhatsapp && !client.inviteBlocked), [clients]);
+  const audienceClients = useMemo(() => {
+    const now = Date.now();
+    return eligibleClients.filter((client) => {
+      if (promotional && client.profile?.allowPromotions === false) return false;
+      if (audience === 'completed') return client.hasCompletedProfile;
+      if (audience === 'missing') return !client.hasCompletedProfile;
+      if (audience === 'birthday_missing') return !client.dateOfBirth;
+      if (audience === 'inactive') return (client.summary?.daysSinceLastBooking || 0) >= 45;
+      if (audience === 'recent') {
+        const last = client.summary?.lastBookingAt ? new Date(client.summary.lastBookingAt).getTime() : 0;
+        return last && now - last <= 30 * 24 * 60 * 60 * 1000;
+      }
+      return true;
+    });
+  }, [audience, eligibleClients, promotional]);
+
+  useEffect(() => {
+    setSelectedIds(audienceClients.map((client) => client.userId));
+  }, [audienceClients]);
+
+  const selectedClients = audienceClients.filter((client) => selectedIds.includes(client.userId));
+  const toggleClient = (client) => {
+    setSelectedIds((current) => (
+      current.includes(client.userId)
+        ? current.filter((id) => id !== client.userId)
+        : [...current, client.userId]
+    ));
+  };
+  const previewClient = selectedClients[0] || audienceClients[0];
+  const firstName = String(previewClient?.name || '').trim().split(/\s+/)[0] || 'cliente';
+  const previewText = message
+    .replace(/\{nome\}/gi, previewClient?.name || firstName)
+    .replace(/\{primeiro_nome\}/gi, firstName);
+
+  return (
+    <div className="space-y-6">
+      <section className="rounded-2xl border border-gold/20 bg-black/40 p-5">
+        <p className="text-xs font-bold uppercase tracking-wider text-gold-light/60">Relacionamento</p>
+        <h2 className="mt-1 text-2xl font-semibold text-cream">Campanhas por WhatsApp</h2>
+        <p className="mt-2 max-w-2xl text-sm text-cream/50">
+          Selecione um publico, revise a lista e envie mensagens para clientes com WhatsApp liberado.
+        </p>
+      </section>
+
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
+        <section className="rounded-2xl border border-gold/20 bg-black/40 p-5">
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-sm text-cream/70">Publico</label>
+              <select
+                value={audience}
+                onChange={(event) => setAudience(event.target.value)}
+                className="w-full rounded-lg border border-white/10 bg-dark px-3 py-2 text-sm text-cream outline-none focus:border-gold"
+              >
+                <option value="all">Todas elegiveis</option>
+                <option value="completed">CRM preenchido</option>
+                <option value="missing">CRM pendente</option>
+                <option value="birthday_missing">Sem aniversario</option>
+                <option value="inactive">Sem retorno ha 45 dias</option>
+                <option value="recent">Atendidas nos ultimos 30 dias</option>
+              </select>
+            </div>
+            <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-cream/70">
+              <input
+                type="checkbox"
+                checked={promotional}
+                onChange={(event) => setPromotional(event.target.checked)}
+                className="size-4 accent-gold"
+              />
+              Respeitar aceite de promocoes
+            </label>
+          </div>
+
+          <div className="mt-4">
+            <label className="mb-1 block text-sm text-cream/70">Mensagem</label>
+            <textarea
+              value={message}
+              onChange={(event) => setMessage(event.target.value)}
+              rows={7}
+              maxLength={1200}
+              className="w-full resize-none rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-cream outline-none placeholder:text-cream/30 focus:border-gold"
+            />
+            <p className="mt-2 text-xs text-cream/40">Use {'{primeiro_nome}'} ou {'{nome}'} para personalizar.</p>
+          </div>
+
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+            <span className="text-sm text-cream/50">
+              {selectedClients.length} selecionada(s) de {audienceClients.length} elegivel(is)
+            </span>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setSelectedIds(audienceClients.map((client) => client.userId))} className="rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-cream/60 hover:text-gold-light">Selecionar todas</button>
+              <button type="button" onClick={() => setSelectedIds([])} className="rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-cream/60 hover:text-gold-light">Limpar</button>
+              <button
+                type="button"
+                disabled={sending || fetching || !selectedClients.length}
+                onClick={() => onSend({ clientIds: selectedClients.map((client) => client.userId), message, promotional })}
+                className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-gold to-gold-light px-5 py-2 text-sm font-bold text-dark disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <FiSend /> {sending ? 'Enviando...' : 'Enviar campanha'}
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-5 grid gap-3">
+            {fetching ? (
+              <p className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-cream/50">Carregando clientes...</p>
+            ) : audienceClients.length === 0 ? (
+              <p className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-cream/50">Nenhuma cliente elegivel neste publico.</p>
+            ) : audienceClients.map((client) => (
+              <button
+                key={client.userId}
+                type="button"
+                onClick={() => toggleClient(client)}
+                className={`flex items-center justify-between gap-3 rounded-xl border p-3 text-left transition ${
+                  selectedIds.includes(client.userId)
+                    ? 'border-gold/45 bg-gold/10'
+                    : 'border-white/10 bg-white/[0.03] hover:border-gold/25'
+                }`}
+              >
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-semibold text-cream">{client.name}</span>
+                  <span className="block truncate text-xs text-cream/40">{formatWhatsappDisplay(client.whatsappPhone)}</span>
+                </span>
+                <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${selectedIds.includes(client.userId) ? 'bg-gold text-dark' : 'bg-white/10 text-cream/45'}`}>
+                  {selectedIds.includes(client.userId) ? 'Selecionada' : 'Selecionar'}
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <aside className="rounded-2xl border border-gold/20 bg-black/40 p-5">
+          <p className="text-xs font-bold uppercase tracking-wider text-gold-light/60">Previa</p>
+          <h3 className="mt-1 text-xl font-semibold text-cream">Mensagem personalizada</h3>
+          <div className="mt-4 whitespace-pre-wrap rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm leading-relaxed text-cream/70">
+            {previewText || 'Escreva uma mensagem para visualizar aqui.'}
+          </div>
+          <div className="mt-4 rounded-xl border border-amber-300/20 bg-amber-300/10 p-4 text-sm leading-relaxed text-amber-50/80">
+            O envio ignora clientes marcadas como "nao insistir", sem WhatsApp ou sem aceite de promocoes quando a campanha for promocional.
+          </div>
+        </aside>
+      </div>
+    </div>
+  );
+}
+
 function CrmClientCard({ client, sending, onSendInvite, onToggleDoNotInvite }) {
   const profile = client.profile || {};
   const sourceLabel = crmSourceLabel(profile.source);
@@ -4583,6 +4896,72 @@ function crmSourceLabel(value) {
     outro: 'Outro',
   };
   return labels[value] || value || '';
+}
+
+function buildCrmInsights(clients, stats) {
+  const countMap = (items) => Array.from(items.reduce((map, item) => {
+    const label = String(item || '').trim();
+    if (!label) return map;
+    map.set(label, (map.get(label) || 0) + 1);
+    return map;
+  }, new Map()).entries())
+    .map(([name, count]) => ({ name: crmSourceLabel(name) || name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+    .slice(0, 8);
+
+  const sourceStats = countMap(clients.map((client) => client.profile?.source));
+  const interestStats = countMap(clients.flatMap((client) => client.profile?.interests || []));
+  const periodStats = countMap(clients.flatMap((client) => client.profile?.preferredPeriods || []));
+  const reachableClients = clients.filter((client) => (
+    client.userId
+    && client.hasWhatsapp
+    && !client.inviteBlocked
+    && client.profile?.allowPromotions !== false
+  ));
+  const inactiveClients = reachableClients.filter((client) => (client.summary?.daysSinceLastBooking || 0) >= 45);
+  const topInterest = interestStats[0];
+  const topPeriod = periodStats[0];
+  const topSource = sourceStats[0];
+  const recommendations = [
+    {
+      label: 'Completar base do CRM',
+      text: stats.noPreferences
+        ? `${stats.noPreferences} cliente(s) ainda estao sem preferencias. Envie convite para aumentar a qualidade dos insights.`
+        : 'As preferencias principais estao bem preenchidas. Ja da para segmentar campanhas com mais seguranca.',
+    },
+    {
+      label: 'Campanha por interesse',
+      text: topInterest
+        ? `${topInterest.name} aparece como interesse mais citado. Vale criar uma campanha ou oferta voltada para esse servico.`
+        : 'Ainda faltam interesses declarados para identificar uma campanha por servico.',
+    },
+    {
+      label: 'Melhor horario para comunicar',
+      text: topPeriod
+        ? `${topPeriod.name} e o periodo preferido mais citado. Use isso para pensar em agenda, lembretes e ofertas.`
+        : 'Ainda nao ha periodos preferidos suficientes para orientar agenda ou campanhas.',
+    },
+    {
+      label: 'Origem que merece atencao',
+      text: topSource
+        ? `${topSource.name} e a origem mais frequente. Reforce esse canal e pergunte origem para quem ainda nao respondeu.`
+        : 'A origem das clientes ainda esta pouco preenchida. Esse dado ajuda a saber onde investir divulgacao.',
+    },
+    {
+      label: 'Reativacao',
+      text: inactiveClients.length
+        ? `${inactiveClients.length} cliente(s) com WhatsApp liberado estao sem retorno ha 45 dias ou mais. Boa oportunidade para campanha de reativacao.`
+        : 'Nao ha grande grupo parado para reativacao neste momento.',
+    },
+  ];
+
+  return {
+    sourceStats,
+    interestStats,
+    periodStats,
+    reachableClients,
+    recommendations,
+  };
 }
 
 function ClientsView({ clients, search, setSearch, statusBadge, onCompleteService, onUndoCompleteService, onMarkNoShow, onMarkRemainingPaid, onDeleteClient, onUpdateClientWhatsapp, onUpdateClientBirthday, birthdayCount, onOpenBirthdays }) {
