@@ -3220,7 +3220,7 @@ function AnalyticsView({ analytics }) {
             items={analytics.serviceStats}
             valueKey="count"
             valueFormatter={(value) => `${value}x`}
-            emptyText="Ainda nao ha servicos suficientes para analisar."
+            emptyText="Ainda não ha serviços suficientes para analisar."
           />
         </ChartPanel>
 
@@ -4847,7 +4847,7 @@ function CrmClientCard({ client, sending, onSendInvite, onToggleDoNotInvite }) {
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <SmallStat label="Servicos" value={client.summary?.activeBookings || 0} tone="gold" />
+        <SmallStat label="Serviços" value={client.summary?.activeBookings || 0} tone="gold" />
         <SmallStat label="Ticket médio" value={formatCurrency(client.summary?.averageTicket || 0)} tone="gold" />
         <SmallStat label="Faltas" value={client.summary?.noShowCount || 0} tone={client.summary?.noShowCount ? 'danger' : 'default'} />
         <SmallStat label="Dias sem voltar" value={client.summary?.daysSinceLastBooking ?? '-'} tone={(client.summary?.daysSinceLastBooking || 0) > 60 ? 'warning' : 'default'} />
