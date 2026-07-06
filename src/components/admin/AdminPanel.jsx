@@ -3059,7 +3059,7 @@ function ErpView({ summary, onOpenTab }) {
           </div>
 
           <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-            <p className="text-xs font-bold uppercase tracking-wider text-cream/40">Fluxo do mes</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-cream/40">Fluxo do mês</p>
             <div className="mt-4 space-y-4">
               <BarRow label="Recebido" value={formatCurrency(summary.cashIn)} width={summary.cashScale ? (summary.cashIn / summary.cashScale) * 100 : 0} />
               <BarRow label="À receber" value={formatCurrency(summary.receivables)} width={summary.cashScale ? (summary.receivables / summary.cashScale) * 100 : 0} />
@@ -3067,7 +3067,7 @@ function ErpView({ summary, onOpenTab }) {
             </div>
             <div className="mt-5 grid grid-cols-2 gap-3">
               <SmallStat label="Agend. ativos" value={summary.activeBookings} />
-              <SmallStat label="Clientes unicos" value={summary.uniqueClients} />
+              <SmallStat label="Clientes únicos" value={summary.uniqueClients} />
               <SmallStat label="Selos pendentes" value={summary.pendingStamps} tone={summary.pendingStamps ? 'warning' : 'success'} />
               <SmallStat label="CRM incompleto" value={summary.crmMissing} tone={summary.crmMissing ? 'warning' : 'success'} />
             </div>
