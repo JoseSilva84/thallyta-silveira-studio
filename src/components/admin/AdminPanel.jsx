@@ -6291,7 +6291,7 @@ function buildErpSummary({
   if (overdueReceivables.length > 0) {
     actions.push({
       label: 'Cobrar valores vencidos',
-      text: `${overdueReceivables.length} atendimento(s) ja passaram da data e ainda tem valor restante em aberto.`,
+      text: `${overdueReceivables.length} atendimento(s) já passaram da data e ainda tem valor restante em aberto.`,
       tab: 'finance',
       tone: 'danger',
     });
@@ -6300,7 +6300,7 @@ function buildErpSummary({
   if (pendingStamps > 0) {
     actions.push({
       label: 'Confirmar presença',
-      text: `${pendingStamps} atendimento(s) precisam de baixa para liberar fidelidade e manter o historico correto.`,
+      text: `${pendingStamps} atendimento(s) precisam de baixa para liberar fidelidade e manter o histórico correto.`,
       tab: 'loyalty',
       tone: 'warning',
     });
@@ -6350,12 +6350,12 @@ function buildErpSummary({
     },
     {
       label: 'Compras e fornecedores',
-      text: 'Cadastro de fornecedores, custos por compra e comparativo de preco para proteger margem.',
+      text: 'Cadastro de fornecedores, custos por compra e comparativo de preço para proteger margem.',
       impact: 'medio',
     },
     {
       label: 'Metas mensais',
-      text: 'Meta de faturamento, agenda ocupada, ticket médio e recorrencia por cliente.',
+      text: 'Meta de faturamento, agenda ocupada, ticket médio e recorrência por cliente.',
       impact: 'alto',
     },
     {
