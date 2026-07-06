@@ -1433,7 +1433,8 @@ export default function AdminPanel() {
               <FiChevronDown className="text-xs" />
             </button>
             {managementMenuOpen && (
-              <div className="absolute left-0 top-[calc(100%+0.35rem)] z-30 min-w-48 rounded-2xl border border-white/10 bg-[#090706]/95 p-2 shadow-2xl shadow-black/50 backdrop-blur-md">
+              <div className="absolute left-0 top-full z-30 min-w-48 pt-2">
+                <div className="rounded-2xl border border-white/10 bg-[#090706]/95 p-2 shadow-2xl shadow-black/50 backdrop-blur-md">
                 <button
                   type="button"
                   onClick={() => {
@@ -1492,6 +1493,7 @@ export default function AdminPanel() {
                     </span>
                   )}
                 </button>
+                </div>
               </div>
             )}
           </div>
@@ -1525,7 +1527,8 @@ export default function AdminPanel() {
               <FiChevronDown className="text-xs" />
             </button>
             {clientsMenuOpen && (
-              <div className="absolute left-0 top-[calc(100%+0.35rem)] z-30 min-w-48 rounded-2xl border border-white/10 bg-[#090706]/95 p-2 shadow-2xl shadow-black/50 backdrop-blur-md">
+              <div className="absolute left-0 top-full z-30 min-w-48 pt-2">
+                <div className="rounded-2xl border border-white/10 bg-[#090706]/95 p-2 shadow-2xl shadow-black/50 backdrop-blur-md">
                 <button
                   type="button"
                   onClick={() => {
@@ -1589,6 +1592,7 @@ export default function AdminPanel() {
                     </span>
                   )}
                 </button>
+                </div>
               </div>
             )}
           </div>
@@ -2888,7 +2892,45 @@ function ErpView({ summary, onOpenTab }) {
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
-            <FinanceInlineStat label="Score" value={`${summary.healthScore}%`} valueClassName={scoreTone} />
+            <FinanceInlineStat
+              label="Score"
+              value={`${summary.healthScore}%`}
+              valueClassName={scoreTone}
+              tooltip={(
+                <div>
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wider text-gold-light/70">Nota da gestao</p>
+                      <p className="mt-1 text-lg font-bold text-cream">{summary.healthScore}% - {summary.healthLabel}</p>
+                    </div>
+                    <span className={`rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs font-bold ${scoreTone}`}>
+                      {summary.healthScore}%
+                    </span>
+                  </div>
+                  <p className="mt-3 text-sm leading-relaxed text-cream/60">
+                    Resume a saude do mes em uma nota de 0 a 100. A nota cai quando existem pendencias operacionais ou financeiras.
+                  </p>
+                  <div className="mt-4 grid gap-2 text-xs text-cream/55">
+                    <span className="flex items-center justify-between gap-3 rounded-lg bg-white/[0.04] px-3 py-2">
+                      <span>Valores vencidos</span>
+                      <b className="text-red-200">{summary.overdueReceivables.length}</b>
+                    </span>
+                    <span className="flex items-center justify-between gap-3 rounded-lg bg-white/[0.04] px-3 py-2">
+                      <span>Pagamentos em alerta</span>
+                      <b className="text-amber-200">{summary.unresolvedPaymentCount}</b>
+                    </span>
+                    <span className="flex items-center justify-between gap-3 rounded-lg bg-white/[0.04] px-3 py-2">
+                      <span>Fidelidade pendente</span>
+                      <b className="text-amber-200">{summary.pendingStamps}</b>
+                    </span>
+                    <span className="flex items-center justify-between gap-3 rounded-lg bg-white/[0.04] px-3 py-2">
+                      <span>CRM incompleto</span>
+                      <b className="text-amber-200">{summary.crmMissing}</b>
+                    </span>
+                  </div>
+                </div>
+              )}
+            />
             <FinanceInlineStat label="A receber" value={formatCurrency(summary.receivables)} valueClassName="text-amber-200" />
             <FinanceInlineStat label="7 dias" value={formatCurrency(summary.nextSevenDaysRevenue)} valueClassName="text-gold-light" />
           </div>
@@ -3896,11 +3938,24 @@ function FinanceMovementRow({ title, subtitle, meta, value, tone, editLabel, onE
   );
 }
 
-function FinanceInlineStat({ label, value, valueClassName = 'text-cream' }) {
+function FinanceInlineStat({ label, value, valueClassName = 'text-cream', tooltip = null }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
-      <p className="text-[0.65rem] font-bold uppercase tracking-wider text-cream/40">{label}</p>
+    <div className="group relative rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3" tabIndex={tooltip ? 0 : undefined}>
+      <div className="flex items-center gap-2">
+        <p className="text-[0.65rem] font-bold uppercase tracking-wider text-cream/40">{label}</p>
+        {tooltip && (
+          <span className="grid size-4 place-items-center rounded-full border border-gold/25 bg-gold/10 text-[0.62rem] font-bold text-gold-light">
+            ?
+          </span>
+        )}
+      </div>
       <p className={`mt-1 text-base font-bold ${valueClassName}`}>{value}</p>
+      {tooltip && (
+        <div className="pointer-events-none absolute right-0 top-[calc(100%+0.75rem)] z-50 w-80 translate-y-1 rounded-2xl border border-gold/25 bg-[#090706]/95 p-4 text-left opacity-0 shadow-2xl shadow-black/60 backdrop-blur-xl transition duration-150 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100 group-focus:pointer-events-auto group-focus:translate-y-0 group-focus:opacity-100">
+          <span className="absolute -top-2 right-8 size-4 rotate-45 border-l border-t border-gold/25 bg-[#090706]" />
+          {tooltip}
+        </div>
+      )}
     </div>
   );
 }
