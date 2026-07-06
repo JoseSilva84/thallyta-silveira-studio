@@ -8,10 +8,10 @@ const API = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
 
 const sourceOptions = [
   { value: 'instagram', label: 'Instagram' },
-  { value: 'indicacao', label: 'Indicacao' },
+  { value: 'indicação', label: 'Indicação' },
   { value: 'google', label: 'Google' },
   { value: 'whatsapp', label: 'WhatsApp' },
-  { value: 'cliente_antiga', label: 'Ja era cliente' },
+  { value: 'cliente_antiga', label: 'Já era cliente' },
   { value: 'outro', label: 'Outro' },
 ]
 
@@ -53,7 +53,7 @@ export default function PreferencesPage() {
         headers: { Authorization: `Bearer ${getToken()}` },
       })
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || 'Erro ao carregar preferencias.')
+      if (!res.ok) throw new Error(data.error || 'Erro ao carregar preferências.')
       const profile = data.profile || {}
       setForm({
         source: profile.source || '',
@@ -100,8 +100,8 @@ export default function PreferencesPage() {
         body: JSON.stringify(form),
       })
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || 'Erro ao salvar preferencias.')
-      toast.success('Preferencias salvas com sucesso!')
+      if (!res.ok) throw new Error(data.error || 'Erro ao salvar preferências.')
+      toast.success('Preferências salvas com sucesso!')
       navigate('/meus-agendamentos')
     } catch (error) {
       toast.error(error.message)
@@ -127,17 +127,17 @@ export default function PreferencesPage() {
               <FiHeart size={22} />
             </div>
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.24em] text-gold/70">Preferencias do Studio</p>
+              <p className="text-xs font-bold uppercase tracking-[0.24em] text-gold/70">Preferências do Studio</p>
               <h1 className="mt-2 font-display text-4xl text-gold-light">Seu atendimento, {firstName}</h1>
               <p className="mt-3 max-w-2xl text-sm leading-relaxed text-cream/60">
-                Responda quando quiser. Isso nao muda o agendamento rapido; apenas ajuda o Studio a lembrar suas preferencias.
+                Responda quando quiser. Isso nao muda o agendamento rápido; apenas ajuda o Studio a lembrar suas preferências.
               </p>
             </div>
           </div>
 
           {loading ? (
             <div className="mt-8 rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-sm text-cream/50">
-              Carregando preferencias...
+              Carregando preferências...
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="mt-8 space-y-7">
@@ -163,14 +163,14 @@ export default function PreferencesPage() {
               </div>
 
               <OptionGroup
-                title="Quais servicos mais te interessam?"
+                title="Quais serviços mais te interessam?"
                 options={interestOptions}
                 values={form.interests}
                 onToggle={(value) => toggleListValue('interests', value)}
               />
 
               <OptionGroup
-                title="Qual periodo costuma ser melhor?"
+                title="Qual período costuma ser melhor?"
                 options={periodOptions}
                 values={form.preferredPeriods}
                 onToggle={(value) => toggleListValue('preferredPeriods', value)}
@@ -205,7 +205,7 @@ export default function PreferencesPage() {
                   className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-cream outline-none transition focus:border-gold/50"
                 />
                 <p className="mt-2 text-xs text-cream/40">
-                  Opcional. Ajuda o Studio a lembrar mimos e beneficios de aniversario.
+                  Opcional. Ajuda o Studio a lembrar mimos e benefícios de aniversário.
                 </p>
               </div>
 
@@ -228,7 +228,7 @@ export default function PreferencesPage() {
                   onChange={(event) => setForm((current) => ({ ...current, allowPromotions: event.target.checked }))}
                   className="mt-1 size-4 accent-gold"
                 />
-                <span>Permito receber avisos e novidades uteis pelo WhatsApp.</span>
+                <span>Permito receber avisos e novidades úteis pelo WhatsApp.</span>
               </label>
 
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -240,7 +240,7 @@ export default function PreferencesPage() {
                   disabled={saving}
                   className="gold-button inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-60"
                 >
-                  <FiSave /> {saving ? 'Salvando...' : 'Salvar preferencias'}
+                  <FiSave /> {saving ? 'Salvando...' : 'Salvar preferências'}
                 </button>
               </div>
             </form>

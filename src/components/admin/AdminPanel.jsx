@@ -869,11 +869,11 @@ export default function AdminPanel() {
 
   const handleCopyCrmInviteText = async () => {
     const text = [
-      'Oi! Para deixar seu atendimento no Studio Thallyta Silveira ainda mais personalizado, voce pode preencher rapidinho suas preferencias.',
+      'Oi! Para deixar seu atendimento no Studio Thallyta Silveira ainda mais personalizado, voce pode preencher rapidinho suas preferências.',
       '',
-      `Acesse: ${crmInviteLink || `${window.location.origin}/preferencias`}`,
+      `Acesse: ${crmInviteLink || `${window.location.origin}/preferências`}`,
       '',
-      'E opcional e leva menos de 1 minuto.',
+      'É opcional e leva menos de 1 minuto.',
     ].join('\n');
 
     try {
@@ -1307,8 +1307,8 @@ export default function AdminPanel() {
   };
 
   return (
-    <div className="min-h-screen bg-dark p-4 text-cream md:p-8">
-      <div className="mx-auto max-w-7xl">
+    <div className="min-h-screen overflow-x-hidden bg-dark p-4 text-cream md:p-8">
+      <div className="mx-auto w-full max-w-7xl">
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gold">Painel Administrativo</h1>
@@ -4449,8 +4449,8 @@ function CrmAdminView({ clients, stats, inviteLink, fetching, sendingIds, sendin
     { value: 'with_whatsapp', label: 'Com WhatsApp', count: stats.withWhatsappMissing },
     { value: 'no_whatsapp', label: 'Sem WhatsApp', count: clients.filter((client) => !client.hasWhatsapp).length },
     { value: 'no_source', label: 'Sem origem', count: stats.noSource },
-    { value: 'no_preferences', label: 'Sem preferencias', count: stats.noPreferences },
-    { value: 'no_birthday', label: 'Sem aniversario', count: stats.noBirthday },
+    { value: 'no_preferences', label: 'Sem preferências', count: stats.noPreferences },
+    { value: 'no_birthday', label: 'Sem aniversário', count: stats.noBirthday },
     { value: 'do_not_invite', label: 'Nao insistir', count: stats.doNotInvite },
     { value: 'all', label: 'Todos', count: stats.total },
   ];
@@ -4463,7 +4463,7 @@ function CrmAdminView({ clients, stats, inviteLink, fetching, sendingIds, sendin
             <p className="text-xs font-bold uppercase tracking-wider text-gold-light/60">CRM</p>
             <h2 className="mt-1 text-2xl font-semibold text-cream">Perfil e relacionamento das clientes</h2>
             <p className="mt-2 max-w-2xl text-sm text-cream/50">
-              Camada separada do agendamento rapido. Use para coletar preferencias e convidar clientes pelo WhatsApp.
+              Camada separada do agendamento rápido. Use para coletar preferências e convidar clientes pelo WhatsApp.
             </p>
           </div>
 
@@ -4500,8 +4500,8 @@ function CrmAdminView({ clients, stats, inviteLink, fetching, sendingIds, sendin
           <SmallStat label="Com WhatsApp" value={stats.withWhatsappMissing || 0} tone="gold" />
           <SmallStat label="Convidados" value={stats.invited || 0} tone="default" />
           <SmallStat label="Sem origem" value={stats.noSource || 0} tone={stats.noSource ? 'warning' : 'default'} />
-          <SmallStat label="Sem preferencias" value={stats.noPreferences || 0} tone={stats.noPreferences ? 'warning' : 'default'} />
-          <SmallStat label="Sem aniversario" value={stats.noBirthday || 0} tone={stats.noBirthday ? 'warning' : 'default'} />
+          <SmallStat label="Sem preferências" value={stats.noPreferences || 0} tone={stats.noPreferences ? 'warning' : 'default'} />
+          <SmallStat label="Sem aniversário" value={stats.noBirthday || 0} tone={stats.noBirthday ? 'warning' : 'default'} />
           <SmallStat label="Nao insistir" value={stats.doNotInvite || 0} tone={stats.doNotInvite ? 'danger' : 'default'} />
           <SmallStat label="Sem WhatsApp" value={clients.filter((client) => !client.hasWhatsapp).length} tone="default" />
         </div>
@@ -4585,9 +4585,9 @@ function CrmInsightsView({ clients, stats, fetching, onOpenCampaigns }) {
 
         <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <MetricCard icon={<FiUsers />} label="Clientes no CRM" value={stats.total || 0} hint={`${stats.completed || 0} perfil(is) preenchido(s)`} />
-          <MetricCard icon={<FiAlertTriangle />} label="Dados pendentes" value={stats.missing || 0} hint={`${stats.noPreferences || 0} sem preferencias`} />
-          <MetricCard icon={<FiMessageSquare />} label="Base acionavel" value={insights.reachableClients.length} hint="com WhatsApp e liberadas" />
-          <MetricCard icon={<FiGift />} label="Aniversarios ausentes" value={stats.noBirthday || 0} hint="impacta campanhas de mimo" />
+          <MetricCard icon={<FiAlertTriangle />} label="Dados pendentes" value={stats.missing || 0} hint={`${stats.noPreferences || 0} sem preferências`} />
+          <MetricCard icon={<FiMessageSquare />} label="Base acionável" value={insights.reachableClients.length} hint="com WhatsApp e liberadas" />
+          <MetricCard icon={<FiGift />} label="Aniversários ausentes" value={stats.noBirthday || 0} hint="impacta campanhas de mimo" />
         </div>
       </section>
 
@@ -4598,13 +4598,13 @@ function CrmInsightsView({ clients, stats, fetching, onOpenCampaigns }) {
         <ChartPanel title="Interesses declarados">
           <HorizontalBarChart items={insights.interestStats} valueKey="count" valueFormatter={(value) => `${value}x`} emptyText="Ainda nao ha interesses suficientes." />
         </ChartPanel>
-        <ChartPanel title="Periodos preferidos">
+        <ChartPanel title="Períodos preferidos">
           <HorizontalBarChart items={insights.periodStats} valueKey="count" valueFormatter={(value) => `${value}x`} emptyText="Ainda nao ha periodos informados." />
         </ChartPanel>
       </div>
 
       <section className="rounded-2xl border border-gold/20 bg-black/40 p-5">
-        <h2 className="text-xl font-semibold text-gold-light">Oportunidades de decisao</h2>
+        <h2 className="text-xl font-semibold text-gold-light">Oportunidades de decisão</h2>
         <div className="mt-4 grid gap-3 lg:grid-cols-2">
           {insights.recommendations.map((item) => (
             <article key={item.label} className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
@@ -4659,75 +4659,75 @@ function CrmCampaignsView({ clients, fetching, sending, onSend }) {
     .replace(/\{primeiro_nome\}/gi, firstName);
 
   return (
-    <div className="space-y-6">
-      <section className="rounded-2xl border border-gold/20 bg-black/40 p-5">
+    <div className="min-w-0 space-y-6 overflow-hidden">
+      <section className="min-w-0 rounded-2xl border border-gold/20 bg-black/40 p-4 sm:p-5">
         <p className="text-xs font-bold uppercase tracking-wider text-gold-light/60">Relacionamento</p>
-        <h2 className="mt-1 text-2xl font-semibold text-cream">Campanhas por WhatsApp</h2>
+        <h2 className="mt-1 text-xl font-semibold text-cream sm:text-2xl">Campanhas por WhatsApp</h2>
         <p className="mt-2 max-w-2xl text-sm text-cream/50">
           Selecione um publico, revise a lista e envie mensagens para clientes com WhatsApp liberado.
         </p>
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
-        <section className="rounded-2xl border border-gold/20 bg-black/40 p-5">
+      <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
+        <section className="min-w-0 rounded-2xl border border-gold/20 bg-black/40 p-4 sm:p-5">
           <div className="grid gap-4 lg:grid-cols-2">
-            <div>
+            <div className="min-w-0">
               <label className="mb-1 block text-sm text-cream/70">Publico</label>
               <select
                 value={audience}
                 onChange={(event) => setAudience(event.target.value)}
-                className="w-full rounded-lg border border-white/10 bg-dark px-3 py-2 text-sm text-cream outline-none focus:border-gold"
+                className="w-full min-w-0 rounded-lg border border-white/10 bg-dark px-3 py-2 text-sm text-cream outline-none focus:border-gold"
               >
                 <option value="all">Todas elegiveis</option>
                 <option value="completed">CRM preenchido</option>
                 <option value="missing">CRM pendente</option>
-                <option value="birthday_missing">Sem aniversario</option>
+                <option value="birthday_missing">Sem aniversário</option>
                 <option value="inactive">Sem retorno ha 45 dias</option>
                 <option value="recent">Atendidas nos ultimos 30 dias</option>
               </select>
             </div>
-            <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-cream/70">
+            <label className="flex min-w-0 items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-cream/70">
               <input
                 type="checkbox"
                 checked={promotional}
                 onChange={(event) => setPromotional(event.target.checked)}
-                className="size-4 accent-gold"
+                className="size-4 shrink-0 accent-gold"
               />
-              Respeitar aceite de promocoes
+              <span className="min-w-0">Respeitar aceite de promoções</span>
             </label>
           </div>
 
-          <div className="mt-4">
+          <div className="mt-4 min-w-0">
             <label className="mb-1 block text-sm text-cream/70">Mensagem</label>
             <textarea
               value={message}
               onChange={(event) => setMessage(event.target.value)}
               rows={7}
               maxLength={1200}
-              className="w-full resize-none rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-cream outline-none placeholder:text-cream/30 focus:border-gold"
+              className="w-full min-w-0 resize-none rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-cream outline-none placeholder:text-cream/30 focus:border-gold"
             />
             <p className="mt-2 text-xs text-cream/40">Use {'{primeiro_nome}'} ou {'{nome}'} para personalizar.</p>
           </div>
 
-          <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+          <div className="mt-5 flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
             <span className="text-sm text-cream/50">
               {selectedClients.length} selecionada(s) de {audienceClients.length} elegivel(is)
             </span>
-            <div className="flex gap-2">
-              <button type="button" onClick={() => setSelectedIds(audienceClients.map((client) => client.userId))} className="rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-cream/60 hover:text-gold-light">Selecionar todas</button>
-              <button type="button" onClick={() => setSelectedIds([])} className="rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-cream/60 hover:text-gold-light">Limpar</button>
+            <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
+              <button type="button" onClick={() => setSelectedIds(audienceClients.map((client) => client.userId))} className="rounded-full border border-white/10 px-3 py-2 text-sm font-semibold text-cream/60 hover:text-gold-light sm:px-4">Selecionar todas</button>
+              <button type="button" onClick={() => setSelectedIds([])} className="rounded-full border border-white/10 px-3 py-2 text-sm font-semibold text-cream/60 hover:text-gold-light sm:px-4">Limpar</button>
               <button
                 type="button"
                 disabled={sending || fetching || !selectedClients.length}
                 onClick={() => onSend({ clientIds: selectedClients.map((client) => client.userId), message, promotional })}
-                className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-gold to-gold-light px-5 py-2 text-sm font-bold text-dark disabled:cursor-not-allowed disabled:opacity-60"
+                className="col-span-2 inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-gold to-gold-light px-4 py-2 text-sm font-bold text-dark disabled:cursor-not-allowed disabled:opacity-60 sm:px-5"
               >
                 <FiSend /> {sending ? 'Enviando...' : 'Enviar campanha'}
               </button>
             </div>
           </div>
 
-          <div className="mt-5 grid gap-3">
+          <div className="mt-5 grid min-w-0 gap-3">
             {fetching ? (
               <p className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-cream/50">Carregando clientes...</p>
             ) : audienceClients.length === 0 ? (
@@ -4737,7 +4737,7 @@ function CrmCampaignsView({ clients, fetching, sending, onSend }) {
                 key={client.userId}
                 type="button"
                 onClick={() => toggleClient(client)}
-                className={`flex items-center justify-between gap-3 rounded-xl border p-3 text-left transition ${
+                className={`flex min-w-0 items-center justify-between gap-3 rounded-xl border p-3 text-left transition ${
                   selectedIds.includes(client.userId)
                     ? 'border-gold/45 bg-gold/10'
                     : 'border-white/10 bg-white/[0.03] hover:border-gold/25'
@@ -4747,7 +4747,7 @@ function CrmCampaignsView({ clients, fetching, sending, onSend }) {
                   <span className="block truncate text-sm font-semibold text-cream">{client.name}</span>
                   <span className="block truncate text-xs text-cream/40">{formatWhatsappDisplay(client.whatsappPhone)}</span>
                 </span>
-                <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${selectedIds.includes(client.userId) ? 'bg-gold text-dark' : 'bg-white/10 text-cream/45'}`}>
+                <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${selectedIds.includes(client.userId) ? 'bg-gold text-dark' : 'bg-white/10 text-cream/45'}`}>
                   {selectedIds.includes(client.userId) ? 'Selecionada' : 'Selecionar'}
                 </span>
               </button>
@@ -4755,14 +4755,14 @@ function CrmCampaignsView({ clients, fetching, sending, onSend }) {
           </div>
         </section>
 
-        <aside className="rounded-2xl border border-gold/20 bg-black/40 p-5">
+        <aside className="min-w-0 rounded-2xl border border-gold/20 bg-black/40 p-4 sm:p-5">
           <p className="text-xs font-bold uppercase tracking-wider text-gold-light/60">Previa</p>
           <h3 className="mt-1 text-xl font-semibold text-cream">Mensagem personalizada</h3>
-          <div className="mt-4 whitespace-pre-wrap rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm leading-relaxed text-cream/70">
+          <div className="mt-4 whitespace-pre-wrap break-words rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm leading-relaxed text-cream/70">
             {previewText || 'Escreva uma mensagem para visualizar aqui.'}
           </div>
-          <div className="mt-4 rounded-xl border border-amber-300/20 bg-amber-300/10 p-4 text-sm leading-relaxed text-amber-50/80">
-            O envio ignora clientes marcadas como "nao insistir", sem WhatsApp ou sem aceite de promocoes quando a campanha for promocional.
+          <div className="mt-4 break-words rounded-xl border border-amber-300/20 bg-amber-300/10 p-4 text-sm leading-relaxed text-amber-50/80">
+            O envio ignora clientes marcadas como "nao insistir", sem WhatsApp ou sem aceite de promoções quando a campanha for promocional.
           </div>
         </aside>
       </div>
@@ -4848,7 +4848,7 @@ function CrmClientCard({ client, sending, onSendInvite, onToggleDoNotInvite }) {
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <SmallStat label="Servicos" value={client.summary?.activeBookings || 0} tone="gold" />
-        <SmallStat label="Ticket medio" value={formatCurrency(client.summary?.averageTicket || 0)} tone="gold" />
+        <SmallStat label="Ticket médio" value={formatCurrency(client.summary?.averageTicket || 0)} tone="gold" />
         <SmallStat label="Faltas" value={client.summary?.noShowCount || 0} tone={client.summary?.noShowCount ? 'danger' : 'default'} />
         <SmallStat label="Dias sem voltar" value={client.summary?.daysSinceLastBooking ?? '-'} tone={(client.summary?.daysSinceLastBooking || 0) > 60 ? 'warning' : 'default'} />
       </div>
@@ -4859,13 +4859,13 @@ function CrmClientCard({ client, sending, onSendInvite, onToggleDoNotInvite }) {
           <div className="space-y-2 text-sm text-cream/65">
             <p>Origem: <strong className="text-cream">{sourceLabel || 'Nao informada'}</strong></p>
             <p>Contato: <strong className="text-cream">{profile.contactPreference || 'Nao informado'}</strong></p>
-            <p>Promocoes: <strong className="text-cream">{profile.allowPromotions === false ? 'Nao' : 'Sim'}</strong></p>
+            <p>Promoções: <strong className="text-cream">{profile.allowPromotions === false ? 'Nao' : 'Sim'}</strong></p>
           </div>
         </div>
 
         <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-          <p className="mb-3 text-xs font-bold uppercase tracking-wider text-cream/40">Preferencias</p>
-          <ChipList items={[...(profile.interests || []), ...(profile.preferredPeriods || [])]} empty="Nenhuma preferencia registrada." />
+          <p className="mb-3 text-xs font-bold uppercase tracking-wider text-cream/40">Preferências</p>
+          <ChipList items={[...(profile.interests || []), ...(profile.preferredPeriods || [])]} empty="Nenhuma preferência registrada." />
           {profile.notes && <p className="mt-3 text-sm leading-relaxed text-cream/60">{profile.notes}</p>}
         </div>
       </div>
@@ -4889,7 +4889,7 @@ function ChipList({ items, empty }) {
 function crmSourceLabel(value) {
   const labels = {
     instagram: 'Instagram',
-    indicacao: 'Indicacao',
+    indicacao: 'Indicação',
     google: 'Google',
     whatsapp: 'WhatsApp',
     cliente_antiga: 'Ja era cliente',
@@ -4926,32 +4926,32 @@ function buildCrmInsights(clients, stats) {
     {
       label: 'Completar base do CRM',
       text: stats.noPreferences
-        ? `${stats.noPreferences} cliente(s) ainda estao sem preferencias. Envie convite para aumentar a qualidade dos insights.`
-        : 'As preferencias principais estao bem preenchidas. Ja da para segmentar campanhas com mais seguranca.',
+        ? `${stats.noPreferences} cliente(s) ainda estao sem prefêrencias. Envie convite para aumentar a qualidade dos insights.`
+        : 'As preferências principais estao bem preenchidas. Ja da para segmentar campanhas com mais segurança.',
     },
     {
       label: 'Campanha por interesse',
       text: topInterest
-        ? `${topInterest.name} aparece como interesse mais citado. Vale criar uma campanha ou oferta voltada para esse servico.`
-        : 'Ainda faltam interesses declarados para identificar uma campanha por servico.',
+        ? `${topInterest.name} aparece como interesse mais citado. Vale criar uma campanha ou oferta voltada para esse serviço.`
+        : 'Ainda faltam interesses declarados para identificar uma campanha por serviço.',
     },
     {
-      label: 'Melhor horario para comunicar',
+      label: 'Melhor horário para comunicar',
       text: topPeriod
-        ? `${topPeriod.name} e o periodo preferido mais citado. Use isso para pensar em agenda, lembretes e ofertas.`
-        : 'Ainda nao ha periodos preferidos suficientes para orientar agenda ou campanhas.',
+        ? `${topPeriod.name} e o período preferido mais citado. Use isso para pensar em agenda, lembretes e ofertas.`
+        : 'Ainda nao ha períodos preferidos suficientes para orientar agenda ou campanhas.',
     },
     {
-      label: 'Origem que merece atencao',
+      label: 'Origem que merece atenção',
       text: topSource
         ? `${topSource.name} e a origem mais frequente. Reforce esse canal e pergunte origem para quem ainda nao respondeu.`
-        : 'A origem das clientes ainda esta pouco preenchida. Esse dado ajuda a saber onde investir divulgacao.',
+        : 'A origem das clientes ainda está pouco preenchida. Esse dado ajuda a saber onde investir divulgação.',
     },
     {
-      label: 'Reativacao',
+      label: 'Reativação',
       text: inactiveClients.length
-        ? `${inactiveClients.length} cliente(s) com WhatsApp liberado estao sem retorno ha 45 dias ou mais. Boa oportunidade para campanha de reativacao.`
-        : 'Nao ha grande grupo parado para reativacao neste momento.',
+        ? `${inactiveClients.length} cliente(s) com WhatsApp liberado estão sem retorno ha 45 dias ou mais. Boa oportunidade para campanha de reativação.`
+        : 'Nao há grande grupo parado para reativação neste momento.',
     },
   ];
 
@@ -6299,7 +6299,7 @@ function buildErpSummary({
 
   if (pendingStamps > 0) {
     actions.push({
-      label: 'Confirmar presenca',
+      label: 'Confirmar presença',
       text: `${pendingStamps} atendimento(s) precisam de baixa para liberar fidelidade e manter o historico correto.`,
       tab: 'loyalty',
       tone: 'warning',
@@ -6309,7 +6309,7 @@ function buildErpSummary({
   if (crmMissing > 0) {
     actions.push({
       label: 'Completar CRM',
-      text: `${crmMissing} cliente(s) ainda precisam preencher origem, preferencias ou dados de relacionamento.`,
+      text: `${crmMissing} cliente(s) ainda precisam preencher origem, preferências ou dados de relacionamento.`,
       tab: 'crm',
       tone: 'warning',
     });
@@ -6317,8 +6317,8 @@ function buildErpSummary({
 
   if (netProfit < 0) {
     actions.push({
-      label: 'Revisar despesas do mes',
-      text: `O lucro atual esta negativo em ${formatCurrency(Math.abs(netProfit))}. Priorize despesas variaveis e recebimentos pendentes.`,
+      label: 'Revisar despesas do mês',
+      text: `O lucro atual está negativo em ${formatCurrency(Math.abs(netProfit))}. Priorize despesas variáveis e recebimentos pendentes.`,
       tab: 'finance',
       tone: 'danger',
     });
@@ -6335,8 +6335,8 @@ function buildErpSummary({
 
   if (actions.length === 0) {
     actions.push({
-      label: 'Operacao em ordem',
-      text: 'Sem pendencias criticas no momento. Bom momento para revisar metas, fotos de servicos e campanhas para clientes recorrentes.',
+      label: 'Operação em ordem',
+      text: 'Sem pendências críticas no momento. Bom momento para revisar metas, fotos de serviços e campanhas para clientes recorrentes.',
       tab: 'analytics',
       tone: 'success',
     });
@@ -6345,7 +6345,7 @@ function buildErpSummary({
   const nextModules = [
     {
       label: 'Estoque de produtos',
-      text: 'Controle de esmaltes, gel, descartaveis e alertas de reposicao por consumo estimado em cada servico.',
+      text: 'Controle de esmaltes, gel, descartaveis e alertas de reposição por consumo estimado em cada serviço.',
       impact: 'alto',
     },
     {
@@ -6355,13 +6355,13 @@ function buildErpSummary({
     },
     {
       label: 'Metas mensais',
-      text: 'Meta de faturamento, agenda ocupada, ticket medio e recorrencia por cliente.',
+      text: 'Meta de faturamento, agenda ocupada, ticket médio e recorrencia por cliente.',
       impact: 'alto',
     },
     {
       label: 'Comissoes e retiradas',
-      text: 'Separar dinheiro do negocio, retiradas pessoais e lucro reinvestido sem misturar caixa.',
-      impact: 'medio',
+      text: 'Separar dinheiro do negócio, retiradas pessoais e lucro reinvestido sem misturar caixa.',
+      impact: 'médio',
     },
   ];
 
@@ -6372,7 +6372,7 @@ function buildErpSummary({
     cashOut,
     cashScale: Math.max(cashIn, cashOut, receivablesTotal, 1),
     crmMissing,
-    healthLabel: score >= 80 ? 'Operacao saudavel' : score >= 55 ? 'Exige acompanhamento' : 'Atencao imediata',
+    healthLabel: score >= 80 ? 'Operação saudável' : score >= 55 ? 'Exige acompanhamento' : 'Atenção imediata',
     healthScore: Math.round(score),
     margin,
     netProfit,
@@ -6535,8 +6535,8 @@ function buildAnalytics(bookings) {
     {
       label: 'Valores',
       text: missingValueCount
-        ? `${missingValueCount} agendamento(s) estao sem valor informado, entao receita e ticket medio podem estar abaixo do real.`
-        : 'Todos os agendamentos ativos têm valor informado, deixando receita e ticket medio mais confiáveis.',
+        ? `${missingValueCount} agendamento(s) estao sem valor informado, entao receita e ticket médio podem estar abaixo do real.`
+        : 'Todos os agendamentos ativos têm valor informado, deixando receita e ticket médio mais confiáveis.',
     },
   ];
 

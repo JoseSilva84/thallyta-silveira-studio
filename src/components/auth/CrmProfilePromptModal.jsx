@@ -78,17 +78,17 @@ export default function CrmProfilePromptModal() {
             onClick={closePrompt}
             disabled={closing}
             className="grid size-10 shrink-0 place-items-center rounded-full border border-white/10 text-cream/45 transition hover:border-white/20 hover:text-cream disabled:opacity-50"
-            aria-label="Fechar preferencias"
+            aria-label="Fechar preferências"
           >
             <FiX />
           </button>
         </div>
 
         <div className="mt-4">
-          <p className="text-xs font-bold uppercase tracking-[0.24em] text-gold/70">Preferencias do Studio</p>
+          <p className="text-xs font-bold uppercase tracking-[0.24em] text-gold/70">Preferências do Studio</p>
           <h2 className="mt-2 font-display text-3xl text-gold-light">Quer personalizar seu atendimento?</h2>
           <p className="mt-3 text-sm leading-relaxed text-cream/60">
-            Responda algumas perguntas rapidas para o Studio lembrar suas preferencias. Isso e opcional e nao muda o agendamento rapido.
+            Responda algumas perguntas rápidas para o Studio lembrar suas preferências. Isso é opcional e não muda o agendamento rápido.
           </p>
         </div>
 
