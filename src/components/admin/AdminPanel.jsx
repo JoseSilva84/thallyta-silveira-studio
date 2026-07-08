@@ -6442,8 +6442,7 @@ function buildAnalytics(bookings) {
       missingValueCount += 1;
     }
 
-    const clientKey = booking.attendeeEmail || booking.user?.email || booking.attendeePhone || booking.user?.whatsappPhone || booking.attendeeName || booking.user?.name;
-    if (clientKey) clientKeys.add(String(clientKey).toLowerCase());
+    clientKeys.add(getBookingClientKey(booking));
 
     const stampCount = Math.max(1, services.length);
     if (booking.serviceCompletedAt) completedStamps += stampCount;
@@ -6573,21 +6572,35 @@ function buildAnalytics(bookings) {
   };
 }
 
+function getBookingWhatsappKey(booking) {
+  const phones = [booking.attendeePhone, booking.user?.whatsappPhone];
+  for (const phone of phones) {
+    const digits = onlyDigits(phone);
+    if (digits.length >= 10) return normalizeBrazilWhatsapp(phone);
+  }
+  return '';
+}
+
+function getBookingClientKey(booking) {
+  const whatsappKey = getBookingWhatsappKey(booking);
+  if (whatsappKey) return `whatsapp:${whatsappKey}`;
+
+  const email = String(booking.attendeeEmail || booking.user?.email || '').trim().toLowerCase();
+  if (email) return `email:${email}`;
+
+  const name = String(booking.attendeeName || booking.user?.name || '').trim().toLowerCase();
+  if (name) return `name:${name}`;
+
+  return `booking:${booking.id}`;
+}
+
 function buildLoyaltyClients(bookings) {
   const clients = new Map();
 
   bookings
     .filter((booking) => !['cancelled', 'no_show'].includes(booking.status))
     .forEach((booking) => {
-      const key = String(
-        booking.attendeeEmail
-          || booking.user?.email
-          || booking.attendeePhone
-          || booking.user?.whatsappPhone
-          || booking.attendeeName
-          || booking.user?.name
-          || booking.id,
-      ).toLowerCase();
+      const key = getBookingClientKey(booking);
 
       if (!clients.has(key)) {
         clients.set(key, {
@@ -6622,15 +6635,7 @@ function buildClientProfiles(bookings) {
   const clients = new Map();
 
   bookings.forEach((booking) => {
-    const key = String(
-      booking.attendeeEmail
-        || booking.user?.email
-        || booking.attendeePhone
-        || booking.user?.whatsappPhone
-        || booking.attendeeName
-        || booking.user?.name
-        || booking.id,
-    ).toLowerCase();
+    const key = getBookingClientKey(booking);
 
     if (!clients.has(key)) {
       clients.set(key, {
@@ -6664,6 +6669,11 @@ function buildClientProfiles(bookings) {
     }
     if (booking.user?.whatsappPhone) {
       client.phone = booking.user.whatsappPhone;
+    } else if (!client.phone && booking.attendeePhone) {
+      client.phone = booking.attendeePhone;
+    }
+    if (!client.email && (booking.attendeeEmail || booking.user?.email)) {
+      client.email = booking.attendeeEmail || booking.user?.email;
     }
     const services = splitServices(booking.service);
     const serviceList = services.length ? services : ['Servico nao informado'];

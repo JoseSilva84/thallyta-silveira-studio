@@ -26,6 +26,14 @@ const normalizeWhatsappPhone = (value) => {
   return withCountryCode;
 };
 
+const safeNormalizeWhatsappPhone = (value) => {
+  try {
+    return normalizeWhatsappPhone(value);
+  } catch {
+    return null;
+  }
+};
+
 const attachNotificationStatus = async (bookings) => {
   const items = Array.isArray(bookings) ? bookings : [bookings].filter(Boolean);
   if (!items.length) return bookings;
@@ -83,7 +91,8 @@ export const getBookings = async (req, res) => {
 
       const guestPhones = [...new Set(bookings
         .filter((b) => !b.user && b.attendeePhone)
-        .map((b) => b.attendeePhone)
+        .map((b) => safeNormalizeWhatsappPhone(b.attendeePhone))
+        .filter(Boolean)
       )];
 
       if (guestEmails.length > 0 || guestPhones.length > 0) {
@@ -98,13 +107,19 @@ export const getBookings = async (req, res) => {
         });
 
         const usersByEmail = new Map(users.map((u) => [u.email.toLowerCase(), u]));
-        const usersByPhone = new Map(users.filter(u => u.whatsappPhone).map((u) => [u.whatsappPhone, u]));
+        const usersByPhone = new Map(users
+          .filter(u => u.whatsappPhone)
+          .map((u) => [safeNormalizeWhatsappPhone(u.whatsappPhone), u])
+          .filter(([phone]) => Boolean(phone))
+        );
 
         for (const booking of bookings) {
           if (!booking.user) {
             let matchedUser = null;
             if (booking.attendeeEmail) matchedUser = usersByEmail.get(booking.attendeeEmail.toLowerCase());
-            if (!matchedUser && booking.attendeePhone) matchedUser = usersByPhone.get(booking.attendeePhone);
+            if (!matchedUser && booking.attendeePhone) {
+              matchedUser = usersByPhone.get(safeNormalizeWhatsappPhone(booking.attendeePhone));
+            }
             
             if (matchedUser) {
               booking.user = matchedUser;
@@ -801,6 +816,13 @@ export const createAdminBooking = async (req, res) => {
       return res.status(400).json({ error: 'Preencha todos os campos obrigatorios (nome, whatsapp, servico, data, horario).' });
     }
 
+    let normalizedAttendeePhone = null;
+    try {
+      normalizedAttendeePhone = normalizeWhatsappPhone(attendeePhone);
+    } catch (phoneError) {
+      return res.status(400).json({ error: phoneError.message });
+    }
+
     const service = findServiceById(serviceId);
     if (!service) {
       return res.status(400).json({ error: 'Servico nao encontrado no catalogo.' });
@@ -850,7 +872,7 @@ export const createAdminBooking = async (req, res) => {
     const calNotes = [
       `Servico: ${service.name}`,
       `Valor: R$ ${service.price.toFixed(2)}`,
-      `WhatsApp: ${attendeePhone}`,
+      `WhatsApp: ${normalizedAttendeePhone}`,
       notes ? `Obs: ${notes}` : null,
       '(Agendamento manual pela admin)',
     ].filter(Boolean).join('\n');
@@ -863,13 +885,13 @@ export const createAdminBooking = async (req, res) => {
         start: scheduledAt.toISOString(),
         attendeeName,
         attendeeEmail,
-        attendeePhone,
+        attendeePhone: normalizedAttendeePhone,
         notes: calNotes,
         metadata: {
           serviceId: service.id,
           serviceName: service.name,
           estimatedValue: service.price.toFixed(2),
-          attendeeWhatsapp: attendeePhone.trim(),
+          attendeeWhatsapp: normalizedAttendeePhone,
           createdBy: req.user.id,
         },
       });
@@ -884,6 +906,10 @@ export const createAdminBooking = async (req, res) => {
     let userId = existingPayment?.userId || null;
     if (attendeeEmail) {
       const user = await prisma.user.findUnique({ where: { email: attendeeEmail } });
+      if (user) userId = user.id;
+    }
+    if (!userId && normalizedAttendeePhone) {
+      const user = await prisma.user.findFirst({ where: { whatsappPhone: normalizedAttendeePhone } });
       if (user) userId = user.id;
     }
 
@@ -919,7 +945,7 @@ export const createAdminBooking = async (req, res) => {
       notes: notes || null,
       attendeeName: attendeeName.trim(),
       attendeeEmail: attendeeEmail?.trim() || null,
-      attendeePhone: attendeePhone.trim(),
+      attendeePhone: normalizedAttendeePhone,
       location: 'Presencial',
       calPayload: { adminCreated: true, createdBy: req.user.id, calBooking },
       paymentId,
