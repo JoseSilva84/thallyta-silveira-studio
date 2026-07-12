@@ -34,6 +34,42 @@ const safeNormalizeWhatsappPhone = (value) => {
   }
 };
 
+const getRemainingAmount = (booking) => {
+  const total = Number(booking?.payment?.servicePrice ?? booking?.estimatedValue);
+  if (!Number.isFinite(total) || total <= 0) return 0;
+
+  if (booking?.payment?.remainingPaidAt || booking?.remainingPaidAt) return 0;
+
+  const amountPaid = Number(booking?.payment?.amount);
+  const paid = Number.isFinite(amountPaid) && amountPaid > 0 ? amountPaid : 0;
+
+  return Math.max(0, total - paid);
+};
+
+const markRemainingPaymentPaidForBooking = async (booking, adminId, db = prisma, paidAt = new Date()) => {
+  if (getRemainingAmount(booking) <= 0) return false;
+
+  if (booking.paymentId && booking.payment) {
+    await db.bookingPayment.update({
+      where: { id: booking.paymentId },
+      data: {
+        remainingPaidAt: paidAt,
+        remainingPaidBy: adminId,
+      },
+    });
+    return true;
+  }
+
+  await db.booking.update({
+    where: { id: booking.id },
+    data: {
+      remainingPaidAt: paidAt,
+      remainingPaidBy: adminId,
+    },
+  });
+  return true;
+};
+
 const attachNotificationStatus = async (bookings) => {
   const items = Array.isArray(bookings) ? bookings : [bookings].filter(Boolean);
   if (!items.length) return bookings;
@@ -625,7 +661,10 @@ export const completeBookingService = async (req, res) => {
       return res.status(403).json({ error: 'Acesso negado. Apenas administradores.' });
     }
 
-    const booking = await prisma.booking.findUnique({ where: { id: req.params.id } });
+    const booking = await prisma.booking.findUnique({
+      where: { id: req.params.id },
+      include: { payment: true },
+    });
 
     if (!booking) {
       return res.status(404).json({ error: 'Agendamento nao encontrado.' });
@@ -639,13 +678,23 @@ export const completeBookingService = async (req, res) => {
       return res.status(409).json({ error: 'Agendamento marcado como falta nao pode liberar fidelidade.' });
     }
 
-    const updated = await prisma.booking.update({
+    await prisma.$transaction(async (tx) => {
+      const completedAt = new Date();
+
+      await tx.booking.update({
+        where: { id: booking.id },
+        data: {
+          status: booking.status === 'rescheduled' ? 'rescheduled' : 'confirmed',
+          serviceCompletedAt: completedAt,
+          serviceCompletedBy: req.user.id,
+        },
+      });
+
+      await markRemainingPaymentPaidForBooking(booking, req.user.id, tx, completedAt);
+    });
+
+    const updated = await prisma.booking.findUnique({
       where: { id: booking.id },
-      data: {
-        status: booking.status === 'rescheduled' ? 'rescheduled' : 'confirmed',
-        serviceCompletedAt: new Date(),
-        serviceCompletedBy: req.user.id,
-      },
       include: bookingInclude,
     });
 
@@ -730,30 +779,10 @@ export const markRemainingPaymentPaid = async (req, res) => {
       return res.status(404).json({ error: 'Agendamento nao encontrado.' });
     }
 
-    const paidAt = new Date();
+    const marked = await markRemainingPaymentPaidForBooking(booking, req.user.id);
 
-    if (booking.paymentId && booking.payment) {
-      await prisma.bookingPayment.update({
-        where: { id: booking.paymentId },
-        data: {
-          remainingPaidAt: paidAt,
-          remainingPaidBy: req.user.id,
-        },
-      });
-    } else {
-      const total = Number(booking.estimatedValue);
-
-      if (!Number.isFinite(total) || total <= 0) {
-        return res.status(400).json({ error: 'Este agendamento nao possui valor a receber.' });
-      }
-
-      await prisma.booking.update({
-        where: { id: booking.id },
-        data: {
-          remainingPaidAt: paidAt,
-          remainingPaidBy: req.user.id,
-        },
-      });
+    if (!marked) {
+      return res.status(400).json({ error: 'Este agendamento nao possui valor restante a receber.' });
     }
 
     const updated = await prisma.booking.findUnique({
