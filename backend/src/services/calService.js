@@ -36,6 +36,30 @@ const normalizeMetadata = (metadata) => Object.fromEntries(
   Object.entries(metadata || {}).map(([key, value]) => [key, value == null ? '' : String(value)]),
 );
 
+const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
+
+const getFallbackAttendeeEmail = () => {
+  const configuredEmail = [
+    process.env.CAL_FALLBACK_ATTENDEE_EMAIL,
+    process.env.ADMIN_EMAIL,
+  ].find(isValidEmail);
+
+  if (!configuredEmail) {
+    throw new Error('Informe um email da cliente ou configure CAL_FALLBACK_ATTENDEE_EMAIL com um email real.');
+  }
+
+  const [localPart, domain] = configuredEmail.trim().toLowerCase().split('@');
+  const safeLocalPart = localPart.split('+')[0] || 'manual';
+  return `${safeLocalPart}+manual-${Date.now()}@${domain}`;
+};
+
+const normalizeAttendeeEmail = (value) => {
+  const email = String(value || '').trim().toLowerCase();
+  if (!email) return getFallbackAttendeeEmail();
+  if (!isValidEmail(email)) throw new Error('Email da cliente invalido.');
+  return email;
+};
+
 const isAlreadyConfirmedError = (data) => {
   const message = stringifyCalError(data?.message || data?.error || data).toLowerCase();
   return message.includes('already confirmed');
@@ -73,7 +97,7 @@ export async function createCalBooking({
     username,
     attendee: {
       name: attendeeName,
-      email: attendeeEmail || `manual+${Date.now()}@studio.local`,
+      email: normalizeAttendeeEmail(attendeeEmail),
       timeZone: 'America/Fortaleza',
       ...(phoneNumber ? { phoneNumber } : {}),
     },

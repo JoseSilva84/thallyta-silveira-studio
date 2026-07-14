@@ -200,6 +200,7 @@ SESSION_SECRET=troque-por-outra-chave-segura
 CAL_API_KEY=
 CAL_API_VERSION=2026-02-25
 CAL_USERNAME=seu-usuario-cal
+CAL_FALLBACK_ATTENDEE_EMAIL=agenda@seudominio.com
 
 MP_ACCESS_TOKEN=
 

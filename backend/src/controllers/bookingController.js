@@ -810,7 +810,8 @@ export const createAdminBooking = async (req, res) => {
       return res.status(403).json({ error: 'Acesso negado. Apenas administradores.' });
     }
 
-    const { attendeeName, attendeePhone, attendeeEmail, serviceId, date, time, notes, amountPaid, paymentId: existingPaymentId } = req.body;
+    const { attendeeName, attendeePhone, serviceId, date, time, notes, amountPaid, paymentId: existingPaymentId } = req.body;
+    const attendeeEmail = String(req.body.attendeeEmail || '').trim().toLowerCase();
 
     if (!attendeeName?.trim() || !attendeePhone?.trim() || !serviceId || !date || !time) {
       return res.status(400).json({ error: 'Preencha todos os campos obrigatorios (nome, whatsapp, servico, data, horario).' });
