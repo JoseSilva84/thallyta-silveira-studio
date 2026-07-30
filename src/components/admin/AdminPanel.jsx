@@ -704,8 +704,8 @@ export default function AdminPanel() {
 
   const handleResendBookingWhatsapp = async (booking) => {
     showConfirmToast({
-      message: `Reenviar confirmacao por WhatsApp para "${booking.attendeeName || booking.user?.name || 'cliente'}"?`,
-      confirmLabel: 'Reenviar',
+      message: `Verificar o resumo por WhatsApp de "${booking.attendeeName || booking.user?.name || 'cliente'}" e enviar se ainda nao tiver sido aceito?`,
+      confirmLabel: 'Verificar',
       onConfirm: async () => {
         try {
           const res = await fetch(`${API}/bookings/${booking.id}/resend-whatsapp`, {
@@ -2475,8 +2475,9 @@ function CompletionAction({ booking, onCompleteService, onUndoCompleteService, o
   const hasRemaining = payment.remaining > 0;
   const canMarkRemainingPaid = hasRemaining && typeof onMarkRemainingPaid === 'function';
   const clientWhatsappNotification = booking.whatsappNotifications?.booking_created_client;
-  const hasClientWhatsappFailure = clientWhatsappNotification?.status === 'failed';
-  const canResendWhatsapp = hasClientWhatsappFailure
+  const clientWhatsappWasAccepted = ['accepted', 'sent', 'delivered', 'read'].includes(clientWhatsappNotification?.status);
+  const shouldVerifyClientWhatsapp = !clientWhatsappWasAccepted;
+  const canResendWhatsapp = shouldVerifyClientWhatsapp
     && typeof onResendWhatsapp === 'function'
     && !['cancelled', 'no_show'].includes(booking.status)
     && Boolean(booking.attendeePhone || booking.user?.whatsappPhone);
@@ -2536,10 +2537,10 @@ function CompletionAction({ booking, onCompleteService, onUndoCompleteService, o
         <button
           onClick={() => onResendWhatsapp(booking)}
           className="group relative inline-flex items-center justify-center gap-2 rounded-xl border border-amber-400/35 bg-amber-400/10 px-4 py-2 text-[0.65rem] font-bold uppercase tracking-wider text-amber-200 transition-all hover:bg-amber-400/20"
-          title={clientWhatsappNotification?.error || 'Falha no WhatsApp da cliente. Clique para reenviar.'}
+          title={clientWhatsappNotification?.error || 'Resumo da cliente sem confirmacao. Clique para verificar e enviar se necessario.'}
         >
           <FiMessageSquare className="size-3.5 shrink-0" />
-          <span className="whitespace-nowrap">Reenviar WhatsApp</span>
+          <span className="whitespace-nowrap">Verificar WhatsApp</span>
         </button>
       )}
       

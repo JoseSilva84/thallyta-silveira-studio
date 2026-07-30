@@ -175,6 +175,7 @@ const CLIENT_NOTIFICATION_TYPES = [
   'booking_created_client',
   'booking_reminder_1h_client',
 ];
+const SUCCESS_NOTIFICATION_STATUSES = ['accepted', 'sent', 'delivered', 'read'];
 
 const buildBookingSummaryLines = (booking) => {
   const whatsapp = booking.user?.whatsappPhone || booking.attendeePhone;
@@ -271,7 +272,7 @@ const getExistingNotification = async (prisma, { bookingId, type, target }) => {
 };
 
 const shouldSkipNotification = (existing) => {
-  return existing && ['accepted', 'sent', 'delivered', 'read', 'skipped'].includes(existing.status);
+  return existing && [...SUCCESS_NOTIFICATION_STATUSES, 'skipped'].includes(existing.status);
 };
 
 const logNotification = async (prisma, data) => {
@@ -518,25 +519,90 @@ export const startFailedWhatsAppRetryService = (prisma) => {
 export const notifyBookingCreated = async (prisma, booking) => {
   const ownerChatId = toChatId(process.env.OWNER_WHATSAPP);
 
-  await sendOnce(prisma, {
-    booking,
-    type: 'booking_created_owner',
-    target: ownerChatId,
-    text: buildOwnerBookingMessage(booking),
-  });
+  const errors = [];
 
-  if (process.env.SEND_CLIENT_WHATSAPP !== 'true') return;
+  try {
+    await sendOnce(prisma, {
+      booking,
+      type: 'booking_created_owner',
+      target: ownerChatId,
+      text: buildOwnerBookingMessage(booking),
+    });
+  } catch (error) {
+    errors.push(error);
+    console.error(`Erro ao enviar WhatsApp booking_created_owner do agendamento ${booking.id}:`, error);
+  }
+
+  if (process.env.SEND_CLIENT_WHATSAPP !== 'true') {
+    if (errors.length) throw errors[0];
+    return;
+  }
 
   const clientPhone = getBookingWhatsapp(booking);
   const clientChatId = toChatId(clientPhone);
-  if (!clientChatId) return;
+  if (!clientChatId) {
+    if (errors.length) throw errors[0];
+    return;
+  }
+
+  try {
+    await sendOnce(prisma, {
+      booking,
+      type: 'booking_created_client',
+      target: clientChatId,
+      text: buildClientBookingMessage(booking),
+    });
+  } catch (error) {
+    errors.push(error);
+    console.error(`Erro ao enviar WhatsApp booking_created_client do agendamento ${booking.id}:`, error);
+  }
+
+  if (errors.length) throw errors[0];
+};
+
+export const ensureBookingClientNotification = async (prisma, booking) => {
+  const clientPhone = getBookingWhatsapp(booking);
+  const clientChatId = toChatId(clientPhone);
+
+  if (!clientChatId) {
+    throw new Error('Cliente sem WhatsApp para enviar notificacao.');
+  }
+
+  const existing = await getExistingNotification(prisma, {
+    bookingId: booking.id,
+    type: 'booking_created_client',
+    target: clientChatId,
+  });
+
+  if (existing && SUCCESS_NOTIFICATION_STATUSES.includes(existing.status)) {
+    return {
+      sent: false,
+      status: existing.status,
+      message: 'Resumo da cliente ja tinha sido aceito pela WAHA.',
+      notification: existing,
+    };
+  }
 
   await sendOnce(prisma, {
     booking,
     type: 'booking_created_client',
     target: clientChatId,
     text: buildClientBookingMessage(booking),
+    force: true,
   });
+
+  const notification = await getExistingNotification(prisma, {
+    bookingId: booking.id,
+    type: 'booking_created_client',
+    target: clientChatId,
+  });
+
+  return {
+    sent: true,
+    status: notification?.status || 'unknown',
+    message: 'Resumo da cliente enviado novamente.',
+    notification,
+  };
 };
 
 export const resendBookingClientNotification = async (prisma, booking) => {

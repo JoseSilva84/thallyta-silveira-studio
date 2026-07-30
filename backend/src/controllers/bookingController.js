@@ -2,7 +2,7 @@ import prisma from '../config/prisma.js';
 import { confirmCalBooking, createCalBooking } from '../services/calService.js';
 import { syncBookingToCalById } from '../services/calSyncService.js';
 import { findServiceById } from '../data/services.js';
-import { notifyBookingCreated, resendBookingClientNotification } from '../services/whatsappService.js';
+import { ensureBookingClientNotification, notifyBookingCreated, resendBookingClientNotification } from '../services/whatsappService.js';
 import { buildPublicAgendaDays, validateBookingWindow } from '../utils/bookingHours.js';
 import { randomUUID } from 'node:crypto';
 
@@ -787,11 +787,25 @@ export const resendBookingWhatsapp = async (req, res) => {
       return res.status(409).json({ error: 'Nao e possivel reenviar WhatsApp de agendamento cancelado ou marcado como falta.' });
     }
 
-    await resendBookingClientNotification(prisma, booking);
+    const result = req.query.force === 'true'
+      ? await resendBookingClientNotification(prisma, booking).then(() => ({
+          sent: true,
+          message: 'WhatsApp reenviado para a cliente.',
+        }))
+      : await ensureBookingClientNotification(prisma, booking);
+
+    const updatedBooking = await prisma.booking.findUnique({
+      where: { id: booking.id },
+      include: bookingInclude,
+    });
+
+    await attachNotificationStatus(updatedBooking);
 
     res.json({
-      message: 'WhatsApp reenviado para a cliente.',
-      booking,
+      message: result.message || 'Verificacao de WhatsApp concluida.',
+      sent: Boolean(result.sent),
+      notificationStatus: result.status || null,
+      booking: updatedBooking,
     });
   } catch (error) {
     console.error('Erro ao reenviar WhatsApp do agendamento:', error);
