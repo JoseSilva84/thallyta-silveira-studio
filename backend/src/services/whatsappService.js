@@ -170,10 +170,14 @@ const RETRYABLE_BOOKING_NOTIFICATION_TYPES = [
   'booking_created_owner',
   'booking_created_client',
   'booking_reminder_1h_client',
+  'maintenance_reminder_14d_client',
+  'maintenance_reminder_21d_client',
 ];
 const CLIENT_NOTIFICATION_TYPES = [
   'booking_created_client',
   'booking_reminder_1h_client',
+  'maintenance_reminder_14d_client',
+  'maintenance_reminder_21d_client',
 ];
 const SUCCESS_NOTIFICATION_STATUSES = ['accepted', 'sent', 'delivered', 'read'];
 
@@ -228,6 +232,21 @@ const buildClientReminderMessage = (booking) => {
   ].join('\n');
 };
 
+const buildMaintenanceReminderMessage = (booking, daysAfterService) => {
+  const firstName = (booking.attendeeName || booking.user?.name || '').split(' ')[0] || 'Tudo bem';
+
+  return [
+    `Oi, ${firstName}! Tudo bem?`,
+    '',
+    `Ja se passaram ${daysAfterService} dias desde o seu atendimento de ${booking.service || 'unhas em gel'} no Studio Thallyta Silveira.`,
+    '',
+    'Como esta a sua manutencao? Ja esta no ponto de retocar?',
+    'Quer marcar sua manutencao logo para garantir o melhor horario?',
+    '',
+    'Responda esta mensagem que a gente te ajuda a escolher um dia.',
+  ].join('\n');
+};
+
 const buildBirthdayRewardMessage = (user, amount = 0) => {
   const firstName = (user.name || '').split(' ')[0] || 'cliente';
   const rewardText = amount > 0 
@@ -246,7 +265,9 @@ const buildBirthdayRewardMessage = (user, amount = 0) => {
 const buildClientDeliveryFailureAlertMessage = (booking, log) => {
   const notificationLabel = log.type === 'booking_reminder_1h_client'
     ? 'lembrete de agendamento'
-    : 'confirmacao de agendamento';
+    : log.type?.startsWith('maintenance_reminder_')
+      ? 'lembrete de manutencao'
+      : 'confirmacao de agendamento';
 
   return [
     `Falha ao enviar ${notificationLabel} para a cliente.`,
@@ -382,12 +403,15 @@ const getRetryText = (booking, type) => {
   if (type === 'booking_created_owner') return buildOwnerBookingMessage(booking);
   if (type === 'booking_created_client') return buildClientBookingMessage(booking);
   if (type === 'booking_reminder_1h_client') return buildClientReminderMessage(booking);
+  if (type === 'maintenance_reminder_14d_client') return buildMaintenanceReminderMessage(booking, 14);
+  if (type === 'maintenance_reminder_21d_client') return buildMaintenanceReminderMessage(booking, 21);
   return null;
 };
 
 const canRetryFailedNotification = (booking, type, now) => {
   if (!booking || ['cancelled', 'no_show'].includes(booking.status)) return false;
   if (type === 'booking_reminder_1h_client') return booking.scheduledAt > now;
+  if (type?.startsWith('maintenance_reminder_')) return Boolean(booking.serviceCompletedAt);
   return booking.scheduledAt >= now;
 };
 
@@ -634,6 +658,21 @@ export const notifyUpcomingBookingReminder = async (prisma, booking) => {
     type: 'booking_reminder_1h_client',
     target: clientChatId,
     text: buildClientReminderMessage(booking),
+  });
+};
+
+export const notifyMaintenanceReminder = async (prisma, booking, daysAfterService) => {
+  if (process.env.SEND_MAINTENANCE_REMINDER_WHATSAPP === 'false') return;
+
+  const clientPhone = getBookingWhatsapp(booking);
+  const clientChatId = toChatId(clientPhone);
+  if (!clientChatId) return;
+
+  await sendOnce(prisma, {
+    booking,
+    type: `maintenance_reminder_${daysAfterService}d_client`,
+    target: clientChatId,
+    text: buildMaintenanceReminderMessage(booking, daysAfterService),
   });
 };
 

@@ -41,7 +41,15 @@ const attachNotificationStatus = async (bookings) => {
   const logs = await prisma.notificationLog.findMany({
     where: {
       bookingId: { in: items.map((booking) => booking.id) },
-      type: { in: ['booking_created_owner', 'booking_created_client', 'booking_reminder_1h_client'] },
+      type: {
+        in: [
+          'booking_created_owner',
+          'booking_created_client',
+          'booking_reminder_1h_client',
+          'maintenance_reminder_14d_client',
+          'maintenance_reminder_21d_client',
+        ],
+      },
     },
     orderBy: { createdAt: 'desc' },
   });
