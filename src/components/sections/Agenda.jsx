@@ -42,6 +42,7 @@ export default function Agenda() {
   const [mobileDateStart, setMobileDateStart] = useState(0)
   const [desktopDateStart, setDesktopDateStart] = useState(0)
   const timeCardRef = useRef(null)
+  const dateSwipeRef = useRef({ x: 0, y: 0 })
   const selectedService = selectedServices[0] || null
 
   const fetchAgenda = useCallback(async () => {
@@ -165,6 +166,21 @@ export default function Agenda() {
     if (nextSelectedDay) setSelectedDate(nextSelectedDay.key)
   }, [days])
 
+  const handleDateSwipeStart = useCallback((event) => {
+    const touch = event.touches[0]
+    dateSwipeRef.current = { x: touch.clientX, y: touch.clientY }
+  }, [])
+
+  const handleDateSwipeEnd = useCallback((event, pageSize, dateStart, setDateStart) => {
+    const touch = event.changedTouches[0]
+    const deltaX = touch.clientX - dateSwipeRef.current.x
+    const deltaY = touch.clientY - dateSwipeRef.current.y
+
+    if (Math.abs(deltaX) < 45 || Math.abs(deltaX) < Math.abs(deltaY)) return
+
+    showDateGroup(deltaX < 0 ? 1 : -1, pageSize, dateStart, setDateStart)
+  }, [showDateGroup])
+
   return (
     <section id="agenda" className="premium-section py-6 md:py-8 lg:py-12">
       <div className="section-shell">
@@ -225,7 +241,11 @@ export default function Agenda() {
                       <FiChevronLeft />
                     </button>
 
-                    <div className="grid min-w-0 grid-cols-3 gap-2">
+                    <div
+                      className="grid min-w-0 grid-cols-3 gap-2"
+                      onTouchStart={handleDateSwipeStart}
+                      onTouchEnd={(event) => handleDateSwipeEnd(event, MOBILE_DATE_PAGE_SIZE, mobileDateStart, setMobileDateStart)}
+                    >
                       {mobileDateDays.map((day) => (
                         <DateButton
                           key={day.key}
@@ -251,7 +271,11 @@ export default function Agenda() {
                 </div>
 
                 <div className="mt-3 hidden sm:block">
-                  <div className="grid min-w-0 grid-cols-7 gap-2">
+                  <div
+                    className="grid min-w-0 grid-cols-7 gap-2"
+                    onTouchStart={handleDateSwipeStart}
+                    onTouchEnd={(event) => handleDateSwipeEnd(event, DESKTOP_DATE_PAGE_SIZE, desktopDateStart, setDesktopDateStart)}
+                  >
                     {desktopDateDays.map((day) => (
                       <DateButton
                         key={day.key}
