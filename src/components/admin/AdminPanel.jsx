@@ -50,6 +50,8 @@ const BLOCK_SLOT_END_TIMES = {
   '16:30': '18:30',
   '18:30': '19:00',
 };
+const MAINTENANCE_REMINDER_DAYS = [14, 21];
+const MAINTENANCE_SERVICE_NAMES = ['alongamento em gel', 'banho em gel'];
 
 const parseJwtPayload = (token) => {
   if (!token) return null;
@@ -5317,6 +5319,7 @@ function ClientsView({ clients, search, setSearch, statusBadge, onCompleteServic
                             </div>
                           );
                         })()}
+                        <MaintenanceReminderInfo booking={booking} />
                       </div>
                       <CompletionAction
                         booking={booking}
@@ -5514,6 +5517,7 @@ function MobileClientDetailsModal({
                           À receber: {formatCurrency(payment.remaining)}
                         </span>
                       </div>
+                      <MaintenanceReminderInfo booking={booking} />
                       <div className="mt-3">
                         <CompletionAction
                           booking={booking}
@@ -5530,6 +5534,31 @@ function MobileClientDetailsModal({
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function MaintenanceReminderInfo({ booking }) {
+  const reminders = getMaintenanceReminderItems(booking);
+
+  if (!reminders.length) return null;
+
+  return (
+    <div className="mt-3 rounded-lg border border-amber-300/20 bg-amber-300/10 px-3 py-2 text-xs text-amber-50/80">
+      <div className="flex items-center gap-2 font-bold uppercase tracking-wider text-gold-light">
+        <FiMessageSquare className="shrink-0" />
+        Lembrete de manutencao
+      </div>
+      <div className="mt-2 space-y-1.5">
+        {reminders.map((reminder) => (
+          <div key={reminder.type} className="flex flex-wrap items-center justify-between gap-2">
+            <span>{reminder.label}</span>
+            <span className={`rounded-full border px-2 py-0.5 font-bold uppercase tracking-wider ${reminder.classes}`}>
+              {reminder.statusLabel}
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -6769,6 +6798,94 @@ function splitServices(value) {
     .split(',')
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function normalizeServiceName(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+function isMaintenanceReminderService(booking) {
+  const paymentServiceId = booking.payment?.serviceId;
+  if (['gel', 'banho-gel'].includes(paymentServiceId)) return true;
+
+  return splitServices(booking.service)
+    .map(normalizeServiceName)
+    .some((serviceName) => MAINTENANCE_SERVICE_NAMES.includes(serviceName));
+}
+
+function hasBookingWhatsapp(booking) {
+  return [booking.attendeePhone, booking.user?.whatsappPhone].some((phone) => onlyDigits(phone).length >= 10);
+}
+
+function addDays(dateStr, days) {
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return null;
+  date.setDate(date.getDate() + days);
+  return date;
+}
+
+function getMaintenanceReminderStatus(log, dueDate, hasWhatsapp) {
+  if (!hasWhatsapp) {
+    return {
+      statusLabel: 'Sem WhatsApp',
+      classes: 'border-red-400/25 bg-red-500/10 text-red-200',
+    };
+  }
+
+  if (['accepted', 'sent', 'delivered', 'read'].includes(log?.status)) {
+    return {
+      statusLabel: `Enviado em ${formatDate(log.createdAt)}`,
+      classes: 'border-emerald-500/25 bg-emerald-500/10 text-emerald-300',
+    };
+  }
+
+  if (log?.status === 'failed') {
+    return {
+      statusLabel: 'Falhou',
+      classes: 'border-red-400/25 bg-red-500/10 text-red-200',
+    };
+  }
+
+  if (log?.status === 'skipped') {
+    return {
+      statusLabel: 'Ignorado',
+      classes: 'border-white/10 bg-white/5 text-cream/45',
+    };
+  }
+
+  if (dueDate && dueDate <= new Date()) {
+    return {
+      statusLabel: 'Aguardando disparo',
+      classes: 'border-amber-300/25 bg-amber-300/10 text-amber-100',
+    };
+  }
+
+  return {
+    statusLabel: dueDate ? `Agendado para ${formatDate(dueDate)}` : 'Agendado',
+    classes: 'border-gold/25 bg-gold/10 text-gold-light',
+  };
+}
+
+function getMaintenanceReminderItems(booking) {
+  if (!booking.serviceCompletedAt || !isMaintenanceReminderService(booking)) return [];
+
+  const hasWhatsapp = hasBookingWhatsapp(booking);
+
+  return MAINTENANCE_REMINDER_DAYS.map((days) => {
+    const type = `maintenance_reminder_${days}d_client`;
+    const dueDate = addDays(booking.serviceCompletedAt, days);
+    const status = getMaintenanceReminderStatus(booking.whatsappNotifications?.[type], dueDate, hasWhatsapp);
+
+    return {
+      type,
+      label: `${days} dias: ${dueDate ? formatDate(dueDate) : '-'}`,
+      ...status,
+    };
+  });
 }
 
 function dateKey(date) {
