@@ -6865,7 +6865,7 @@ function getMaintenanceReminderStatus(log, dueDate, hasWhatsapp) {
   }
 
   return {
-    statusLabel: dueDate ? `Agendado para ${formatDate(dueDate)}` : 'Agendado',
+    statusLabel: dueDate ? `Lembrete para ${formatDate(dueDate)}` : 'Lembrete',
     classes: 'border-gold/25 bg-gold/10 text-gold-light',
   };
 }
@@ -6877,7 +6877,7 @@ function getMaintenanceReminderItems(booking) {
 
   return MAINTENANCE_REMINDER_DAYS.map((days) => {
     const type = `maintenance_reminder_${days}d_client`;
-    const dueDate = addDays(booking.serviceCompletedAt, days);
+    const dueDate = addDays(booking.scheduledAt, days);
     const status = getMaintenanceReminderStatus(booking.whatsappNotifications?.[type], dueDate, hasWhatsapp);
 
     return {

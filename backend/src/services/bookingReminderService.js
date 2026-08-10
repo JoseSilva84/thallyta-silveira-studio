@@ -115,6 +115,9 @@ export const sendDueMaintenanceReminders = async () => {
       bookings = await prisma.booking.findMany({
         where: {
           serviceCompletedAt: {
+            not: null,
+          },
+          scheduledAt: {
             gte: from,
             lte: to,
           },
@@ -128,7 +131,7 @@ export const sendDueMaintenanceReminders = async () => {
           },
           payment: true,
         },
-        orderBy: { serviceCompletedAt: 'asc' },
+        orderBy: { scheduledAt: 'asc' },
       });
     } catch (error) {
       if (isDatabaseUnavailableError(error)) {
