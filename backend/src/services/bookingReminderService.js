@@ -4,6 +4,7 @@ import { isDatabaseUnavailableError, logDatabaseUnavailableWarning } from '../ut
 
 const DEFAULT_CHECK_INTERVAL_MINUTES = 5;
 const DEFAULT_LEAD_MINUTES = 60;
+const MAINTENANCE_REMINDER_START_DATE = new Date('2026-08-01T03:00:00.000Z');
 const MAINTENANCE_REMINDER_DAYS = [14, 21];
 const MAINTENANCE_SERVICE_IDS = ['gel', 'banho-gel'];
 const MAINTENANCE_SERVICE_NAMES = ['alongamento em gel', 'banho em gel'];
@@ -109,6 +110,7 @@ export const sendDueMaintenanceReminders = async () => {
 
   for (const daysAfterService of MAINTENANCE_REMINDER_DAYS) {
     const { from, to } = getMaintenanceReminderWindow(daysAfterService);
+    const scheduledFrom = from > MAINTENANCE_REMINDER_START_DATE ? from : MAINTENANCE_REMINDER_START_DATE;
 
     let bookings = [];
     try {
@@ -118,7 +120,7 @@ export const sendDueMaintenanceReminders = async () => {
             not: null,
           },
           scheduledAt: {
-            gte: from,
+            gte: scheduledFrom,
             lte: to,
           },
           status: {

@@ -50,6 +50,7 @@ const BLOCK_SLOT_END_TIMES = {
   '16:30': '18:30',
   '18:30': '19:00',
 };
+const MAINTENANCE_REMINDER_START_DATE = new Date('2026-08-01T03:00:00.000Z');
 const MAINTENANCE_REMINDER_DAYS = [14, 21];
 const MAINTENANCE_SERVICE_NAMES = ['alongamento em gel', 'banho em gel'];
 
@@ -6872,6 +6873,9 @@ function getMaintenanceReminderStatus(log, dueDate, hasWhatsapp) {
 
 function getMaintenanceReminderItems(booking) {
   if (!booking.serviceCompletedAt || !isMaintenanceReminderService(booking)) return [];
+
+  const serviceDate = new Date(booking.scheduledAt);
+  if (Number.isNaN(serviceDate.getTime()) || serviceDate < MAINTENANCE_REMINDER_START_DATE) return [];
 
   const hasWhatsapp = hasBookingWhatsapp(booking);
 
