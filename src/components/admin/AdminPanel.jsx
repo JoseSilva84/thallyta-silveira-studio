@@ -4969,10 +4969,25 @@ function PromotionsAdminView({
   onRefresh,
 }) {
   const [selectedClientIds, setSelectedClientIds] = useState([]);
+  const [audienceMode, setAudienceMode] = useState('all');
+  const [clientPickerSearch, setClientPickerSearch] = useState('');
   const eligibleClients = useMemo(
     () => clients.filter((client) => client.userId && client.hasWhatsapp && !client.inviteBlocked && client.profile?.allowPromotions !== false),
     [clients],
   );
+  const selectedPromotionClients = useMemo(
+    () => eligibleClients.filter((client) => selectedClientIds.includes(client.userId)),
+    [eligibleClients, selectedClientIds],
+  );
+  const visiblePromotionClients = useMemo(() => {
+    const term = clientPickerSearch.trim().toLowerCase();
+    if (!term) return eligibleClients;
+    return eligibleClients.filter((client) => [
+      client.name,
+      client.email,
+      client.whatsappPhone,
+    ].some((value) => String(value || '').toLowerCase().includes(term)));
+  }, [clientPickerSearch, eligibleClients]);
 
   const serviceOptions = allServices.filter((service) => ['Cabelo', 'Unhas', 'Servicos Rapidos', 'ServiÃ§os RÃ¡pidos'].includes(service.group) || service.id);
   const todayStart = new Date();
@@ -5024,16 +5039,27 @@ function PromotionsAdminView({
     ].join('\n');
   };
 
-  const handleClientSelectionChange = (event) => {
-    const values = Array.from(event.target.selectedOptions).map((option) => option.value);
-    if (values.includes('__all__')) {
-      setSelectedClientIds(eligibleClients.map((client) => client.userId));
-      return;
+  const setPromotionAudienceMode = (mode) => {
+    setAudienceMode(mode);
+    if (mode === 'all') {
+      setSelectedClientIds([]);
+      setClientPickerSearch('');
     }
-    setSelectedClientIds(values.filter(Boolean));
+  };
+
+  const togglePromotionClient = (clientId) => {
+    setSelectedClientIds((current) => (
+      current.includes(clientId)
+        ? current.filter((id) => id !== clientId)
+        : [...current, clientId]
+    ));
   };
 
   const sendToSelected = (promotion) => {
+    if (audienceMode === 'all') {
+      onSendWhatsapp({ promotion, clientIds: [], message: buildMessage(promotion) });
+      return;
+    }
     if (!selectedClientIds.length) return toast.warning('Escolha uma ou mais clientes para enviar.');
     onSendWhatsapp({ promotion, clientIds: selectedClientIds, message: buildMessage(promotion) });
   };
@@ -5195,37 +5221,118 @@ function PromotionsAdminView({
         <aside className="space-y-4">
           <section className="rounded-2xl border border-gold/20 bg-black/40 p-4 sm:p-5">
             <h3 className="text-lg font-semibold text-gold-light">Envio rápido</h3>
-            <label className="mt-4 mb-1 block text-sm text-cream/70">Clientes</label>
-            <select
-              multiple
-              size={8}
-              value={selectedClientIds}
-              onChange={handleClientSelectionChange}
-              className="w-full rounded-lg border border-white/10 bg-dark px-3 py-2 text-sm text-cream outline-none focus:border-gold"
-            >
-              <option value="__all__">Todos</option>
-              {eligibleClients.map((client) => (
-                <option key={client.userId} value={client.userId}>{client.name}</option>
-              ))}
-            </select>
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="mt-4 grid grid-cols-2 gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-1">
               <button
                 type="button"
-                onClick={() => setSelectedClientIds(eligibleClients.map((client) => client.userId))}
-                className="rounded-full border border-white/10 px-3 py-1.5 text-xs font-semibold text-cream/60 hover:border-gold/30 hover:text-gold-light"
+                onClick={() => setPromotionAudienceMode('all')}
+                className={`rounded-lg px-3 py-2 text-sm font-bold transition ${
+                  audienceMode === 'all'
+                    ? 'bg-gold text-dark'
+                    : 'text-cream/55 hover:bg-white/5 hover:text-gold-light'
+                }`}
               >
-                Selecionar todos
+                Todos
               </button>
               <button
                 type="button"
-                onClick={() => setSelectedClientIds([])}
-                className="rounded-full border border-white/10 px-3 py-1.5 text-xs font-semibold text-cream/60 hover:border-gold/30 hover:text-gold-light"
+                onClick={() => setPromotionAudienceMode('selected')}
+                className={`rounded-lg px-3 py-2 text-sm font-bold transition ${
+                  audienceMode === 'selected'
+                    ? 'bg-gold text-dark'
+                    : 'text-cream/55 hover:bg-white/5 hover:text-gold-light'
+                }`}
               >
-                Limpar
+                Selecionar
               </button>
             </div>
-            <p className="mt-2 text-xs text-cream/40">
-              {selectedClientIds.length} selecionada(s). Clientes sem WhatsApp, bloqueadas ou sem aceite de promoções ficam fora.
+
+            {audienceMode === 'all' ? (
+              <div className="mt-4 rounded-xl border border-gold/15 bg-gold/10 p-4">
+                <p className="text-sm font-semibold text-gold-light">Todas as clientes elegíveis</p>
+                <p className="mt-1 text-xs leading-5 text-cream/50">
+                  {eligibleClients.length} cliente(s) com WhatsApp liberado e aceite de promoções.
+                </p>
+              </div>
+            ) : (
+              <div className="mt-4 space-y-4">
+                <div>
+                  <label className="mb-1 block text-sm text-cream/70">Buscar cliente</label>
+                  <div className="relative">
+                    <FiSearch className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-cream/35" />
+                    <input
+                      value={clientPickerSearch}
+                      onChange={(event) => setClientPickerSearch(event.target.value)}
+                      placeholder="Nome, e-mail ou WhatsApp"
+                      className="w-full rounded-xl border border-white/10 bg-dark py-2.5 pl-10 pr-3 text-sm text-cream outline-none placeholder:text-cream/25 focus:border-gold"
+                    />
+                  </div>
+                </div>
+
+                <div className="max-h-64 space-y-2 overflow-y-auto rounded-xl border border-white/10 bg-black/20 p-2">
+                  {visiblePromotionClients.length === 0 ? (
+                    <p className="p-3 text-sm text-cream/45">Nenhuma cliente encontrada.</p>
+                  ) : visiblePromotionClients.map((client) => {
+                    const selected = selectedClientIds.includes(client.userId);
+                    return (
+                      <button
+                        key={client.userId}
+                        type="button"
+                        onClick={() => togglePromotionClient(client.userId)}
+                        className={`flex w-full min-w-0 items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-left transition ${
+                          selected
+                            ? 'border-gold/45 bg-gold/10'
+                            : 'border-transparent bg-white/[0.03] hover:border-gold/25 hover:bg-white/[0.06]'
+                        }`}
+                      >
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-semibold text-cream">{client.name}</span>
+                          <span className="mt-0.5 block truncate text-xs text-cream/40">{formatWhatsappDisplay(client.whatsappPhone)}</span>
+                        </span>
+                        <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${selected ? 'bg-gold text-dark' : 'bg-white/10 text-cream/45'}`}>
+                          {selected ? 'Selecionada' : 'Selecionar'}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs font-bold uppercase tracking-wider text-gold-light/70">Selecionadas</p>
+                    {selectedClientIds.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedClientIds([])}
+                        className="text-xs font-semibold text-cream/45 hover:text-gold-light"
+                      >
+                        Limpar
+                      </button>
+                    )}
+                  </div>
+                  {selectedPromotionClients.length === 0 ? (
+                    <p className="mt-3 text-sm text-cream/45">Nenhuma cliente selecionada.</p>
+                  ) : (
+                    <div className="mt-3 flex max-h-32 flex-wrap gap-2 overflow-y-auto">
+                      {selectedPromotionClients.map((client) => (
+                        <button
+                          key={client.userId}
+                          type="button"
+                          onClick={() => togglePromotionClient(client.userId)}
+                          className="inline-flex max-w-full items-center gap-2 rounded-full border border-gold/25 bg-gold/10 px-3 py-1.5 text-xs font-semibold text-gold-light hover:border-red-400/35 hover:bg-red-500/10 hover:text-red-200"
+                          title="Remover cliente"
+                        >
+                          <span className="truncate">{client.name}</span>
+                          <FiX className="shrink-0" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <p className="mt-3 text-xs leading-5 text-cream/40">
+              Clientes sem WhatsApp, bloqueadas ou sem aceite de promoções ficam fora.
             </p>
           </section>
 
@@ -5254,18 +5361,15 @@ function PromotionsAdminView({
                       </p>
                     ))}
                   </div>
-                  <div className="mt-4 grid grid-cols-2 gap-2">
+                  <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
                     <button type="button" onClick={() => onEdit(promotion)} className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-cream/60 hover:border-gold/30 hover:text-gold-light">
                       <FiEdit3 /> Editar
                     </button>
                     <button type="button" onClick={() => onDelete(promotion)} className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-500/25 px-3 py-2 text-xs font-semibold text-red-300 hover:bg-red-500/10">
                       <FiTrash2 /> Excluir
                     </button>
-                    <button type="button" disabled={sendingId === promotion.id} onClick={() => sendToSelected(promotion)} className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-cream/60 hover:border-gold/30 hover:text-gold-light disabled:opacity-60">
-                      <FiSend /> Selecionadas
-                    </button>
-                    <button type="button" disabled={sendingId === promotion.id} onClick={() => onSendWhatsapp({ promotion, clientIds: [], message: buildMessage(promotion) })} className="inline-flex items-center justify-center gap-2 rounded-lg bg-gold px-3 py-2 text-xs font-bold text-dark disabled:opacity-60">
-                      <FiUsers /> Todas
+                    <button type="button" disabled={sendingId === promotion.id} onClick={() => sendToSelected(promotion)} className="col-span-2 inline-flex items-center justify-center gap-2 rounded-lg bg-gold px-3 py-2 text-xs font-bold text-dark disabled:opacity-60 sm:col-span-1">
+                      <FiSend /> {audienceMode === 'all' ? 'Enviar' : 'Selecionadas'}
                     </button>
                   </div>
                   <a href={promotion.bookingLink} target="_blank" rel="noreferrer" className="mt-3 block truncate text-xs text-gold-light/70 hover:text-gold">
