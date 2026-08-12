@@ -98,8 +98,14 @@ export default function PromotionModal() {
   if (!open || !selectedPromotion || !selectedItem) return null
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/75 px-4 py-6 backdrop-blur-md">
-      <div className="relative max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-[2rem] border border-gold/30 bg-dark-card shadow-2xl shadow-black/70">
+    <div
+      className="fixed inset-0 z-[120] flex items-center justify-center bg-black/75 px-4 py-6 backdrop-blur-md"
+      onClick={() => setOpen(false)}
+    >
+      <div
+        className="relative max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-[2rem] border border-gold/30 bg-dark-card shadow-2xl shadow-black/70"
+        onClick={(event) => event.stopPropagation()}
+      >
         <button
           type="button"
           onClick={() => setOpen(false)}
@@ -111,11 +117,11 @@ export default function PromotionModal() {
 
         {selectedPromotion.imageUrl && (
           <button type="button" onClick={handleSchedule} className="block w-full overflow-hidden text-left">
-            <img src={selectedPromotion.imageUrl} alt={selectedPromotion.title} className="h-64 w-full object-cover" />
+            <img src={selectedPromotion.imageUrl} alt={selectedPromotion.title} className="h-48 w-full object-cover sm:h-56" />
           </button>
         )}
 
-        <div className="space-y-5 p-6 sm:p-8">
+        <div className="space-y-4 p-5 sm:p-7">
           <div>
             <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-gold-light/70">
               <FiTag /> Promoção
@@ -126,38 +132,64 @@ export default function PromotionModal() {
           </div>
 
           <div className="grid gap-2">
-            {selectedPromotion.items.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setSelectedItemId(item.id)}
-                className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left transition ${
-                  selectedItem.id === item.id
-                    ? 'border-gold bg-gold/10'
-                    : 'border-white/10 bg-white/[0.04] hover:border-gold/30'
-                }`}
-              >
-                <span className="min-w-0">
-                  <span className="block truncate text-sm font-semibold text-cream">{item.serviceName}</span>
-                  <span className="mt-1 block text-xs text-cream/45">
-                    <span className="line-through">{item.regularPriceLabel}</span>
-                    <span className="ml-2 font-bold text-gold-light">{item.promotionalPriceLabel}</span>
-                  </span>
-                </span>
-                <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ${selectedItem.id === item.id ? 'bg-gold text-dark' : 'bg-white/10 text-cream/50'}`}>
-                  {selectedItem.id === item.id ? 'Escolhido' : 'Escolher'}
-                </span>
-              </button>
-            ))}
-          </div>
+            {selectedPromotion.items.map((item) => {
+              const isSelected = selectedItem.id === item.id
 
-          <button
-            type="button"
-            onClick={handleSchedule}
-            className="gold-button flex w-full items-center justify-center gap-2 rounded-xl px-5 py-4 text-sm font-bold uppercase tracking-wider"
-          >
-            <FiCalendar /> Agende aqui
-          </button>
+              return (
+                <div
+                  key={item.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelectedItemId(item.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') setSelectedItemId(item.id)
+                  }}
+                  className={`rounded-xl border px-4 py-3 text-left transition ${
+                    isSelected
+                      ? 'border-gold bg-gold/10'
+                      : 'border-white/10 bg-white/[0.04] hover:border-gold/30'
+                  }`}
+                >
+                  <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex min-w-0 flex-wrap items-center gap-2">
+                        <span className="min-w-0 truncate text-sm font-semibold text-cream">{item.serviceName}</span>
+                        {isSelected && (
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              handleSchedule()
+                            }}
+                            className="inline-flex shrink-0 items-center gap-1 rounded-full bg-gold px-3 py-1.5 text-[11px] font-bold text-dark shadow-lg shadow-gold/15 transition hover:bg-gold-light"
+                          >
+                            <FiCalendar className="text-xs" /> Agende aqui
+                          </button>
+                        )}
+                      </div>
+                      <div className="mt-1 text-xs text-cream/45">
+                        <span className="line-through">{item.regularPriceLabel}</span>
+                        <span className="ml-2 font-bold text-gold-light">{item.promotionalPriceLabel}</span>
+                      </div>
+                    </div>
+
+                    {!isSelected && (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          setSelectedItemId(item.id)
+                        }}
+                        className="shrink-0 rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-bold text-cream/55 transition hover:bg-gold/20 hover:text-gold-light"
+                      >
+                        Escolher
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
       </div>
     </div>
