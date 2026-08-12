@@ -218,6 +218,7 @@ export default function Booking({ embedded = false } = {}) {
     whatsapp: '',
   })
   const bookingHash = embedded ? '#servicos' : '#agendamento'
+  const selectedService = selectedServices[0] || null
 
   const focusBookingSection = useCallback(() => {
     window.history.replaceState(null, '', bookingHash)
@@ -390,7 +391,6 @@ export default function Booking({ embedded = false } = {}) {
     () => selectedServices.map((s) => s.name).join(', '),
     [selectedServices],
   )
-  const selectedService = selectedServices[0] || null
   const selectedCalLink = useMemo(() => getCalLinkFromUrl(selectedService?.calUrl), [selectedService?.calUrl])
 
   // Calcula o preço total estimado (pega o primeiro valor numérico de cada preço)
