@@ -41,6 +41,13 @@ const textValue = (value, max = 1200) => {
   return normalized ? normalized.slice(0, max) : '';
 };
 
+const normalizeBrazilWhatsapp = (value) => {
+  const rawDigits = String(value || '').replace(/\D/g, '');
+  const localDigits = rawDigits.startsWith('55') && rawDigits.length > 11 ? rawDigits.slice(2) : rawDigits;
+  if (localDigits.length < 10 || localDigits.length > 11) return '';
+  return `55${localDigits}`;
+};
+
 const buildPromotionPayload = (body) => {
   const title = textValue(body.title, 120);
   const description = textValue(body.description, 1000);
@@ -222,8 +229,15 @@ export const sendPromotionWhatsapp = async (req, res) => {
     const itemId = String(req.body?.itemId || '').trim();
     const message = textValue(req.body?.message, 1200) || buildDefaultWhatsappText(promotion, itemId);
     const clientIds = Array.isArray(req.body?.clientIds) ? req.body.clientIds.map(String).filter(Boolean) : [];
+    const whatsappPhones = Array.isArray(req.body?.whatsappPhones)
+      ? Array.from(new Set(req.body.whatsappPhones.map(normalizeBrazilWhatsapp).filter(Boolean))).slice(0, 200)
+      : [];
 
-    const users = await prisma.user.findMany({
+    if (Array.isArray(req.body?.whatsappPhones) && req.body.whatsappPhones.length && !whatsappPhones.length) {
+      return res.status(400).json({ error: 'Informe pelo menos um WhatsApp valido com DDD.' });
+    }
+
+    const users = whatsappPhones.length && !clientIds.length ? [] : await prisma.user.findMany({
       where: {
         role: 'CLIENT',
         whatsappPhone: { not: null },
@@ -236,8 +250,15 @@ export const sendPromotionWhatsapp = async (req, res) => {
         crmProfile: true,
       },
       orderBy: { name: 'asc' },
-      take: clientIds.length ? undefined : 200,
+      take: clientIds.length || whatsappPhones.length ? undefined : 200,
     });
+
+    const manualRecipients = whatsappPhones.map((phone, index) => ({
+      id: `interested-${index + 1}`,
+      name: 'Interessado',
+      whatsappPhone: phone,
+      manualLead: true,
+    }));
 
     const results = [];
     for (const user of users) {
@@ -262,8 +283,33 @@ export const sendPromotionWhatsapp = async (req, res) => {
       }
     }
 
+    for (const recipient of manualRecipients) {
+      try {
+        const personalized = message
+          .replace(/\{nome\}/gi, recipient.name)
+          .replace(/\{primeiro_nome\}/gi, 'cliente');
+        const result = await sendCampaignMessage(recipient, personalized);
+        results.push({
+          userId: null,
+          name: recipient.name,
+          whatsappPhone: recipient.whatsappPhone,
+          ok: !result.skipped,
+          skipped: Boolean(result.skipped),
+          message: result.reason || 'enviado',
+        });
+      } catch (error) {
+        results.push({
+          userId: null,
+          name: recipient.name,
+          whatsappPhone: recipient.whatsappPhone,
+          ok: false,
+          message: error.message || 'erro',
+        });
+      }
+    }
+
     res.json({
-      total: users.length,
+      total: users.length + manualRecipients.length,
       sent: results.filter((item) => item.ok).length,
       skipped: results.filter((item) => item.skipped).length,
       failed: results.filter((item) => !item.ok && !item.skipped).length,

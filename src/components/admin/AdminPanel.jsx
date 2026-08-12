@@ -1037,9 +1037,15 @@ export default function AdminPanel() {
     });
   };
 
-  const handleSendPromotionWhatsapp = async ({ promotion, clientIds, message }) => {
+  const handleSendPromotionWhatsapp = async ({ promotion, clientIds = [], whatsappPhones = [], message }) => {
+    const confirmMessage = whatsappPhones.length
+      ? `Enviar promocao para ${whatsappPhones.length} interessado(s)?`
+      : clientIds.length
+        ? `Enviar promoção para ${clientIds.length} cliente(s)?`
+        : 'Enviar promoção para todas as clientes elegíveis?';
+
     showConfirmToast({
-      message: clientIds?.length ? `Enviar promoção para ${clientIds.length} cliente(s)?` : 'Enviar promoção para todas as clientes elegíveis?',
+      message: confirmMessage,
       confirmLabel: 'Enviar',
       onConfirm: async () => {
         try {
@@ -1051,7 +1057,7 @@ export default function AdminPanel() {
               'Content-Type': 'application/json',
               Authorization: `Bearer ${token}`,
             },
-            body: JSON.stringify({ clientIds, message, promotional: true }),
+            body: JSON.stringify({ clientIds, whatsappPhones, message, promotional: true }),
           });
           const data = await res.json().catch(() => ({}));
           if (!res.ok) throw new Error(handleAuthFailure(data.error) || 'Erro ao enviar promoção');
@@ -4975,6 +4981,8 @@ function PromotionsAdminView({
   const [selectedClientIds, setSelectedClientIds] = useState([]);
   const [audienceMode, setAudienceMode] = useState('all');
   const [clientPickerSearch, setClientPickerSearch] = useState('');
+  const [interestedWhatsappDraft, setInterestedWhatsappDraft] = useState('');
+  const [interestedWhatsappPhones, setInterestedWhatsappPhones] = useState([]);
   const eligibleClients = useMemo(
     () => clients.filter((client) => client.userId && client.hasWhatsapp && !client.inviteBlocked && client.profile?.allowPromotions !== false),
     [clients],
@@ -4994,6 +5002,32 @@ function PromotionsAdminView({
   }, [clientPickerSearch, eligibleClients]);
 
   const serviceOptions = allServices.filter((service) => ['Cabelo', 'Unhas', 'Servicos Rapidos', 'ServiÃ§os RÃ¡pidos'].includes(service.group) || service.id);
+  const normalizeInterestedWhatsapp = (value) => {
+    const rawDigits = onlyDigits(value);
+    const localDigits = rawDigits.startsWith('55') && rawDigits.length > 11 ? rawDigits.slice(2) : rawDigits;
+    if (localDigits.length < 10 || localDigits.length > 11) return '';
+    return normalizeBrazilWhatsapp(localDigits);
+  };
+
+  const addInterestedWhatsapp = () => {
+    const normalizedPhone = normalizeInterestedWhatsapp(interestedWhatsappDraft);
+    if (!normalizedPhone) {
+      toast.warning('Informe um WhatsApp valido com DDD.');
+      return;
+    }
+    if (interestedWhatsappPhones.includes(normalizedPhone)) {
+      toast.info('Este WhatsApp ja esta na lista.');
+      setInterestedWhatsappDraft('');
+      return;
+    }
+    setInterestedWhatsappPhones((current) => [...current, normalizedPhone]);
+    setInterestedWhatsappDraft('');
+  };
+
+  const removeInterestedWhatsapp = (phone) => {
+    setInterestedWhatsappPhones((current) => current.filter((item) => item !== phone));
+  };
+
   const todayStart = new Date();
   const defaultStart = toFortalezaDatetimeLocalInput(todayStart);
   const defaultEndDate = new Date(todayStart.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -5072,12 +5106,20 @@ function PromotionsAdminView({
       return;
     }
     if (audienceMode === 'interested') {
-      const interestedClients = getInterestedClientsForPromotion(promotion);
-      if (!interestedClients.length) {
-        toast.warning('Nenhuma cliente interessada encontrada para esta promoção.');
+      const draftPhone = normalizeInterestedWhatsapp(interestedWhatsappDraft);
+      if (interestedWhatsappDraft.trim() && !draftPhone) {
+        toast.warning('Informe um WhatsApp valido com DDD.');
         return;
       }
-      onSendWhatsapp({ promotion, clientIds: interestedClients.map((client) => client.userId), message: buildMessage(promotion) });
+      const whatsappPhones = Array.from(new Set([
+        ...interestedWhatsappPhones,
+        ...(draftPhone ? [draftPhone] : []),
+      ]));
+      if (!whatsappPhones.length) {
+        toast.warning('Adicione pelo menos um WhatsApp de interessado.');
+        return;
+      }
+      onSendWhatsapp({ promotion, clientIds: [], whatsappPhones, message: buildMessage(promotion) });
       return;
     }
     if (!selectedClientIds.length) return toast.warning('Escolha uma ou mais clientes para enviar.');
@@ -5292,7 +5334,7 @@ function PromotionsAdminView({
                     : 'text-cream/55 hover:bg-white/5 hover:text-gold-light'
                 }`}
               >
-                Interessadas
+                Interessados
               </button>
               <button
                 type="button"
@@ -5315,11 +5357,58 @@ function PromotionsAdminView({
                 </p>
               </div>
             ) : audienceMode === 'interested' ? (
-              <div className="mt-4 rounded-xl border border-gold/15 bg-gold/10 p-4">
-                <p className="text-sm font-semibold text-gold-light">Clientes interessadas</p>
-                <p className="mt-1 text-xs leading-5 text-cream/50">
-                  Envia para clientes elegíveis com interesses de CRM compatíveis com a promoção escolhida.
-                </p>
+              <div className="mt-4 space-y-3">
+                <div>
+                  <label className="mb-1 block text-sm text-cream/70">WhatsApp do interessado</label>
+                  <div className="grid grid-cols-[minmax(0,1fr)_44px] gap-2">
+                    <input
+                      value={interestedWhatsappDraft}
+                      onChange={(event) => setInterestedWhatsappDraft(formatBrazilWhatsappInput(event.target.value))}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault();
+                          addInterestedWhatsapp();
+                        }
+                      }}
+                      placeholder="WhatsApp com DDD"
+                      className="min-w-0 rounded-xl border border-white/10 bg-dark px-3 py-2.5 text-sm text-cream outline-none placeholder:text-cream/25 focus:border-gold"
+                    />
+                    <button
+                      type="button"
+                      onClick={addInterestedWhatsapp}
+                      className="inline-flex size-11 items-center justify-center rounded-xl border border-gold/30 bg-gold/10 text-gold-light transition hover:bg-gold hover:text-dark"
+                      title="Inserir WhatsApp"
+                      aria-label="Inserir WhatsApp"
+                    >
+                      <FiPlus />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-gold/15 bg-gold/10 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs font-bold uppercase tracking-wider text-gold-light/70">Interessados</p>
+                    <span className="text-xs font-semibold text-cream/45">{interestedWhatsappPhones.length} contato(s)</span>
+                  </div>
+                  {interestedWhatsappPhones.length === 0 ? (
+                    <p className="mt-3 text-sm text-cream/45">Nenhum WhatsApp inserido.</p>
+                  ) : (
+                    <div className="mt-3 flex max-h-36 flex-wrap gap-2 overflow-y-auto">
+                      {interestedWhatsappPhones.map((phone) => (
+                        <button
+                          key={phone}
+                          type="button"
+                          onClick={() => removeInterestedWhatsapp(phone)}
+                          className="inline-flex max-w-full items-center gap-2 rounded-full border border-gold/25 bg-black/25 px-3 py-1.5 text-xs font-semibold text-gold-light hover:border-red-400/35 hover:bg-red-500/10 hover:text-red-200"
+                          title="Remover WhatsApp"
+                        >
+                          <span className="truncate">{formatWhatsappDisplay(phone)}</span>
+                          <FiX className="shrink-0" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="mt-4 space-y-4">
@@ -5400,7 +5489,9 @@ function PromotionsAdminView({
             )}
 
             <p className="mt-3 text-xs leading-5 text-cream/40">
-              Clientes sem WhatsApp, bloqueadas ou sem aceite de promoções ficam fora.
+              {audienceMode === 'interested'
+                ? 'Use este envio para leads que ainda nao estao cadastrados como clientes.'
+                : 'Clientes sem WhatsApp, bloqueadas ou sem aceite de promoções ficam fora.'}
             </p>
           </section>
 
@@ -5438,7 +5529,7 @@ function PromotionsAdminView({
                       <FiTrash2 /> Excluir
                     </button>
                     <button type="button" disabled={sendingId === promotion.id} onClick={() => sendToSelected(promotion)} className="col-span-2 inline-flex items-center justify-center gap-2 rounded-lg bg-gold px-3 py-2 text-xs font-bold text-dark disabled:opacity-60 sm:col-span-1">
-                      <FiSend /> {audienceMode === 'all' ? 'Enviar' : audienceMode === 'interested' ? 'Interessadas' : 'Selecionadas'}
+                      <FiSend /> {audienceMode === 'all' ? 'Enviar' : audienceMode === 'interested' ? 'Interessados' : 'Selecionadas'}
                     </button>
                   </div>
                   <a href={promotion.bookingLink} target="_blank" rel="noreferrer" className="mt-3 block truncate text-xs text-gold-light/70 hover:text-gold">
