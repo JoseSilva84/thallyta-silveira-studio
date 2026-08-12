@@ -90,10 +90,10 @@ const emptyExpenseForm = {
 const defaultPromotionServices = ['botox-p', 'botox-m', 'botox-g'];
 const emptyPromotionForm = {
   id: null,
-  title: 'Promocao Botox Capilar',
+  title: 'Promoção Botox Capilar',
   description: 'Botox Capilar com valor especial por tempo limitado.',
   imageUrl: 'https://images.unsplash.com/photo-1562322140-8baeececf3df?auto=format&fit=crop&w=900&q=80',
-  whatsappText: 'Oi, {primeiro_nome}! Temos uma promocao especial de Botox Capilar no Studio Thallyta Silveira por tempo limitado.',
+  whatsappText: 'Oi, {primeiro_nome}! Temos uma promoção especial de Botox Capilar no Studio Thallyta Silveira por tempo limitado.',
   startsAt: '',
   endsAt: '',
   active: true,
@@ -415,10 +415,10 @@ export default function AdminPanel() {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(handleAuthFailure(data.error) || 'Falha ao buscar promocoes');
+      if (!res.ok) throw new Error(handleAuthFailure(data.error) || 'Falha ao buscar promoções');
       setPromotions(Array.isArray(data.promotions) ? data.promotions : []);
     } catch (error) {
-      toast.error(error.message || 'Erro ao carregar promocoes');
+      toast.error(error.message || 'Erro ao carregar promoções');
       console.error(error);
     } finally {
       setFetchingPromotions(false);
@@ -981,12 +981,12 @@ export default function AdminPanel() {
         body: JSON.stringify(form),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(handleAuthFailure(data.error) || 'Erro ao salvar promocao');
-      toast.success(form.id ? 'Promocao atualizada.' : 'Promocao criada.');
+      if (!res.ok) throw new Error(handleAuthFailure(data.error) || 'Erro ao salvar promoção');
+      toast.success(form.id ? 'Promoção atualizada.' : 'Promoção criada.');
       setPromotionForm(emptyPromotionForm);
       await fetchPromotions();
     } catch (error) {
-      toast.error(error.message || 'Erro ao salvar promocao.');
+      toast.error(error.message || 'Erro ao salvar promoção.');
     } finally {
       setPromotionSaving(false);
     }
@@ -1012,7 +1012,7 @@ export default function AdminPanel() {
 
   const handleDeletePromotion = (promotion) => {
     showConfirmToast({
-      message: `Excluir a promocao "${promotion.title}"?`,
+      message: `Excluir a promoção "${promotion.title}"?`,
       confirmLabel: 'Excluir',
       tone: 'danger',
       onConfirm: async () => {
@@ -1023,11 +1023,11 @@ export default function AdminPanel() {
             headers: { Authorization: `Bearer ${token}` },
           });
           const data = await res.json().catch(() => ({}));
-          if (!res.ok) throw new Error(handleAuthFailure(data.error) || 'Erro ao excluir promocao');
-          toast.success('Promocao excluida.');
+          if (!res.ok) throw new Error(handleAuthFailure(data.error) || 'Erro ao excluir promoção');
+          toast.success('Promoção excluída.');
           await fetchPromotions();
         } catch (error) {
-          toast.error(error.message || 'Erro ao excluir promocao.');
+          toast.error(error.message || 'Erro ao excluir promoção.');
         }
       },
     });
@@ -1035,7 +1035,7 @@ export default function AdminPanel() {
 
   const handleSendPromotionWhatsapp = async ({ promotion, clientIds, message }) => {
     showConfirmToast({
-      message: clientIds?.length ? `Enviar promocao para ${clientIds.length} cliente(s)?` : 'Enviar promocao para todas as clientes elegiveis?',
+      message: clientIds?.length ? `Enviar promoção para ${clientIds.length} cliente(s)?` : 'Enviar promoção para todas as clientes elegíveis?',
       confirmLabel: 'Enviar',
       onConfirm: async () => {
         try {
@@ -1050,12 +1050,12 @@ export default function AdminPanel() {
             body: JSON.stringify({ clientIds, message, promotional: true }),
           });
           const data = await res.json().catch(() => ({}));
-          if (!res.ok) throw new Error(handleAuthFailure(data.error) || 'Erro ao enviar promocao');
+          if (!res.ok) throw new Error(handleAuthFailure(data.error) || 'Erro ao enviar promoção');
           toast.success(`${data.sent || 0} mensagem(ns) enviada(s).`);
           if (data.skipped) toast.info(`${data.skipped} cliente(s) ignorada(s) por regras de contato.`);
           if (data.failed) toast.warn(`${data.failed} envio(s) falharam.`);
         } catch (error) {
-          toast.error(error.message || 'Erro ao enviar promocao.');
+          toast.error(error.message || 'Erro ao enviar promoção.');
         } finally {
           setSendingPromotionId('');
         }
@@ -1598,7 +1598,7 @@ export default function AdminPanel() {
                       <MobileSubTabButton
                         active={activeTab === 'promotions'}
                         icon={<FiGift />}
-                        label="Promocoes"
+                        label="Promoções"
                         count={promotions.filter((promotion) => promotion.active).length || undefined}
                         onClick={() => selectAdminTab({ value: 'promotions' })}
                       />
@@ -1846,7 +1846,7 @@ export default function AdminPanel() {
                   }`}
                 >
                   <span className="flex items-center gap-2">
-                    <FiGift /> Promocoes
+                    <FiGift /> Promoções
                   </span>
                   {promotions.filter((promotion) => promotion.active).length > 0 && (
                     <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${activeTab === 'promotions' ? 'bg-dark/20 text-dark' : 'bg-gold/20 text-gold'}`}>
@@ -4968,7 +4968,7 @@ function PromotionsAdminView({
   onSendWhatsapp,
   onRefresh,
 }) {
-  const [targetClientId, setTargetClientId] = useState('');
+  const [selectedClientIds, setSelectedClientIds] = useState([]);
   const eligibleClients = useMemo(
     () => clients.filter((client) => client.userId && client.hasWhatsapp && !client.inviteBlocked && client.profile?.allowPromotions !== false),
     [clients],
@@ -4996,7 +4996,7 @@ function PromotionsAdminView({
 
   const addItem = () => {
     const firstMissing = serviceOptions.find((service) => !form.items.some((item) => item.serviceId === service.id));
-    if (!firstMissing) return toast.info('Todos os servicos ja estao na promocao.');
+    if (!firstMissing) return toast.info('Todos os serviços já estão na promoção.');
     setForm((current) => ({
       ...current,
       items: [...current.items, { serviceId: firstMissing.id, promotionalPrice: '' }],
@@ -5024,9 +5024,18 @@ function PromotionsAdminView({
     ].join('\n');
   };
 
+  const handleClientSelectionChange = (event) => {
+    const values = Array.from(event.target.selectedOptions).map((option) => option.value);
+    if (values.includes('__all__')) {
+      setSelectedClientIds(eligibleClients.map((client) => client.userId));
+      return;
+    }
+    setSelectedClientIds(values.filter(Boolean));
+  };
+
   const sendToSelected = (promotion) => {
-    if (!targetClientId) return toast.warning('Escolha uma cliente para enviar.');
-    onSendWhatsapp({ promotion, clientIds: [targetClientId], message: buildMessage(promotion) });
+    if (!selectedClientIds.length) return toast.warning('Escolha uma ou mais clientes para enviar.');
+    onSendWhatsapp({ promotion, clientIds: selectedClientIds, message: buildMessage(promotion) });
   };
 
   return (
@@ -5035,9 +5044,9 @@ function PromotionsAdminView({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-gold-light/60">Relacionamento</p>
-            <h2 className="mt-1 text-xl font-semibold text-cream sm:text-2xl">Promocoes</h2>
+            <h2 className="mt-1 text-xl font-semibold text-cream sm:text-2xl">Promoções</h2>
             <p className="mt-2 max-w-2xl text-sm text-cream/50">
-              Cadastre valores promocionais sem alterar os precos normais dos servicos.
+              Cadastre valores promocionais sem alterar os preços normais dos serviços.
             </p>
           </div>
           <button
@@ -5053,7 +5062,7 @@ function PromotionsAdminView({
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_430px]">
         <section className="rounded-2xl border border-gold/20 bg-black/40 p-4 sm:p-5">
-          <h3 className="text-lg font-semibold text-gold-light">{form.id ? 'Editar promocao' : 'Nova promocao'}</h3>
+          <h3 className="text-lg font-semibold text-gold-light">{form.id ? 'Editar promoção' : 'Nova promoção'}</h3>
           <form
             onSubmit={(event) => {
               event.preventDefault();
@@ -5063,7 +5072,7 @@ function PromotionsAdminView({
           >
             <div className="grid gap-4 lg:grid-cols-2">
               <div>
-                <label className="mb-1 block text-sm text-cream/70">Titulo</label>
+                <label className="mb-1 block text-sm text-cream/70">Título</label>
                 <input
                   value={form.title}
                   onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
@@ -5071,7 +5080,7 @@ function PromotionsAdminView({
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm text-cream/70">Imagem da promocao</label>
+                <label className="mb-1 block text-sm text-cream/70">Imagem da promoção</label>
                 <input
                   value={form.imageUrl}
                   onChange={(event) => setForm((current) => ({ ...current, imageUrl: event.target.value }))}
@@ -5099,12 +5108,12 @@ function PromotionsAdminView({
                 rows={3}
                 className="w-full resize-none rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-cream outline-none focus:border-gold"
               />
-              <p className="mt-2 text-xs text-cream/40">O sistema acrescenta os precos e o final "Agende aqui" com o link.</p>
+              <p className="mt-2 text-xs text-cream/40">O sistema acrescenta os preços e o final "Agende aqui" com o link.</p>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-sm text-cream/70">Inicio</label>
+                <label className="mb-1 block text-sm text-cream/70">Início</label>
                 <input
                   type="datetime-local"
                   value={normalizedForm.startsAt}
@@ -5130,12 +5139,12 @@ function PromotionsAdminView({
                 onChange={(event) => setForm((current) => ({ ...current, active: event.target.checked }))}
                 className="size-4 accent-gold"
               />
-              Promocao ativa no site
+              Promoção ativa no site
             </label>
 
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-3">
-                <p className="text-sm font-semibold text-cream">Servicos e valores promocionais</p>
+                <p className="text-sm font-semibold text-cream">Serviços e valores promocionais</p>
                 <button type="button" onClick={addItem} className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-1.5 text-xs font-semibold text-cream/60 hover:border-gold/30 hover:text-gold-light">
                   <FiPlus /> Adicionar
                 </button>
@@ -5172,11 +5181,11 @@ function PromotionsAdminView({
 
             <div className="flex flex-col gap-2 sm:flex-row">
               <button type="submit" disabled={saving} className="gold-button inline-flex flex-1 items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-bold disabled:opacity-60">
-                <FiSave /> {saving ? 'Salvando...' : 'Salvar promocao'}
+                <FiSave /> {saving ? 'Salvando...' : 'Salvar promoção'}
               </button>
               {form.id && (
                 <button type="button" onClick={resetForm} className="rounded-xl border border-white/10 px-5 py-3 text-sm font-semibold text-cream/65 hover:border-gold/30 hover:text-gold-light">
-                  Nova promocao
+                  Nova promoção
                 </button>
               )}
             </div>
@@ -5185,28 +5194,48 @@ function PromotionsAdminView({
 
         <aside className="space-y-4">
           <section className="rounded-2xl border border-gold/20 bg-black/40 p-4 sm:p-5">
-            <h3 className="text-lg font-semibold text-gold-light">Envio rapido</h3>
-            <label className="mt-4 mb-1 block text-sm text-cream/70">Cliente</label>
+            <h3 className="text-lg font-semibold text-gold-light">Envio rápido</h3>
+            <label className="mt-4 mb-1 block text-sm text-cream/70">Clientes</label>
             <select
-              value={targetClientId}
-              onChange={(event) => setTargetClientId(event.target.value)}
+              multiple
+              size={8}
+              value={selectedClientIds}
+              onChange={handleClientSelectionChange}
               className="w-full rounded-lg border border-white/10 bg-dark px-3 py-2 text-sm text-cream outline-none focus:border-gold"
             >
-              <option value="">Escolha uma cliente</option>
+              <option value="__all__">Todos</option>
               {eligibleClients.map((client) => (
                 <option key={client.userId} value={client.userId}>{client.name}</option>
               ))}
             </select>
-            <p className="mt-2 text-xs text-cream/40">Clientes sem WhatsApp, bloqueadas ou sem aceite de promocoes ficam fora.</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedClientIds(eligibleClients.map((client) => client.userId))}
+                className="rounded-full border border-white/10 px-3 py-1.5 text-xs font-semibold text-cream/60 hover:border-gold/30 hover:text-gold-light"
+              >
+                Selecionar todos
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedClientIds([])}
+                className="rounded-full border border-white/10 px-3 py-1.5 text-xs font-semibold text-cream/60 hover:border-gold/30 hover:text-gold-light"
+              >
+                Limpar
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-cream/40">
+              {selectedClientIds.length} selecionada(s). Clientes sem WhatsApp, bloqueadas ou sem aceite de promoções ficam fora.
+            </p>
           </section>
 
           <section className="rounded-2xl border border-gold/20 bg-black/40 p-4 sm:p-5">
-            <h3 className="text-lg font-semibold text-gold-light">Promocoes cadastradas</h3>
+            <h3 className="text-lg font-semibold text-gold-light">Promoções cadastradas</h3>
             <div className="mt-4 space-y-3">
               {fetching ? (
-                <p className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-cream/50">Carregando promocoes...</p>
+                <p className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-cream/50">Carregando promoções...</p>
               ) : promotions.length === 0 ? (
-                <p className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-cream/50">Nenhuma promocao cadastrada.</p>
+                <p className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-cream/50">Nenhuma promoção cadastrada.</p>
               ) : promotions.map((promotion) => (
                 <article key={promotion.id} className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
                   <div className="flex items-start justify-between gap-3">
@@ -5233,7 +5262,7 @@ function PromotionsAdminView({
                       <FiTrash2 /> Excluir
                     </button>
                     <button type="button" disabled={sendingId === promotion.id} onClick={() => sendToSelected(promotion)} className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-cream/60 hover:border-gold/30 hover:text-gold-light disabled:opacity-60">
-                      <FiSend /> Cliente
+                      <FiSend /> Selecionadas
                     </button>
                     <button type="button" disabled={sendingId === promotion.id} onClick={() => onSendWhatsapp({ promotion, clientIds: [], message: buildMessage(promotion) })} className="inline-flex items-center justify-center gap-2 rounded-lg bg-gold px-3 py-2 text-xs font-bold text-dark disabled:opacity-60">
                       <FiUsers /> Todas

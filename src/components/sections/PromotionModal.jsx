@@ -43,7 +43,7 @@ export default function PromotionModal() {
       try {
         const res = await fetch(`${API}/promotions/active`)
         const data = await res.json().catch(() => ({}))
-        if (!res.ok) throw new Error(data.error || 'Erro ao buscar promocoes.')
+        if (!res.ok) throw new Error(data.error || 'Erro ao buscar promoções.')
         if (cancelled) return
 
         const activePromotions = Array.isArray(data.promotions) ? data.promotions : []
@@ -64,7 +64,7 @@ export default function PromotionModal() {
           window.sessionStorage?.setItem(PROMOTION_MODAL_SESSION_KEY, fallbackPromotion.id)
         }
       } catch (error) {
-        console.error('Erro ao carregar modal de promocao:', error)
+        console.error('Erro ao carregar modal de promoção:', error)
       }
     }
 
@@ -104,7 +104,7 @@ export default function PromotionModal() {
           type="button"
           onClick={() => setOpen(false)}
           className="absolute right-4 top-4 z-10 rounded-full border border-white/15 bg-black/55 p-2 text-cream/70 backdrop-blur transition hover:border-gold/40 hover:text-gold-light"
-          aria-label="Fechar promocao"
+          aria-label="Fechar promoção"
         >
           <FiX />
         </button>
@@ -118,7 +118,7 @@ export default function PromotionModal() {
         <div className="space-y-5 p-6 sm:p-8">
           <div>
             <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-gold-light/70">
-              <FiTag /> Promocao
+              <FiTag /> Promoção
             </p>
             <h2 className="mt-2 font-display text-3xl font-semibold text-cream">{selectedPromotion.title}</h2>
             <p className="mt-2 text-sm leading-6 text-cream/65">{selectedPromotion.description}</p>
