@@ -5,6 +5,7 @@ import { useBooking } from '../../context/BookingContext.jsx'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
 const PROMOTION_MODAL_SESSION_KEY = 'thallytaPromotionModalShown'
+const PREFERRED_SLOT_STORAGE_KEY = 'thallytaPreferredScheduleSlot'
 
 const formatPeriod = (promotion) => {
   if (!promotion?.startsAt || !promotion?.endsAt) return ''
@@ -13,7 +14,7 @@ const formatPeriod = (promotion) => {
   return `Promoção válida de ${start} até ${end}`
 }
 
-const buildPromotionalService = (item) => {
+const buildPromotionalService = (item, promotion) => {
   const service = allServices.find((entry) => entry.id === item.serviceId)
   if (!service) return null
   return {
@@ -23,6 +24,8 @@ const buildPromotionalService = (item) => {
     promotionId: item.promotionId,
     promotionItemId: item.id,
     promotionPrice: item.promotionalPrice,
+    promotionStartsAt: promotion?.startsAt || '',
+    promotionEndsAt: promotion?.endsAt || '',
   }
 }
 
@@ -84,10 +87,12 @@ export default function PromotionModal() {
   )
 
   const handleSchedule = () => {
-    const service = buildPromotionalService(selectedItem)
+    const service = buildPromotionalService(selectedItem, selectedPromotion)
     if (!service) return
 
     clearServices()
+    window.localStorage?.removeItem(PREFERRED_SLOT_STORAGE_KEY)
+    window.dispatchEvent(new CustomEvent('booking:slot-selected', { detail: null }))
     addService(service)
     setOpen(false)
     requestAnimationFrame(() => {

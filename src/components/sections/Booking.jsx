@@ -65,7 +65,17 @@ const readCheckoutDraft = () => {
   }
 }
 
-const writeCheckoutDraft = ({ serviceId, paymentType, promotionId = '', promotionItemId = '', promotionPrice = null, regularPrice = '', continueAfterLogin = false }) => {
+const writeCheckoutDraft = ({
+  serviceId,
+  paymentType,
+  promotionId = '',
+  promotionItemId = '',
+  promotionPrice = null,
+  promotionStartsAt = '',
+  promotionEndsAt = '',
+  regularPrice = '',
+  continueAfterLogin = false,
+}) => {
   try {
     window.localStorage?.setItem(BOOKING_CHECKOUT_DRAFT_KEY, JSON.stringify({
       serviceId,
@@ -73,6 +83,8 @@ const writeCheckoutDraft = ({ serviceId, paymentType, promotionId = '', promotio
       promotionId,
       promotionItemId,
       promotionPrice,
+      promotionStartsAt,
+      promotionEndsAt,
       regularPrice,
       continueAfterLogin,
       updatedAt: Date.now(),
@@ -127,6 +139,30 @@ const formatPreferredSlotTime = (slot) => {
     hour: '2-digit',
     minute: '2-digit',
   })
+}
+
+const parseDurationMinutes = (duration) => {
+  const text = String(duration || '')
+  const hours = Number(text.match(/(\d+)\s*h/)?.[1] || 0)
+  const minutes = Number(text.match(/(\d+)\s*min/)?.[1] || 0)
+  return hours * 60 + minutes || 60
+}
+
+const getPromotionWindow = (service) => {
+  if (!service?.promotionId || !service?.promotionStartsAt || !service?.promotionEndsAt) return null
+  const startsAt = new Date(service.promotionStartsAt)
+  const endsAt = new Date(service.promotionEndsAt)
+  if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) return null
+  return { startsAt, endsAt }
+}
+
+const isSlotInsidePromotion = (service, slot) => {
+  const promotionWindow = getPromotionWindow(service)
+  if (!promotionWindow || !slot?.start) return true
+  const slotStart = new Date(slot.start)
+  if (Number.isNaN(slotStart.getTime())) return false
+  const slotEnd = new Date(slotStart.getTime() + parseDurationMinutes(service.duration) * 60 * 1000)
+  return slotStart >= promotionWindow.startsAt && slotEnd <= promotionWindow.endsAt
 }
 
 const getErrorMessage = (error, fallback = 'Ocorreu um erro. Tente novamente.') => {
@@ -228,6 +264,15 @@ export default function Booking({ embedded = false } = {}) {
     window.addEventListener('booking:slot-selected', handleSlotSelected)
     return () => window.removeEventListener('booking:slot-selected', handleSlotSelected)
   }, [])
+
+  useEffect(() => {
+    if (!selectedService?.promotionId || !preferredSlot?.start) return
+    if (isSlotInsidePromotion(selectedService, preferredSlot)) return
+
+    window.localStorage?.removeItem(PREFERRED_SLOT_STORAGE_KEY)
+    setPreferredSlot(null)
+    window.dispatchEvent(new CustomEvent('booking:slot-selected', { detail: null }))
+  }, [preferredSlot, selectedService])
 
   // Inicializa a API do Cal.com embed e escuta o evento de booking concluído
   useEffect(() => {
@@ -435,6 +480,12 @@ export default function Booking({ embedded = false } = {}) {
       document.getElementById('agenda')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
       return toast.info('Escolha o dia e horario na agenda para continuar.')
     }
+    if (selectedService?.promotionId && !isSlotInsidePromotion(selectedService, preferredSlot)) {
+      window.localStorage?.removeItem(PREFERRED_SLOT_STORAGE_KEY)
+      window.dispatchEvent(new CustomEvent('booking:slot-selected', { detail: null }))
+      document.getElementById('agenda')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      return toast.warn('Esta promocao so vale no dia e horario definidos. Escolha um horario da promocao para continuar.')
+    }
     if (selectedService) {
       writeCheckoutDraft({
         serviceId: selectedService.id,
@@ -442,6 +493,8 @@ export default function Booking({ embedded = false } = {}) {
         promotionId: selectedService.promotionId || '',
         promotionItemId: selectedService.promotionItemId || '',
         promotionPrice: selectedService.promotionPrice || null,
+        promotionStartsAt: selectedService.promotionStartsAt || '',
+        promotionEndsAt: selectedService.promotionEndsAt || '',
         regularPrice: selectedService.regularPrice || '',
         continueAfterLogin: !user,
       })
@@ -516,6 +569,8 @@ export default function Booking({ embedded = false } = {}) {
           promotionId: draft.promotionId,
           promotionItemId: draft.promotionItemId,
           promotionPrice: draft.promotionPrice,
+          promotionStartsAt: draft.promotionStartsAt || '',
+          promotionEndsAt: draft.promotionEndsAt || '',
         }
       : baseService
     if (!service) {
@@ -541,6 +596,8 @@ export default function Booking({ embedded = false } = {}) {
       promotionId: selectedService.promotionId || '',
       promotionItemId: selectedService.promotionItemId || '',
       promotionPrice: selectedService.promotionPrice || null,
+      promotionStartsAt: selectedService.promotionStartsAt || '',
+      promotionEndsAt: selectedService.promotionEndsAt || '',
       regularPrice: selectedService.regularPrice || '',
       continueAfterLogin: false,
     })

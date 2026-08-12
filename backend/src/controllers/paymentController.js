@@ -301,6 +301,21 @@ const getBookingInclude = {
   payment: true,
 };
 
+const validatePromotionSchedule = (payment, scheduledAt, endTime) => {
+  const promotion = payment?.metadata?.promotion;
+  if (!promotion?.startsAt || !promotion?.endsAt) return;
+
+  const promotionStartsAt = new Date(promotion.startsAt);
+  const promotionEndsAt = new Date(promotion.endsAt);
+  if (Number.isNaN(promotionStartsAt.getTime()) || Number.isNaN(promotionEndsAt.getTime())) return;
+
+  if (scheduledAt < promotionStartsAt || endTime > promotionEndsAt) {
+    const error = new Error('Esta promocao nao vale para o dia e horario escolhidos. Escolha um horario dentro do periodo da promocao.');
+    error.statusCode = 400;
+    throw error;
+  }
+};
+
 const attachScheduleToPayment = async (payment, startInput) => {
   if (!payment || !startInput) return payment;
 
@@ -330,6 +345,8 @@ const attachScheduleToPayment = async (payment, startInput) => {
     error.statusCode = 400;
     throw error;
   }
+
+  validatePromotionSchedule(payment, scheduledAt, endTime);
 
   if (await hasScheduleConflict(prisma, scheduledAt, endTime, { excludePaymentId: payment.id })) {
     const error = new Error('Este horario nao comporta a duracao desse servico porque interfere em outro agendamento. Escolha outro dia ou horario.');
@@ -376,6 +393,7 @@ const buildConfirmedBookingFromPayment = async (payment) => {
   if (!validation.valid) {
     throw new Error(validation.reason);
   }
+  validatePromotionSchedule(hydratedPayment, scheduledAt, endTime);
 
   const bookingConflict = await findConfirmedScheduleConflict(prisma, scheduledAt, endTime);
   if (bookingConflict) {
@@ -743,8 +761,7 @@ export const getBirthdayRewardPreview = async (req, res) => {
 export const createBookingPreference = async (req, res) => {
   try {
     const { serviceId, paymentType, start, returnPath, promotionId, promotionItemId } = req.body;
-    const pricing = await getPromotionalServicePricing({ serviceId, promotionId, itemId: promotionItemId });
-    const service = pricing.service;
+    const service = findServiceById(serviceId);
 
     if (!service) {
       return res.status(400).json({ error: 'Servico invalido.' });
@@ -775,6 +792,21 @@ export const createBookingPreference = async (req, res) => {
 
     if (!leadTimeValidation.valid) {
       return res.status(400).json({ error: leadTimeValidation.reason });
+    }
+
+    const pricing = await getPromotionalServicePricing({
+      serviceId,
+      promotionId,
+      itemId: promotionItemId,
+      now: scheduledAt,
+    });
+
+    if ((promotionId || promotionItemId) && !pricing.promotion) {
+      return res.status(400).json({ error: 'Esta promocao nao vale para o dia e horario escolhidos. Escolha um horario dentro do periodo da promocao.' });
+    }
+
+    if (pricing.promotion && (scheduledAt < new Date(pricing.promotion.startsAt) || endTime > new Date(pricing.promotion.endsAt))) {
+      return res.status(400).json({ error: 'Esta promocao nao vale para o dia e horario escolhidos. Escolha um horario dentro do periodo da promocao.' });
     }
 
     await prisma.bookingPayment.updateMany({
@@ -827,6 +859,8 @@ export const createBookingPreference = async (req, res) => {
             itemId: pricing.item.id,
             title: pricing.promotion.title,
             serviceId: pricing.item.serviceId,
+            startsAt: pricing.promotion.startsAt,
+            endsAt: pricing.promotion.endsAt,
             regularPrice: originalServicePrice,
             promotionalPrice: servicePrice,
           } : null,
@@ -858,6 +892,8 @@ export const createBookingPreference = async (req, res) => {
               itemId: pricing.item.id,
               title: pricing.promotion.title,
               serviceId: pricing.item.serviceId,
+              startsAt: pricing.promotion.startsAt,
+              endsAt: pricing.promotion.endsAt,
               regularPrice: originalServicePrice,
               promotionalPrice: servicePrice,
             } : null,

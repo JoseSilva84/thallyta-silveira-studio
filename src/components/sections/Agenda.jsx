@@ -11,6 +11,21 @@ const PENDING_PAYMENT_STORAGE_KEY = 'thallytaPendingBookingPaymentId'
 const MOBILE_DATE_PAGE_SIZE = 3
 const DESKTOP_DATE_PAGE_SIZE = 14
 
+const parseDurationMinutes = (duration) => {
+  const text = String(duration || '')
+  const hours = Number(text.match(/(\d+)\s*h/)?.[1] || 0)
+  const minutes = Number(text.match(/(\d+)\s*min/)?.[1] || 0)
+  return hours * 60 + minutes || 60
+}
+
+const getPromotionWindow = (service) => {
+  if (!service?.promotionId || !service?.promotionStartsAt || !service?.promotionEndsAt) return null
+  const startsAt = new Date(service.promotionStartsAt)
+  const endsAt = new Date(service.promotionEndsAt)
+  if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) return null
+  return { startsAt, endsAt }
+}
+
 const getServiceCardsScrollTop = (element) => {
   if (!element) return 0
   const headerOffset = window.matchMedia('(min-width: 1024px)').matches
@@ -44,6 +59,37 @@ export default function Agenda() {
   const timeCardRef = useRef(null)
   const dateSwipeRef = useRef({ x: 0, y: 0 })
   const selectedService = selectedServices[0] || null
+  const promotionWindow = useMemo(() => getPromotionWindow(selectedService), [selectedService])
+  const promotionDateKeys = useMemo(() => {
+    if (!promotionWindow) return null
+    const keys = []
+    const current = new Date(promotionWindow.startsAt)
+    current.setHours(0, 0, 0, 0)
+    const lastKey = toDateKey(promotionWindow.endsAt)
+
+    while (keys.length < 31) {
+      const key = toDateKey(current)
+      keys.push(key)
+      if (key === lastKey) break
+      current.setDate(current.getDate() + 1)
+    }
+
+    return keys
+  }, [promotionWindow])
+  const filteredAvailabilityDays = useMemo(() => {
+    if (!promotionWindow || !promotionDateKeys?.length) return availabilityDays
+    const serviceDurationMs = parseDurationMinutes(selectedService?.duration) * 60 * 1000
+    return availabilityDays
+      .filter((day) => promotionDateKeys.includes(day.date))
+      .map((day) => ({
+        ...day,
+        availableSlots: (day.availableSlots || []).filter((slot) => {
+          const slotStart = new Date(slot.start)
+          const slotEnd = new Date(slotStart.getTime() + serviceDurationMs)
+          return slotStart >= promotionWindow.startsAt && slotEnd <= promotionWindow.endsAt
+        }),
+      }))
+  }, [availabilityDays, promotionDateKeys, promotionWindow, selectedService?.duration])
 
   const fetchAgenda = useCallback(async () => {
     setLoading(true)
@@ -84,10 +130,12 @@ export default function Agenda() {
     }
   }, [fetchAgenda])
 
-  const days = useMemo(() => buildAgendaDays(bookings, availabilityDays), [availabilityDays, bookings])
+  const days = useMemo(() => buildAgendaDays(bookings, filteredAvailabilityDays, promotionDateKeys), [bookings, filteredAvailabilityDays, promotionDateKeys])
 
   useEffect(() => {
-    if (selectedDate || !days.length) return
+    if (!days.length) return
+    const stillVisible = days.some((day) => day.key === selectedDate)
+    if (selectedDate && stillVisible) return
     const firstAvailable = days.find((day) => day.availableSlots.length > 0)
     setSelectedDate((firstAvailable || days[0]).key)
   }, [days, selectedDate])
@@ -225,6 +273,11 @@ export default function Agenda() {
                       {formatMonth(days[0]?.date || new Date())}
                     </p>
                     <h3 className="mt-1 font-display text-2xl text-cream">Datas próximas</h3>
+                    {promotionWindow && (
+                      <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-gold-light/70">
+                        Somente no periodo da promocao
+                      </p>
+                    )}
                   </div>
                   <FiCalendar className="text-2xl text-gold-light" />
                 </div>
@@ -410,14 +463,22 @@ function DateButton({ day, active, loading, compact = false, onClick }) {
   )
 }
 
-function buildAgendaDays(bookings, availabilityDays) {
+function buildAgendaDays(bookings, availabilityDays, allowedDateKeys = null) {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const daysCount = Math.max(30, availabilityDays.length || 0)
+  const sourceDates = allowedDateKeys?.length
+    ? allowedDateKeys.map((key) => {
+        const [year, month, day] = key.split('-').map(Number)
+        return new Date(year, month - 1, day)
+      })
+    : Array.from({ length: daysCount }, (_, index) => {
+        const date = new Date(today)
+        date.setDate(today.getDate() + index)
+        return date
+      })
 
-  return Array.from({ length: daysCount }, (_, index) => {
-    const date = new Date(today)
-    date.setDate(today.getDate() + index)
+  return sourceDates.map((date) => {
     const key = toDateKey(date)
     const dayBookings = bookings
       .filter((booking) => toDateKey(new Date(booking.scheduledAt)) === key)
