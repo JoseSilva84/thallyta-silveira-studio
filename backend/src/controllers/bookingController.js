@@ -405,9 +405,14 @@ export const createPaidBooking = async (req, res) => {
       return res.status(409).json({ error: 'Este horario acabou de ficar indisponivel. Escolha outro horario.' });
     }
 
+    const servicePrice = Number.isFinite(Number(payment.servicePrice)) ? Number(payment.servicePrice) : service.price;
+    const originalServicePrice = Number(payment.metadata?.originalServicePrice || service.price);
+    const promotion = payment.metadata?.promotion || null;
     const notes = [
       `Servico: ${service.name}`,
-      `Valor: R$ ${service.price.toFixed(2)}`,
+      promotion ? `Promocao: ${promotion.title}` : null,
+      promotion && originalServicePrice !== servicePrice ? `Valor normal: R$ ${originalServicePrice.toFixed(2)}` : null,
+      `Valor: R$ ${servicePrice.toFixed(2)}`,
       `Pagamento: ${payment.paymentType === 'full' ? 'valor total' : 'entrada'}`,
       req.user.whatsappPhone ? `WhatsApp: ${req.user.whatsappPhone}` : null,
       '(Agendamento criado pelo site apos pagamento)',
@@ -430,7 +435,9 @@ export const createPaidBooking = async (req, res) => {
           serviceId: service.id,
           serviceName: service.name,
           serviceNames: service.name,
-          estimatedValue: service.price.toFixed(2),
+          estimatedValue: servicePrice.toFixed(2),
+          promotionId: promotion?.id || '',
+          promotionItemId: promotion?.itemId || '',
           attendeeWhatsapp: req.user.whatsappPhone || '',
           paymentType: payment.paymentType,
           paidAmount: payment.amount.toFixed(2),
@@ -459,7 +466,7 @@ export const createPaidBooking = async (req, res) => {
       update: {
         userId: req.user.id,
         service: service.name,
-        estimatedValue: service.price,
+        estimatedValue: servicePrice,
         scheduledAt,
         endTime,
         status: 'confirmed',
@@ -475,7 +482,7 @@ export const createPaidBooking = async (req, res) => {
         calEventId: calBooking.uid,
         userId: req.user.id,
         service: service.name,
-        estimatedValue: service.price,
+        estimatedValue: servicePrice,
         scheduledAt,
         endTime,
         status: 'confirmed',

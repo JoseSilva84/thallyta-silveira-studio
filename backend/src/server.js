@@ -13,6 +13,7 @@ import scheduleBlockRoutes from './routes/scheduleBlockRoutes.js';
 import financeRoutes from './routes/financeRoutes.js';
 import birthdayRewardRoutes from './routes/birthdayRewardRoutes.js';
 import crmRoutes from './routes/crmRoutes.js';
+import promotionRoutes from './routes/promotionRoutes.js';
 import prisma from './config/prisma.js';
 import { startBookingReminderService } from './services/bookingReminderService.js';
 import { startCalFallbackSyncService } from './services/calSyncService.js';
@@ -68,6 +69,7 @@ app.use('/api/schedule-blocks', scheduleBlockRoutes);
 app.use('/api/finance', financeRoutes);
 app.use('/api/birthday-rewards', birthdayRewardRoutes);
 app.use('/api/crm', crmRoutes);
+app.use('/api/promotions', promotionRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', timestamp: new Date() }));

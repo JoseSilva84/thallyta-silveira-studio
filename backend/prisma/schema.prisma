@@ -197,3 +197,37 @@ model ClientCrmProfile {
   @@index([inviteSentAt])
   @@index([doNotInviteAt])
 }
+
+model Promotion {
+  id              String          @id @default(uuid())
+  title           String
+  description     String
+  imageUrl        String?
+  whatsappText    String?
+  startsAt        DateTime
+  endsAt          DateTime
+  active          Boolean         @default(true)
+  createdById     String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  items           PromotionItem[]
+
+  @@index([active])
+  @@index([startsAt])
+  @@index([endsAt])
+}
+
+model PromotionItem {
+  id              String    @id @default(uuid())
+  promotionId     String
+  promotion       Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  serviceId       String
+  serviceName     String
+  regularPrice    Float
+  promotionalPrice Float
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([promotionId, serviceId])
+  @@index([serviceId])
+}

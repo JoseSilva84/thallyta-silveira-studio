@@ -3,6 +3,7 @@ import prisma from '../config/prisma.js';
 import { findServiceById } from '../data/services.js';
 import { confirmCalBooking, createCalBooking } from '../services/calService.js';
 import { notifyBookingCreated } from '../services/whatsappService.js';
+import { getPromotionalServicePricing } from '../services/promotionService.js';
 import { validateBookingWindow, validateClientBookingLeadTime } from '../utils/bookingHours.js';
 import { findConfirmedScheduleConflict, hasScheduleConflict } from '../utils/scheduleAvailability.js';
 
@@ -383,9 +384,14 @@ const buildConfirmedBookingFromPayment = async (payment) => {
     throw error;
   }
 
+  const servicePrice = roundMoney(hydratedPayment.servicePrice ?? service.price);
+  const originalServicePrice = roundMoney(hydratedPayment.metadata?.originalServicePrice ?? service.price);
+  const promotion = hydratedPayment.metadata?.promotion || null;
   const notes = [
     `Servico: ${service.name}`,
-    `Valor: R$ ${service.price.toFixed(2)}`,
+    promotion ? `Promocao: ${promotion.title}` : null,
+    promotion && originalServicePrice !== servicePrice ? `Valor normal: R$ ${originalServicePrice.toFixed(2)}` : null,
+    `Valor: R$ ${servicePrice.toFixed(2)}`,
     hydratedPayment.metadata?.birthdayReward?.discount
       ? `Beneficio aniversario: -R$ ${Number(hydratedPayment.metadata.birthdayReward.discount).toFixed(2)}`
       : null,
@@ -412,7 +418,9 @@ const buildConfirmedBookingFromPayment = async (payment) => {
         serviceId: service.id,
         serviceName: service.name,
         serviceNames: service.name,
-        estimatedValue: service.price.toFixed(2),
+        estimatedValue: servicePrice.toFixed(2),
+        promotionId: promotion?.id || '',
+        promotionItemId: promotion?.itemId || '',
         attendeeWhatsapp: hydratedPayment.user?.whatsappPhone || '',
         paymentType: hydratedPayment.paymentType,
         paidAmount: hydratedPayment.amount.toFixed(2),
@@ -450,7 +458,7 @@ const buildConfirmedBookingFromPayment = async (payment) => {
     update: {
       userId: hydratedPayment.userId,
       service: service.name,
-      estimatedValue: service.price,
+      estimatedValue: servicePrice,
       scheduledAt,
       endTime,
       status: 'confirmed',
@@ -474,7 +482,7 @@ const buildConfirmedBookingFromPayment = async (payment) => {
       calEventId: calBooking?.uid || `site-payment-${hydratedPayment.id}`,
       userId: hydratedPayment.userId,
       service: service.name,
-      estimatedValue: service.price,
+      estimatedValue: servicePrice,
       scheduledAt,
       endTime,
       status: 'confirmed',
@@ -734,8 +742,9 @@ export const getBirthdayRewardPreview = async (req, res) => {
 
 export const createBookingPreference = async (req, res) => {
   try {
-    const { serviceId, paymentType, start, returnPath } = req.body;
-    const service = findServiceById(serviceId);
+    const { serviceId, paymentType, start, returnPath, promotionId, promotionItemId } = req.body;
+    const pricing = await getPromotionalServicePricing({ serviceId, promotionId, itemId: promotionItemId });
+    const service = pricing.service;
 
     if (!service) {
       return res.status(400).json({ error: 'Servico invalido.' });
@@ -786,7 +795,8 @@ export const createBookingPreference = async (req, res) => {
       return res.status(409).json({ error: 'Este horario nao comporta a duracao desse servico porque interfere em outro agendamento. Escolha outro dia ou horario.' });
     }
 
-    const servicePrice = roundMoney(service.price);
+    const servicePrice = roundMoney(pricing.servicePrice);
+    const originalServicePrice = roundMoney(pricing.originalServicePrice);
     const birthdayReward = await getAvailableBirthdayReward(req.user.id);
     const birthdayDiscount = getBirthdayRewardDiscount(birthdayReward, servicePrice);
     const payableServicePrice = roundMoney(Math.max(servicePrice - birthdayDiscount, 0));
@@ -810,8 +820,16 @@ export const createBookingPreference = async (req, res) => {
         holdExpiresAt,
         metadata: {
           minimumPercentage: MINIMUM_PERCENTAGE,
-          originalServicePrice: servicePrice,
+          originalServicePrice,
           payableServicePrice,
+          promotion: pricing.promotion ? {
+            id: pricing.promotion.id,
+            itemId: pricing.item.id,
+            title: pricing.promotion.title,
+            serviceId: pricing.item.serviceId,
+            regularPrice: originalServicePrice,
+            promotionalPrice: servicePrice,
+          } : null,
           birthdayReward: birthdayReward && birthdayDiscount > 0 ? {
             id: birthdayReward.id,
             year: birthdayReward.year,
@@ -833,8 +851,16 @@ export const createBookingPreference = async (req, res) => {
           metadata: {
             ...(bookingPayment.metadata || {}),
             minimumPercentage: MINIMUM_PERCENTAGE,
-            originalServicePrice: servicePrice,
+            originalServicePrice,
             payableServicePrice,
+            promotion: pricing.promotion ? {
+              id: pricing.promotion.id,
+              itemId: pricing.item.id,
+              title: pricing.promotion.title,
+              serviceId: pricing.item.serviceId,
+              regularPrice: originalServicePrice,
+              promotionalPrice: servicePrice,
+            } : null,
             birthdayReward: birthdayReward && birthdayDiscount > 0 ? {
               id: birthdayReward.id,
               year: birthdayReward.year,
@@ -870,7 +896,7 @@ export const createBookingPreference = async (req, res) => {
         items: [
           {
             id: service.id,
-            title: `${service.name} - ${paymentType === 'full' ? 'pagamento total' : 'entrada de 30%'}${birthdayDiscount > 0 ? ' com desconto aniversario' : ''}`,
+            title: `${service.name} - ${paymentType === 'full' ? 'pagamento total' : 'entrada de 30%'}${pricing.promotion ? ' promocional' : ''}${birthdayDiscount > 0 ? ' com desconto aniversario' : ''}`,
             quantity: 1,
             currency_id: 'BRL',
             unit_price: amount,
@@ -890,6 +916,8 @@ export const createBookingPreference = async (req, res) => {
           birthdayRewardId: birthdayReward?.id || '',
           birthdayDiscount,
           payableServicePrice,
+          promotionId: pricing.promotion?.id || '',
+          promotionItemId: pricing.item?.id || '',
         },
         back_urls: {
           success: `${returnUrl}&mpStatus=success`,

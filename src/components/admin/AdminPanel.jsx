@@ -87,6 +87,19 @@ const emptyExpenseForm = {
   notes: '',
 };
 
+const defaultPromotionServices = ['botox-p', 'botox-m', 'botox-g'];
+const emptyPromotionForm = {
+  id: null,
+  title: 'Promocao Botox Capilar',
+  description: 'Botox Capilar com valor especial por tempo limitado.',
+  imageUrl: 'https://images.unsplash.com/photo-1562322140-8baeececf3df?auto=format&fit=crop&w=900&q=80',
+  whatsappText: 'Oi, {primeiro_nome}! Temos uma promocao especial de Botox Capilar no Studio Thallyta Silveira por tempo limitado.',
+  startsAt: '',
+  endsAt: '',
+  active: true,
+  items: defaultPromotionServices.map((serviceId) => ({ serviceId, promotionalPrice: '' })),
+};
+
 export default function AdminPanel() {
   const { user, logout, getToken } = useAuth();
   const navigate = useNavigate();
@@ -150,6 +163,11 @@ export default function AdminPanel() {
   const [fetchingFinanceExpenses, setFetchingFinanceExpenses] = useState(true);
   const [expenseSaving, setExpenseSaving] = useState(false);
   const [expenseForm, setExpenseForm] = useState(emptyExpenseForm);
+  const [promotions, setPromotions] = useState([]);
+  const [fetchingPromotions, setFetchingPromotions] = useState(true);
+  const [promotionSaving, setPromotionSaving] = useState(false);
+  const [promotionForm, setPromotionForm] = useState(emptyPromotionForm);
+  const [sendingPromotionId, setSendingPromotionId] = useState('');
 
   // ── Admin Booking Modal ────────────────────────────────────────
   const [showAdminBookingModal, setShowAdminBookingModal] = useState(false);
@@ -389,6 +407,24 @@ export default function AdminPanel() {
     }
   }, [handleAuthFailure, requireAdminToken]);
 
+  const fetchPromotions = useCallback(async () => {
+    try {
+      setFetchingPromotions(true);
+      const token = requireAdminToken();
+      const res = await fetch(`${API}/promotions/admin`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(handleAuthFailure(data.error) || 'Falha ao buscar promocoes');
+      setPromotions(Array.isArray(data.promotions) ? data.promotions : []);
+    } catch (error) {
+      toast.error(error.message || 'Erro ao carregar promocoes');
+      console.error(error);
+    } finally {
+      setFetchingPromotions(false);
+    }
+  }, [handleAuthFailure, requireAdminToken]);
+
   const fetchScheduleBlocks = useCallback(async () => {
     try {
       setFetchingBlocks(true);
@@ -447,7 +483,8 @@ export default function AdminPanel() {
     fetchFinanceExpenses();
     fetchClientBirthdays();
     fetchCrmClients();
-  }, [fetchApprovedPaymentsWithoutBooking, fetchBookings, fetchClientBirthdays, fetchCrmClients, fetchFinanceExpenses, fetchImages, fetchTestimonials]);
+    fetchPromotions();
+  }, [fetchApprovedPaymentsWithoutBooking, fetchBookings, fetchClientBirthdays, fetchCrmClients, fetchFinanceExpenses, fetchImages, fetchPromotions, fetchTestimonials]);
 
   useEffect(() => {
     fetchMonthlyBirthdays();
@@ -469,6 +506,7 @@ export default function AdminPanel() {
     fetchMonthlyBirthdays();
     fetchClientBirthdays();
     fetchCrmClients();
+    fetchPromotions();
     if (activeTab === 'blocks') fetchScheduleBlocks();
   };
 
@@ -928,6 +966,103 @@ export default function AdminPanel() {
     });
   };
 
+  const handleSavePromotion = async (form) => {
+    try {
+      setPromotionSaving(true);
+      const token = requireAdminToken();
+      const method = form.id ? 'PUT' : 'POST';
+      const url = form.id ? `${API}/promotions/admin/${form.id}` : `${API}/promotions/admin`;
+      const res = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(handleAuthFailure(data.error) || 'Erro ao salvar promocao');
+      toast.success(form.id ? 'Promocao atualizada.' : 'Promocao criada.');
+      setPromotionForm(emptyPromotionForm);
+      await fetchPromotions();
+    } catch (error) {
+      toast.error(error.message || 'Erro ao salvar promocao.');
+    } finally {
+      setPromotionSaving(false);
+    }
+  };
+
+  const handleEditPromotion = (promotion) => {
+    setPromotionForm({
+      id: promotion.id,
+      title: promotion.title || '',
+      description: promotion.description || '',
+      imageUrl: promotion.imageUrl || '',
+      whatsappText: promotion.whatsappText || '',
+      startsAt: toDatetimeLocalInput(promotion.startsAt),
+      endsAt: toDatetimeLocalInput(promotion.endsAt),
+      active: promotion.active !== false,
+      items: (promotion.items || []).map((item) => ({
+        serviceId: item.serviceId,
+        promotionalPrice: String(item.promotionalPrice || '').replace('.', ','),
+      })),
+    });
+    setActiveTab('promotions');
+  };
+
+  const handleDeletePromotion = (promotion) => {
+    showConfirmToast({
+      message: `Excluir a promocao "${promotion.title}"?`,
+      confirmLabel: 'Excluir',
+      tone: 'danger',
+      onConfirm: async () => {
+        try {
+          const token = requireAdminToken();
+          const res = await fetch(`${API}/promotions/admin/${promotion.id}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(handleAuthFailure(data.error) || 'Erro ao excluir promocao');
+          toast.success('Promocao excluida.');
+          await fetchPromotions();
+        } catch (error) {
+          toast.error(error.message || 'Erro ao excluir promocao.');
+        }
+      },
+    });
+  };
+
+  const handleSendPromotionWhatsapp = async ({ promotion, clientIds, message }) => {
+    showConfirmToast({
+      message: clientIds?.length ? `Enviar promocao para ${clientIds.length} cliente(s)?` : 'Enviar promocao para todas as clientes elegiveis?',
+      confirmLabel: 'Enviar',
+      onConfirm: async () => {
+        try {
+          setSendingPromotionId(promotion.id);
+          const token = requireAdminToken();
+          const res = await fetch(`${API}/promotions/admin/${promotion.id}/send-whatsapp`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ clientIds, message, promotional: true }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(handleAuthFailure(data.error) || 'Erro ao enviar promocao');
+          toast.success(`${data.sent || 0} mensagem(ns) enviada(s).`);
+          if (data.skipped) toast.info(`${data.skipped} cliente(s) ignorada(s) por regras de contato.`);
+          if (data.failed) toast.warn(`${data.failed} envio(s) falharam.`);
+        } catch (error) {
+          toast.error(error.message || 'Erro ao enviar promocao.');
+        } finally {
+          setSendingPromotionId('');
+        }
+      },
+    });
+  };
+
   const handleDeleteClient = async (clientEmail, clientName) => {
     showConfirmToast({
       message: `Excluir "${clientName}" e todos os dados (agendamentos, pagamentos, selos)? Esta ação não pode ser desfeita.`,
@@ -1286,9 +1421,9 @@ export default function AdminPanel() {
     setBirthdayMonthCursor((current) => new Date(current.getFullYear(), current.getMonth() + amount, 1));
   };
   const managementActive = ['erp', 'analytics', 'finance'].includes(activeTab);
-  const relationshipActive = ['clients', 'loyalty', 'crm', 'crmInsights', 'campaigns'].includes(activeTab);
+  const relationshipActive = ['clients', 'loyalty', 'crm', 'crmInsights', 'campaigns', 'promotions'].includes(activeTab);
   const managementCount = erpSummary.priorityCount || financeExpenses.length || 0;
-  const relationshipCount = clientProfiles.length + (crmStats.missing || 0);
+  const relationshipCount = clientProfiles.length + (crmStats.missing || 0) + promotions.filter((promotion) => promotion.active).length;
   const adminTabs = [
     { value: 'bookings', icon: <FiCalendar />, label: 'Agenda', count: bookings.length + unresolvedApprovedPayments.length },
     { value: 'management', icon: <FiBriefcase />, label: 'Administração', count: managementCount || undefined },
@@ -1459,6 +1594,13 @@ export default function AdminPanel() {
                         icon={<FiMessageSquare />}
                         label="Campanhas"
                         onClick={() => selectAdminTab({ value: 'campaigns' })}
+                      />
+                      <MobileSubTabButton
+                        active={activeTab === 'promotions'}
+                        icon={<FiGift />}
+                        label="Promocoes"
+                        count={promotions.filter((promotion) => promotion.active).length || undefined}
+                        onClick={() => selectAdminTab({ value: 'promotions' })}
                       />
                     </div>
                   )}
@@ -1691,6 +1833,27 @@ export default function AdminPanel() {
                     <FiMessageSquare /> Campanhas
                   </span>
                 </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('promotions');
+                    setClientsMenuOpen(false);
+                  }}
+                  className={`mt-1 flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition ${
+                    activeTab === 'promotions'
+                      ? 'bg-gradient-to-r from-gold to-gold-light text-dark'
+                      : 'text-cream/70 hover:bg-white/5 hover:text-cream'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <FiGift /> Promocoes
+                  </span>
+                  {promotions.filter((promotion) => promotion.active).length > 0 && (
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${activeTab === 'promotions' ? 'bg-dark/20 text-dark' : 'bg-gold/20 text-gold'}`}>
+                      {promotions.filter((promotion) => promotion.active).length}
+                    </span>
+                  )}
+                </button>
                 </div>
               </div>
             )}
@@ -1870,6 +2033,23 @@ export default function AdminPanel() {
             fetching={fetchingCrm}
             sending={sendingCrmCampaign}
             onSend={handleSendCrmCampaign}
+          />
+        )}
+
+        {activeTab === 'promotions' && (
+          <PromotionsAdminView
+            promotions={promotions}
+            clients={crmClients}
+            form={promotionForm}
+            setForm={setPromotionForm}
+            fetching={fetchingPromotions}
+            saving={promotionSaving}
+            sendingId={sendingPromotionId}
+            onSave={handleSavePromotion}
+            onEdit={handleEditPromotion}
+            onDelete={handleDeletePromotion}
+            onSendWhatsapp={handleSendPromotionWhatsapp}
+            onRefresh={fetchPromotions}
           />
         )}
 
@@ -4774,6 +4954,304 @@ function CrmCampaignsView({ clients, fetching, sending, onSend }) {
   );
 }
 
+function PromotionsAdminView({
+  promotions,
+  clients,
+  form,
+  setForm,
+  fetching,
+  saving,
+  sendingId,
+  onSave,
+  onEdit,
+  onDelete,
+  onSendWhatsapp,
+  onRefresh,
+}) {
+  const [targetClientId, setTargetClientId] = useState('');
+  const eligibleClients = useMemo(
+    () => clients.filter((client) => client.userId && client.hasWhatsapp && !client.inviteBlocked && client.profile?.allowPromotions !== false),
+    [clients],
+  );
+
+  const serviceOptions = allServices.filter((service) => ['Cabelo', 'Unhas', 'Servicos Rapidos', 'ServiÃ§os RÃ¡pidos'].includes(service.group) || service.id);
+  const todayStart = new Date();
+  todayStart.setMinutes(todayStart.getMinutes() - todayStart.getTimezoneOffset());
+  const defaultStart = todayStart.toISOString().slice(0, 16);
+  const defaultEndDate = new Date(todayStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const defaultEnd = defaultEndDate.toISOString().slice(0, 16);
+
+  const normalizedForm = {
+    ...form,
+    startsAt: form.startsAt || defaultStart,
+    endsAt: form.endsAt || defaultEnd,
+  };
+
+  const updateItem = (index, patch) => {
+    setForm((current) => ({
+      ...current,
+      items: current.items.map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item)),
+    }));
+  };
+
+  const addItem = () => {
+    const firstMissing = serviceOptions.find((service) => !form.items.some((item) => item.serviceId === service.id));
+    if (!firstMissing) return toast.info('Todos os servicos ja estao na promocao.');
+    setForm((current) => ({
+      ...current,
+      items: [...current.items, { serviceId: firstMissing.id, promotionalPrice: '' }],
+    }));
+  };
+
+  const removeItem = (index) => {
+    setForm((current) => ({
+      ...current,
+      items: current.items.filter((_, itemIndex) => itemIndex !== index),
+    }));
+  };
+
+  const resetForm = () => setForm(emptyPromotionForm);
+
+  const buildMessage = (promotion) => {
+    const priceLines = (promotion.items || []).map((item) => `${item.serviceName}: de ${item.regularPriceLabel} por ${item.promotionalPriceLabel}`);
+    const link = promotion.bookingLink || `${window.location.origin}/?promocao=${promotion.id}#agenda`;
+    return [
+      promotion.whatsappText || promotion.description,
+      '',
+      ...priceLines,
+      '',
+      `Agende aqui: ${link}`,
+    ].join('\n');
+  };
+
+  const sendToSelected = (promotion) => {
+    if (!targetClientId) return toast.warning('Escolha uma cliente para enviar.');
+    onSendWhatsapp({ promotion, clientIds: [targetClientId], message: buildMessage(promotion) });
+  };
+
+  return (
+    <div className="min-w-0 space-y-6 overflow-hidden">
+      <section className="rounded-2xl border border-gold/20 bg-black/40 p-4 sm:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider text-gold-light/60">Relacionamento</p>
+            <h2 className="mt-1 text-xl font-semibold text-cream sm:text-2xl">Promocoes</h2>
+            <p className="mt-2 max-w-2xl text-sm text-cream/50">
+              Cadastre valores promocionais sem alterar os precos normais dos servicos.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onRefresh}
+            disabled={fetching}
+            className="inline-flex items-center justify-center gap-2 rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-cream/60 hover:border-gold/30 hover:text-gold-light disabled:opacity-60"
+          >
+            <FiRefreshCw className={fetching ? 'animate-spin' : ''} /> Atualizar
+          </button>
+        </div>
+      </section>
+
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_430px]">
+        <section className="rounded-2xl border border-gold/20 bg-black/40 p-4 sm:p-5">
+          <h3 className="text-lg font-semibold text-gold-light">{form.id ? 'Editar promocao' : 'Nova promocao'}</h3>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              onSave(normalizedForm);
+            }}
+            className="mt-4 space-y-4"
+          >
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-sm text-cream/70">Titulo</label>
+                <input
+                  value={form.title}
+                  onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
+                  className="w-full rounded-lg border border-white/10 bg-dark px-3 py-2 text-sm text-cream outline-none focus:border-gold"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm text-cream/70">Imagem da promocao</label>
+                <input
+                  value={form.imageUrl}
+                  onChange={(event) => setForm((current) => ({ ...current, imageUrl: event.target.value }))}
+                  placeholder="https://..."
+                  className="w-full rounded-lg border border-white/10 bg-dark px-3 py-2 text-sm text-cream outline-none focus:border-gold"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm text-cream/70">Texto do modal/site</label>
+              <textarea
+                value={form.description}
+                onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
+                rows={3}
+                className="w-full resize-none rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-cream outline-none focus:border-gold"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm text-cream/70">Texto para WhatsApp</label>
+              <textarea
+                value={form.whatsappText}
+                onChange={(event) => setForm((current) => ({ ...current, whatsappText: event.target.value }))}
+                rows={3}
+                className="w-full resize-none rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-cream outline-none focus:border-gold"
+              />
+              <p className="mt-2 text-xs text-cream/40">O sistema acrescenta os precos e o final "Agende aqui" com o link.</p>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-sm text-cream/70">Inicio</label>
+                <input
+                  type="datetime-local"
+                  value={normalizedForm.startsAt}
+                  onChange={(event) => setForm((current) => ({ ...current, startsAt: event.target.value }))}
+                  className="w-full rounded-lg border border-white/10 bg-dark px-3 py-2 text-sm text-cream outline-none focus:border-gold"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm text-cream/70">Fim</label>
+                <input
+                  type="datetime-local"
+                  value={normalizedForm.endsAt}
+                  onChange={(event) => setForm((current) => ({ ...current, endsAt: event.target.value }))}
+                  className="w-full rounded-lg border border-white/10 bg-dark px-3 py-2 text-sm text-cream outline-none focus:border-gold"
+                />
+              </div>
+            </div>
+
+            <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-cream/70">
+              <input
+                type="checkbox"
+                checked={form.active}
+                onChange={(event) => setForm((current) => ({ ...current, active: event.target.checked }))}
+                className="size-4 accent-gold"
+              />
+              Promocao ativa no site
+            </label>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-semibold text-cream">Servicos e valores promocionais</p>
+                <button type="button" onClick={addItem} className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-1.5 text-xs font-semibold text-cream/60 hover:border-gold/30 hover:text-gold-light">
+                  <FiPlus /> Adicionar
+                </button>
+              </div>
+              {form.items.map((item, index) => {
+                const service = allServices.find((entry) => entry.id === item.serviceId);
+                return (
+                  <div key={`${item.serviceId}-${index}`} className="grid gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3 md:grid-cols-[minmax(0,1fr)_160px_auto]">
+                    <select
+                      value={item.serviceId}
+                      onChange={(event) => updateItem(index, { serviceId: event.target.value })}
+                      className="min-w-0 rounded-lg border border-white/10 bg-dark px-3 py-2 text-sm text-cream outline-none focus:border-gold"
+                    >
+                      {serviceOptions.map((option) => (
+                        <option key={option.id} value={option.id}>{option.name}</option>
+                      ))}
+                    </select>
+                    <input
+                      value={item.promotionalPrice}
+                      onChange={(event) => updateItem(index, { promotionalPrice: event.target.value })}
+                      placeholder="Valor promo"
+                      className="min-w-0 rounded-lg border border-white/10 bg-dark px-3 py-2 text-sm text-cream outline-none focus:border-gold"
+                    />
+                    <button type="button" onClick={() => removeItem(index)} className="rounded-lg border border-red-500/25 px-3 py-2 text-red-300 hover:bg-red-500/10" aria-label="Remover servico">
+                      <FiTrash2 />
+                    </button>
+                    {service?.price && (
+                      <p className="md:col-span-3 text-xs text-cream/40">Valor normal atual: {service.price}</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <button type="submit" disabled={saving} className="gold-button inline-flex flex-1 items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-bold disabled:opacity-60">
+                <FiSave /> {saving ? 'Salvando...' : 'Salvar promocao'}
+              </button>
+              {form.id && (
+                <button type="button" onClick={resetForm} className="rounded-xl border border-white/10 px-5 py-3 text-sm font-semibold text-cream/65 hover:border-gold/30 hover:text-gold-light">
+                  Nova promocao
+                </button>
+              )}
+            </div>
+          </form>
+        </section>
+
+        <aside className="space-y-4">
+          <section className="rounded-2xl border border-gold/20 bg-black/40 p-4 sm:p-5">
+            <h3 className="text-lg font-semibold text-gold-light">Envio rapido</h3>
+            <label className="mt-4 mb-1 block text-sm text-cream/70">Cliente</label>
+            <select
+              value={targetClientId}
+              onChange={(event) => setTargetClientId(event.target.value)}
+              className="w-full rounded-lg border border-white/10 bg-dark px-3 py-2 text-sm text-cream outline-none focus:border-gold"
+            >
+              <option value="">Escolha uma cliente</option>
+              {eligibleClients.map((client) => (
+                <option key={client.userId} value={client.userId}>{client.name}</option>
+              ))}
+            </select>
+            <p className="mt-2 text-xs text-cream/40">Clientes sem WhatsApp, bloqueadas ou sem aceite de promocoes ficam fora.</p>
+          </section>
+
+          <section className="rounded-2xl border border-gold/20 bg-black/40 p-4 sm:p-5">
+            <h3 className="text-lg font-semibold text-gold-light">Promocoes cadastradas</h3>
+            <div className="mt-4 space-y-3">
+              {fetching ? (
+                <p className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-cream/50">Carregando promocoes...</p>
+              ) : promotions.length === 0 ? (
+                <p className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-cream/50">Nenhuma promocao cadastrada.</p>
+              ) : promotions.map((promotion) => (
+                <article key={promotion.id} className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-cream">{promotion.title}</p>
+                      <p className="mt-1 text-xs text-cream/45">{formatPromotionPeriod(promotion)}</p>
+                    </div>
+                    <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${promotion.active ? 'bg-emerald-400/15 text-emerald-200' : 'bg-white/10 text-cream/40'}`}>
+                      {promotion.active ? 'Ativa' : 'Pausada'}
+                    </span>
+                  </div>
+                  <div className="mt-3 space-y-1">
+                    {(promotion.items || []).map((item) => (
+                      <p key={item.id} className="text-xs text-cream/55">
+                        {item.serviceName}: <span className="line-through">{item.regularPriceLabel}</span> <span className="font-bold text-gold-light">{item.promotionalPriceLabel}</span>
+                      </p>
+                    ))}
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <button type="button" onClick={() => onEdit(promotion)} className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-cream/60 hover:border-gold/30 hover:text-gold-light">
+                      <FiEdit3 /> Editar
+                    </button>
+                    <button type="button" onClick={() => onDelete(promotion)} className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-500/25 px-3 py-2 text-xs font-semibold text-red-300 hover:bg-red-500/10">
+                      <FiTrash2 /> Excluir
+                    </button>
+                    <button type="button" disabled={sendingId === promotion.id} onClick={() => sendToSelected(promotion)} className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-cream/60 hover:border-gold/30 hover:text-gold-light disabled:opacity-60">
+                      <FiSend /> Cliente
+                    </button>
+                    <button type="button" disabled={sendingId === promotion.id} onClick={() => onSendWhatsapp({ promotion, clientIds: [], message: buildMessage(promotion) })} className="inline-flex items-center justify-center gap-2 rounded-lg bg-gold px-3 py-2 text-xs font-bold text-dark disabled:opacity-60">
+                      <FiUsers /> Todas
+                    </button>
+                  </div>
+                  <a href={promotion.bookingLink} target="_blank" rel="noreferrer" className="mt-3 block truncate text-xs text-gold-light/70 hover:text-gold">
+                    {promotion.bookingLink}
+                  </a>
+                </article>
+              ))}
+            </div>
+          </section>
+        </aside>
+      </div>
+    </div>
+  );
+}
+
 function CrmClientCard({ client, sending, onSendInvite, onToggleDoNotInvite }) {
   const profile = client.profile || {};
   const sourceLabel = crmSourceLabel(profile.source);
@@ -6939,6 +7417,29 @@ function getBirthdayStatusMeta(celebrant) {
 function formatCurrency(value) {
   if (typeof value !== 'number' || !Number.isFinite(value)) return '-';
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+}
+
+function toDatetimeLocalInput(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+}
+
+function formatPromotionPeriod(promotion) {
+  if (!promotion?.startsAt || !promotion?.endsAt) return 'Periodo nao informado';
+  const options = {
+    timeZone: 'America/Fortaleza',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  };
+  const start = new Date(promotion.startsAt).toLocaleString('pt-BR', options);
+  const end = new Date(promotion.endsAt).toLocaleString('pt-BR', options);
+  return `${start} ate ${end}`;
 }
 
 function getMercadoPagoMethod(payment) {

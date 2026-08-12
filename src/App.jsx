@@ -12,6 +12,7 @@ import Agenda from './components/sections/Agenda.jsx'
 import Loyalty from './components/sections/Loyalty.jsx'
 import Location from './components/sections/Location.jsx'
 import Duvidas from './components/sections/Duvidas.jsx'
+import PromotionModal from './components/sections/PromotionModal.jsx'
 import AdminPanel from './components/admin/AdminPanel.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import RegisterPage from './pages/RegisterPage.jsx'
@@ -88,6 +89,7 @@ function Home() {
       <Footer />
       <FloatingButtons />
       <QuickBookingToast />
+      <PromotionModal />
     </>
   )
 }

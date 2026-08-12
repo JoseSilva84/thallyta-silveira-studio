@@ -65,11 +65,15 @@ const readCheckoutDraft = () => {
   }
 }
 
-const writeCheckoutDraft = ({ serviceId, paymentType, continueAfterLogin = false }) => {
+const writeCheckoutDraft = ({ serviceId, paymentType, promotionId = '', promotionItemId = '', promotionPrice = null, regularPrice = '', continueAfterLogin = false }) => {
   try {
     window.localStorage?.setItem(BOOKING_CHECKOUT_DRAFT_KEY, JSON.stringify({
       serviceId,
       paymentType,
+      promotionId,
+      promotionItemId,
+      promotionPrice,
+      regularPrice,
       continueAfterLogin,
       updatedAt: Date.now(),
     }))
@@ -435,6 +439,10 @@ export default function Booking({ embedded = false } = {}) {
       writeCheckoutDraft({
         serviceId: selectedService.id,
         paymentType,
+        promotionId: selectedService.promotionId || '',
+        promotionItemId: selectedService.promotionItemId || '',
+        promotionPrice: selectedService.promotionPrice || null,
+        regularPrice: selectedService.regularPrice || '',
         continueAfterLogin: !user,
       })
     }
@@ -467,6 +475,8 @@ export default function Booking({ embedded = false } = {}) {
           serviceId: selectedService.id,
           paymentType,
           start: preferredSlot.start,
+          promotionId: selectedService.promotionId || undefined,
+          promotionItemId: selectedService.promotionItemId || undefined,
         }),
       })
       const data = await res.json().catch(() => ({}))
@@ -497,7 +507,17 @@ export default function Booking({ embedded = false } = {}) {
     const draft = readCheckoutDraft()
     if (!draft?.serviceId) return
 
-    const service = allServices.find((item) => item.id === draft.serviceId)
+    const baseService = allServices.find((item) => item.id === draft.serviceId)
+    const service = baseService && draft.promotionId
+      ? {
+          ...baseService,
+          price: draft.promotionPrice ? `R$ ${Number(draft.promotionPrice).toFixed(2).replace('.', ',')}` : baseService.price,
+          regularPrice: draft.regularPrice || baseService.price,
+          promotionId: draft.promotionId,
+          promotionItemId: draft.promotionItemId,
+          promotionPrice: draft.promotionPrice,
+        }
+      : baseService
     if (!service) {
       clearCheckoutDraft()
       return
@@ -518,6 +538,10 @@ export default function Booking({ embedded = false } = {}) {
     writeCheckoutDraft({
       serviceId: selectedService.id,
       paymentType,
+      promotionId: selectedService.promotionId || '',
+      promotionItemId: selectedService.promotionItemId || '',
+      promotionPrice: selectedService.promotionPrice || null,
+      regularPrice: selectedService.regularPrice || '',
       continueAfterLogin: false,
     })
     handleProceed()
@@ -934,7 +958,14 @@ export default function Booking({ embedded = false } = {}) {
                               <span className={`block break-words font-display text-lg font-semibold transition-colors ${isSelected ? 'text-gold-light' : 'text-cream group-hover:text-gold-light'}`}>
                                 {service.name}
                               </span>
-                              <span className="block break-words text-sm font-medium text-cream/60">{service.price}</span>
+                              <span className="block break-words text-sm font-medium text-cream/60">
+                                {service.regularPrice && service.regularPrice !== service.price ? (
+                                  <>
+                                    <span className="line-through">{service.regularPrice}</span>
+                                    <span className="ml-2 font-bold text-gold-light">{service.price}</span>
+                                  </>
+                                ) : service.price}
+                              </span>
                               {service.duration && <span className="mt-1 block text-xs font-semibold uppercase tracking-[0.16em] text-cream/40">Duração: {service.duration}</span>}
                             </span>
                           </label>
@@ -974,6 +1005,9 @@ export default function Booking({ embedded = false } = {}) {
                       {selectedServices.length > 0 && (
                         <div>
                           <span className="block text-xs font-bold uppercase tracking-wider text-gold-light/80">Estimativa de Valor</span>
+                          {selectedService?.promotionId && (
+                            <span className="mt-1 block text-xs font-semibold uppercase tracking-[0.16em] text-gold-light/70">Valor promocional aplicado</span>
+                          )}
                           <span className="mt-1 block font-medium text-cream">
                             {totalEstimado > 0 ? `R$ ${totalEstimado.toFixed(2).replace('.', ',')}` : 'Consultar preços variáveis'}
                           </span>
