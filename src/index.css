@@ -1125,3 +1125,9 @@ label.cursor-pointer:active {
 :where([data-cal-namespace]) ::-webkit-scrollbar-thumb:hover {
   background: rgba(217, 177, 92, 0.6);
 }
+
+.admin-promotion-date-input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  filter: invert(1) brightness(1.4);
+  opacity: 0.9;
+}

@@ -5144,7 +5144,7 @@ function PromotionsAdminView({
                   type="datetime-local"
                   value={normalizedForm.startsAt}
                   onChange={(event) => setForm((current) => ({ ...current, startsAt: event.target.value }))}
-                  className="w-full rounded-lg border border-white/10 bg-dark px-3 py-2 text-sm text-cream outline-none focus:border-gold"
+                  className="admin-promotion-date-input w-full rounded-lg border border-white/10 bg-dark px-3 py-2 text-sm text-cream outline-none focus:border-gold"
                 />
               </div>
               <div>
@@ -5153,7 +5153,7 @@ function PromotionsAdminView({
                   type="datetime-local"
                   value={normalizedForm.endsAt}
                   onChange={(event) => setForm((current) => ({ ...current, endsAt: event.target.value }))}
-                  className="w-full rounded-lg border border-white/10 bg-dark px-3 py-2 text-sm text-cream outline-none focus:border-gold"
+                  className="admin-promotion-date-input w-full rounded-lg border border-white/10 bg-dark px-3 py-2 text-sm text-cream outline-none focus:border-gold"
                 />
               </div>
             </div>
