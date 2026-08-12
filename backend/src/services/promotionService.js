@@ -51,6 +51,8 @@ export const serializePromotion = (promotion, { includeLink = true } = {}) => {
     description: promotion.description,
     imageUrl: promotion.imageUrl || '',
     whatsappText: promotion.whatsappText || '',
+    displayStartsAt: promotion.displayStartsAt || null,
+    displayEndsAt: promotion.displayEndsAt || null,
     startsAt: promotion.startsAt,
     endsAt: promotion.endsAt,
     active: promotion.active,
@@ -63,13 +65,30 @@ export const serializePromotion = (promotion, { includeLink = true } = {}) => {
 
 export const getActivePromotionWhere = (now = new Date()) => ({
   active: true,
+  OR: [
+    { displayStartsAt: null },
+    { displayStartsAt: { lte: now } },
+  ],
+  AND: [
+    {
+      OR: [
+        { displayEndsAt: null },
+        { displayEndsAt: { gte: now } },
+      ],
+    },
+  ],
+  endsAt: { gte: now },
+});
+
+export const getValidPromotionWhere = (now = new Date()) => ({
+  active: true,
   startsAt: { lte: now },
   endsAt: { gte: now },
 });
 
 export const findActivePromotion = async ({ promotionId, itemId, serviceId, now = new Date() } = {}) => {
   const where = {
-    ...getActivePromotionWhere(now),
+    ...getValidPromotionWhere(now),
     ...(promotionId ? { id: promotionId } : {}),
     items: {
       some: {

@@ -204,6 +204,8 @@ model Promotion {
   description     String
   imageUrl        String?
   whatsappText    String?
+  displayStartsAt DateTime?
+  displayEndsAt   DateTime?
   startsAt        DateTime
   endsAt          DateTime
   active          Boolean         @default(true)
@@ -213,6 +215,8 @@ model Promotion {
   items           PromotionItem[]
 
   @@index([active])
+  @@index([displayStartsAt])
+  @@index([displayEndsAt])
   @@index([startsAt])
   @@index([endsAt])
 }

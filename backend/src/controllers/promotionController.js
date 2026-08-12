@@ -9,7 +9,11 @@ import {
 } from '../services/promotionService.js';
 
 const parseDate = (value, fieldName) => {
-  const date = new Date(value);
+  const rawValue = String(value || '').trim();
+  const normalizedValue = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(rawValue)
+    ? `${rawValue}:00-03:00`
+    : rawValue;
+  const date = new Date(normalizedValue);
   if (!value || Number.isNaN(date.getTime())) {
     const error = new Error(`Informe ${fieldName} valida.`);
     error.statusCode = 400;
@@ -40,6 +44,8 @@ const textValue = (value, max = 1200) => {
 const buildPromotionPayload = (body) => {
   const title = textValue(body.title, 120);
   const description = textValue(body.description, 1000);
+  const displayStartsAt = body.displayStartsAt ? parseDate(body.displayStartsAt, 'a data inicial de exibicao') : null;
+  const displayEndsAt = body.displayEndsAt ? parseDate(body.displayEndsAt, 'a data final de exibicao') : null;
   const startsAt = parseDate(body.startsAt, 'a data inicial');
   const endsAt = parseDate(body.endsAt, 'a data final');
 
@@ -57,6 +63,12 @@ const buildPromotionPayload = (body) => {
 
   if (endsAt <= startsAt) {
     const error = new Error('A data final precisa ser depois da data inicial.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (displayStartsAt && displayEndsAt && displayEndsAt <= displayStartsAt) {
+    const error = new Error('A data final de exibicao precisa ser depois da data inicial de exibicao.');
     error.statusCode = 400;
     throw error;
   }
@@ -87,6 +99,8 @@ const buildPromotionPayload = (body) => {
       description,
       imageUrl: textValue(body.imageUrl, 1000) || null,
       whatsappText: textValue(body.whatsappText, 1200) || null,
+      displayStartsAt,
+      displayEndsAt,
       startsAt,
       endsAt,
       active: body.active !== false,

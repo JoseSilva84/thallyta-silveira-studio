@@ -94,6 +94,8 @@ const emptyPromotionForm = {
   description: 'Botox Capilar com valor especial por tempo limitado.',
   imageUrl: 'https://images.unsplash.com/photo-1562322140-8baeececf3df?auto=format&fit=crop&w=900&q=80',
   whatsappText: 'Oi, {primeiro_nome}! Temos uma promoção especial de Botox Capilar no Studio Thallyta Silveira por tempo limitado.',
+  displayStartsAt: '',
+  displayEndsAt: '',
   startsAt: '',
   endsAt: '',
   active: true,
@@ -999,6 +1001,8 @@ export default function AdminPanel() {
       description: promotion.description || '',
       imageUrl: promotion.imageUrl || '',
       whatsappText: promotion.whatsappText || '',
+      displayStartsAt: toDatetimeLocalInput(promotion.displayStartsAt),
+      displayEndsAt: toDatetimeLocalInput(promotion.displayEndsAt),
       startsAt: toDatetimeLocalInput(promotion.startsAt),
       endsAt: toDatetimeLocalInput(promotion.endsAt),
       active: promotion.active !== false,
@@ -4991,13 +4995,14 @@ function PromotionsAdminView({
 
   const serviceOptions = allServices.filter((service) => ['Cabelo', 'Unhas', 'Servicos Rapidos', 'ServiÃ§os RÃ¡pidos'].includes(service.group) || service.id);
   const todayStart = new Date();
-  todayStart.setMinutes(todayStart.getMinutes() - todayStart.getTimezoneOffset());
-  const defaultStart = todayStart.toISOString().slice(0, 16);
+  const defaultStart = toFortalezaDatetimeLocalInput(todayStart);
   const defaultEndDate = new Date(todayStart.getTime() + 7 * 24 * 60 * 60 * 1000);
-  const defaultEnd = defaultEndDate.toISOString().slice(0, 16);
+  const defaultEnd = toFortalezaDatetimeLocalInput(defaultEndDate);
 
   const normalizedForm = {
     ...form,
+    displayStartsAt: form.displayStartsAt || defaultStart,
+    displayEndsAt: form.displayEndsAt || form.endsAt || defaultEnd,
     startsAt: form.startsAt || defaultStart,
     endsAt: form.endsAt || defaultEnd,
   };
@@ -5039,9 +5044,15 @@ function PromotionsAdminView({
     ].join('\n');
   };
 
+  const getInterestedClientsForPromotion = (promotion) => {
+    const terms = getPromotionInterestTerms(promotion);
+    if (!terms.length) return [];
+    return eligibleClients.filter((client) => clientMatchesPromotionInterest(client, terms));
+  };
+
   const setPromotionAudienceMode = (mode) => {
     setAudienceMode(mode);
-    if (mode === 'all') {
+    if (mode !== 'selected') {
       setSelectedClientIds([]);
       setClientPickerSearch('');
     }
@@ -5058,6 +5069,15 @@ function PromotionsAdminView({
   const sendToSelected = (promotion) => {
     if (audienceMode === 'all') {
       onSendWhatsapp({ promotion, clientIds: [], message: buildMessage(promotion) });
+      return;
+    }
+    if (audienceMode === 'interested') {
+      const interestedClients = getInterestedClientsForPromotion(promotion);
+      if (!interestedClients.length) {
+        toast.warning('Nenhuma cliente interessada encontrada para esta promoção.');
+        return;
+      }
+      onSendWhatsapp({ promotion, clientIds: interestedClients.map((client) => client.userId), message: buildMessage(promotion) });
       return;
     }
     if (!selectedClientIds.length) return toast.warning('Escolha uma ou mais clientes para enviar.');
@@ -5137,7 +5157,36 @@ function PromotionsAdminView({
               <p className="mt-2 text-xs text-cream/40">O sistema acrescenta os preços e o final "Agende aqui" com o link.</p>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <p className="mb-2 text-sm font-semibold text-cream">Quando mostrar no site</p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-sm text-cream/70">Exibir a partir de</label>
+                  <input
+                    type="datetime-local"
+                    value={normalizedForm.displayStartsAt}
+                    onChange={(event) => setForm((current) => ({ ...current, displayStartsAt: event.target.value }))}
+                    className="admin-promotion-date-input w-full rounded-lg border border-white/10 bg-dark px-3 py-2 text-sm text-cream outline-none focus:border-gold"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm text-cream/70">Exibir até</label>
+                  <input
+                    type="datetime-local"
+                    value={normalizedForm.displayEndsAt}
+                    onChange={(event) => setForm((current) => ({ ...current, displayEndsAt: event.target.value }))}
+                    className="admin-promotion-date-input w-full rounded-lg border border-white/10 bg-dark px-3 py-2 text-sm text-cream outline-none focus:border-gold"
+                  />
+                </div>
+              </div>
+              <p className="mt-2 text-xs text-cream/40">
+                Esse é o período em que o modal aparece para as clientes se prepararem e agendarem.
+              </p>
+            </div>
+
+            <div>
+              <p className="mb-2 text-sm font-semibold text-cream">Data e horário da promoção</p>
+              <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label className="mb-1 block text-sm text-cream/70">Início</label>
                 <input
@@ -5155,6 +5204,7 @@ function PromotionsAdminView({
                   onChange={(event) => setForm((current) => ({ ...current, endsAt: event.target.value }))}
                   className="admin-promotion-date-input w-full rounded-lg border border-white/10 bg-dark px-3 py-2 text-sm text-cream outline-none focus:border-gold"
                 />
+              </div>
               </div>
             </div>
 
@@ -5221,7 +5271,7 @@ function PromotionsAdminView({
         <aside className="space-y-4">
           <section className="rounded-2xl border border-gold/20 bg-black/40 p-4 sm:p-5">
             <h3 className="text-lg font-semibold text-gold-light">Envio rápido</h3>
-            <div className="mt-4 grid grid-cols-2 gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-1">
+            <div className="mt-4 grid grid-cols-3 gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-1">
               <button
                 type="button"
                 onClick={() => setPromotionAudienceMode('all')}
@@ -5232,6 +5282,17 @@ function PromotionsAdminView({
                 }`}
               >
                 Todos
+              </button>
+              <button
+                type="button"
+                onClick={() => setPromotionAudienceMode('interested')}
+                className={`rounded-lg px-3 py-2 text-sm font-bold transition ${
+                  audienceMode === 'interested'
+                    ? 'bg-gold text-dark'
+                    : 'text-cream/55 hover:bg-white/5 hover:text-gold-light'
+                }`}
+              >
+                Interessadas
               </button>
               <button
                 type="button"
@@ -5251,6 +5312,13 @@ function PromotionsAdminView({
                 <p className="text-sm font-semibold text-gold-light">Todas as clientes elegíveis</p>
                 <p className="mt-1 text-xs leading-5 text-cream/50">
                   {eligibleClients.length} cliente(s) com WhatsApp liberado e aceite de promoções.
+                </p>
+              </div>
+            ) : audienceMode === 'interested' ? (
+              <div className="mt-4 rounded-xl border border-gold/15 bg-gold/10 p-4">
+                <p className="text-sm font-semibold text-gold-light">Clientes interessadas</p>
+                <p className="mt-1 text-xs leading-5 text-cream/50">
+                  Envia para clientes elegíveis com interesses de CRM compatíveis com a promoção escolhida.
                 </p>
               </div>
             ) : (
@@ -5348,10 +5416,11 @@ function PromotionsAdminView({
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-cream">{promotion.title}</p>
+                      <p className="mt-1 text-xs text-gold-light/55">Exibe: {formatPromotionDisplayPeriod(promotion)}</p>
                       <p className="mt-1 text-xs text-cream/45">{formatPromotionPeriod(promotion)}</p>
                     </div>
-                    <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${promotion.active ? 'bg-emerald-400/15 text-emerald-200' : 'bg-white/10 text-cream/40'}`}>
-                      {promotion.active ? 'Ativa' : 'Pausada'}
+                    <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${getPromotionStatusMeta(promotion).classes}`}>
+                      {getPromotionStatusMeta(promotion).label}
                     </span>
                   </div>
                   <div className="mt-3 space-y-1">
@@ -5369,7 +5438,7 @@ function PromotionsAdminView({
                       <FiTrash2 /> Excluir
                     </button>
                     <button type="button" disabled={sendingId === promotion.id} onClick={() => sendToSelected(promotion)} className="col-span-2 inline-flex items-center justify-center gap-2 rounded-lg bg-gold px-3 py-2 text-xs font-bold text-dark disabled:opacity-60 sm:col-span-1">
-                      <FiSend /> {audienceMode === 'all' ? 'Enviar' : 'Selecionadas'}
+                      <FiSend /> {audienceMode === 'all' ? 'Enviar' : audienceMode === 'interested' ? 'Interessadas' : 'Selecionadas'}
                     </button>
                   </div>
                   <a href={promotion.bookingLink} target="_blank" rel="noreferrer" className="mt-3 block truncate text-xs text-gold-light/70 hover:text-gold">
@@ -7556,8 +7625,22 @@ function toDatetimeLocalInput(value) {
   if (!value) return '';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-  return local.toISOString().slice(0, 16);
+  return toFortalezaDatetimeLocalInput(date);
+}
+
+function toFortalezaDatetimeLocalInput(date) {
+  if (!date || Number.isNaN(date.getTime())) return '';
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Fortaleza',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(date);
+  const get = (type) => parts.find((part) => part.type === type)?.value || '';
+  return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}`;
 }
 
 function formatPromotionPeriod(promotion) {
@@ -7573,6 +7656,76 @@ function formatPromotionPeriod(promotion) {
   const start = new Date(promotion.startsAt).toLocaleString('pt-BR', options);
   const end = new Date(promotion.endsAt).toLocaleString('pt-BR', options);
   return `${start} ate ${end}`;
+}
+
+function formatPromotionDisplayPeriod(promotion) {
+  const startValue = promotion?.displayStartsAt || promotion?.startsAt;
+  const endValue = promotion?.displayEndsAt || promotion?.endsAt;
+  if (!startValue || !endValue) return 'Mesmo periodo da promocao';
+  const options = {
+    timeZone: 'America/Fortaleza',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  };
+  const start = new Date(startValue).toLocaleString('pt-BR', options);
+  const end = new Date(endValue).toLocaleString('pt-BR', options);
+  return `${start} ate ${end}`;
+}
+
+function getPromotionStatusMeta(promotion) {
+  if (!promotion?.active) {
+    return { label: 'Pausada', classes: 'bg-white/10 text-cream/40' };
+  }
+  const now = Date.now();
+  const startsAt = new Date(promotion.startsAt).getTime();
+  const endsAt = new Date(promotion.endsAt).getTime();
+  if (Number.isFinite(startsAt) && startsAt > now) {
+    return { label: 'Programada', classes: 'bg-amber-300/15 text-amber-100' };
+  }
+  if (Number.isFinite(endsAt) && endsAt < now) {
+    return { label: 'Encerrada', classes: 'bg-red-500/15 text-red-200' };
+  }
+  return { label: 'Ativa agora', classes: 'bg-emerald-400/15 text-emerald-200' };
+}
+
+function normalizeSearchText(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+function getPromotionInterestTerms(promotion) {
+  const terms = new Set();
+  for (const item of promotion?.items || []) {
+    const service = allServices.find((entry) => entry.id === item.serviceId);
+    [item.serviceName, service?.name, service?.group].filter(Boolean).forEach((value) => terms.add(normalizeSearchText(value)));
+
+    const text = normalizeSearchText(`${item.serviceName} ${service?.name || ''} ${service?.group || ''}`);
+    if (text.includes('cabelo') || text.includes('botox') || text.includes('alisamento') || text.includes('cachos')) {
+      ['cabelo', 'escova', 'hidratacao'].forEach((value) => terms.add(value));
+    }
+    if (text.includes('unha') || text.includes('gel') || text.includes('pedicure') || text.includes('manicure')) {
+      ['unhas em gel', 'pedicure', 'manicure'].forEach((value) => terms.add(value));
+    }
+  }
+
+  return Array.from(terms).filter(Boolean);
+}
+
+function clientMatchesPromotionInterest(client, terms) {
+  const profile = client?.profile || {};
+  const declared = [
+    ...(profile.interests || []),
+    ...(profile.tags || []),
+    profile.notes,
+  ].map(normalizeSearchText).filter(Boolean);
+
+  if (!declared.length) return false;
+  return declared.some((value) => terms.some((term) => value.includes(term) || term.includes(value)));
 }
 
 function getMercadoPagoMethod(payment) {

@@ -10,7 +10,7 @@ const formatPeriod = (promotion) => {
   if (!promotion?.startsAt || !promotion?.endsAt) return ''
   const start = new Date(promotion.startsAt).toLocaleDateString('pt-BR', { timeZone: 'America/Fortaleza', day: '2-digit', month: '2-digit' })
   const end = new Date(promotion.endsAt).toLocaleDateString('pt-BR', { timeZone: 'America/Fortaleza', day: '2-digit', month: '2-digit' })
-  return `Valida de ${start} ate ${end}`
+  return `Promoção válida de ${start} até ${end}`
 }
 
 const buildPromotionalService = (item) => {
