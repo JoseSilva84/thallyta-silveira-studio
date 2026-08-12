@@ -4980,6 +4980,7 @@ function PromotionsAdminView({
 }) {
   const [selectedClientIds, setSelectedClientIds] = useState([]);
   const [audienceMode, setAudienceMode] = useState('all');
+  const [quickPromotionId, setQuickPromotionId] = useState('');
   const [clientPickerSearch, setClientPickerSearch] = useState('');
   const [interestedWhatsappDraft, setInterestedWhatsappDraft] = useState('');
   const [interestedWhatsappPhones, setInterestedWhatsappPhones] = useState([]);
@@ -5000,6 +5001,20 @@ function PromotionsAdminView({
       client.whatsappPhone,
     ].some((value) => String(value || '').toLowerCase().includes(term)));
   }, [clientPickerSearch, eligibleClients]);
+
+  const quickPromotion = useMemo(() => (
+    promotions.find((promotion) => String(promotion.id) === String(quickPromotionId)) || promotions[0] || null
+  ), [promotions, quickPromotionId]);
+
+  useEffect(() => {
+    if (!promotions.length) {
+      if (quickPromotionId) setQuickPromotionId('');
+      return;
+    }
+    if (!promotions.some((promotion) => String(promotion.id) === String(quickPromotionId))) {
+      setQuickPromotionId(String(promotions[0].id));
+    }
+  }, [promotions, quickPromotionId]);
 
   const serviceOptions = allServices.filter((service) => ['Cabelo', 'Unhas', 'Servicos Rapidos', 'ServiÃ§os RÃ¡pidos'].includes(service.group) || service.id);
   const normalizeInterestedWhatsapp = (value) => {
@@ -5493,6 +5508,33 @@ function PromotionsAdminView({
                 ? 'Use este envio para leads que ainda nao estao cadastrados como clientes.'
                 : 'Clientes sem WhatsApp, bloqueadas ou sem aceite de promoções ficam fora.'}
             </p>
+
+            <div className="mt-4 space-y-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+              <label className="block text-sm font-semibold text-cream/70" htmlFor="quick-promotion-send">
+                Promoção para enviar
+              </label>
+              <select
+                id="quick-promotion-send"
+                value={quickPromotion ? String(quickPromotion.id) : ''}
+                onChange={(event) => setQuickPromotionId(event.target.value)}
+                disabled={fetching || promotions.length === 0}
+                className="w-full rounded-lg border border-white/10 bg-dark px-3 py-2.5 text-sm text-cream outline-none focus:border-gold disabled:opacity-60"
+              >
+                {promotions.length === 0 ? (
+                  <option value="">Nenhuma promoção cadastrada</option>
+                ) : promotions.map((promotion) => (
+                  <option key={promotion.id} value={promotion.id}>{promotion.title}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                disabled={!quickPromotion || sendingId === quickPromotion.id}
+                onClick={() => quickPromotion && sendToSelected(quickPromotion)}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-gold px-4 py-3 text-sm font-bold text-dark disabled:opacity-60"
+              >
+                <FiSend /> {sendingId === quickPromotion?.id ? 'Enviando...' : audienceMode === 'all' ? 'Enviar' : audienceMode === 'interested' ? 'Enviar interessados' : 'Enviar selecionadas'}
+              </button>
+            </div>
           </section>
 
           <section className="rounded-2xl border border-gold/20 bg-black/40 p-4 sm:p-5">
