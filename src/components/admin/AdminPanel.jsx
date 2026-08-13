@@ -1037,11 +1037,8 @@ export default function AdminPanel() {
     });
   };
 
-  const handleDeactivatePromotion = async (promotion) => {
-    if (!promotion?.active) {
-      toast.info('Esta promoÃ§Ã£o jÃ¡ estÃ¡ desativada.');
-      return;
-    }
+  const handleTogglePromotionActive = async (promotion) => {
+    const nextActive = !promotion?.active;
 
     try {
       setPromotionSaving(true);
@@ -1052,17 +1049,17 @@ export default function AdminPanel() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ ...promotion, active: false }),
+        body: JSON.stringify({ ...promotion, active: nextActive }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(handleAuthFailure(data.error) || 'Erro ao desativar promoÃ§Ã£o');
-      toast.success('PromoÃ§Ã£o desativada.');
+      if (!res.ok) throw new Error(handleAuthFailure(data.error) || 'Erro ao atualizar promoção');
+      toast.success(nextActive ? 'Promoção ativada.' : 'Promoção desativada.');
       if (promotionForm.id === promotion.id) {
-        setPromotionForm((current) => ({ ...current, active: false }));
+        setPromotionForm((current) => ({ ...current, active: nextActive }));
       }
       await fetchPromotions();
     } catch (error) {
-      toast.error(error.message || 'Erro ao desativar promoÃ§Ã£o.');
+      toast.error(error.message || 'Erro ao atualizar promoção.');
     } finally {
       setPromotionSaving(false);
     }
@@ -2089,7 +2086,7 @@ export default function AdminPanel() {
             onSave={handleSavePromotion}
             onEdit={handleEditPromotion}
             onDelete={handleDeletePromotion}
-            onDeactivate={handleDeactivatePromotion}
+            onToggleActive={handleTogglePromotionActive}
             onSendWhatsapp={handleSendPromotionWhatsapp}
             onRefresh={fetchPromotions}
           />
@@ -5007,7 +5004,7 @@ function PromotionsAdminView({
   onSave,
   onEdit,
   onDelete,
-  onDeactivate,
+  onToggleActive,
   onSendWhatsapp,
   onRefresh,
 }) {
@@ -5589,16 +5586,18 @@ function PromotionsAdminView({
                       <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${getPromotionStatusMeta(promotion).classes}`}>
                         {getPromotionStatusMeta(promotion).label}
                       </span>
-                      {promotion.active && (
-                        <button
-                          type="button"
-                          onClick={() => onDeactivate(promotion)}
-                          disabled={saving}
-                          className="rounded-full border border-red-400/25 px-3 py-1 text-xs font-semibold text-red-200 hover:bg-red-500/10 disabled:opacity-60"
-                        >
-                          Desativar
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => onToggleActive(promotion)}
+                        disabled={saving}
+                        className={`rounded-full border px-3 py-1 text-xs font-semibold disabled:opacity-60 ${
+                          promotion.active
+                            ? 'border-red-400/25 text-red-200 hover:bg-red-500/10'
+                            : 'border-emerald-400/25 text-emerald-200 hover:bg-emerald-500/10'
+                        }`}
+                      >
+                        {promotion.active ? 'Desativar' : 'Ativar'}
+                      </button>
                     </div>
                   </div>
                   <div className="mt-3 space-y-1">
