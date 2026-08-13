@@ -1037,6 +1037,37 @@ export default function AdminPanel() {
     });
   };
 
+  const handleDeactivatePromotion = async (promotion) => {
+    if (!promotion?.active) {
+      toast.info('Esta promoÃ§Ã£o jÃ¡ estÃ¡ desativada.');
+      return;
+    }
+
+    try {
+      setPromotionSaving(true);
+      const token = requireAdminToken();
+      const res = await fetch(`${API}/promotions/admin/${promotion.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ ...promotion, active: false }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(handleAuthFailure(data.error) || 'Erro ao desativar promoÃ§Ã£o');
+      toast.success('PromoÃ§Ã£o desativada.');
+      if (promotionForm.id === promotion.id) {
+        setPromotionForm((current) => ({ ...current, active: false }));
+      }
+      await fetchPromotions();
+    } catch (error) {
+      toast.error(error.message || 'Erro ao desativar promoÃ§Ã£o.');
+    } finally {
+      setPromotionSaving(false);
+    }
+  };
+
   const handleSendPromotionWhatsapp = async ({ promotion, clientIds = [], whatsappPhones = [], message }) => {
     const confirmMessage = whatsappPhones.length
       ? `Enviar promocao para ${whatsappPhones.length} interessado(s)?`
@@ -2058,6 +2089,7 @@ export default function AdminPanel() {
             onSave={handleSavePromotion}
             onEdit={handleEditPromotion}
             onDelete={handleDeletePromotion}
+            onDeactivate={handleDeactivatePromotion}
             onSendWhatsapp={handleSendPromotionWhatsapp}
             onRefresh={fetchPromotions}
           />
@@ -4975,6 +5007,7 @@ function PromotionsAdminView({
   onSave,
   onEdit,
   onDelete,
+  onDeactivate,
   onSendWhatsapp,
   onRefresh,
 }) {
@@ -5552,9 +5585,21 @@ function PromotionsAdminView({
                       <p className="mt-1 text-xs text-gold-light/55">Exibe: {formatPromotionDisplayPeriod(promotion)}</p>
                       <p className="mt-1 text-xs text-cream/45">{formatPromotionPeriod(promotion)}</p>
                     </div>
-                    <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${getPromotionStatusMeta(promotion).classes}`}>
-                      {getPromotionStatusMeta(promotion).label}
-                    </span>
+                    <div className="flex shrink-0 flex-col items-end gap-2">
+                      <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${getPromotionStatusMeta(promotion).classes}`}>
+                        {getPromotionStatusMeta(promotion).label}
+                      </span>
+                      {promotion.active && (
+                        <button
+                          type="button"
+                          onClick={() => onDeactivate(promotion)}
+                          disabled={saving}
+                          className="rounded-full border border-red-400/25 px-3 py-1 text-xs font-semibold text-red-200 hover:bg-red-500/10 disabled:opacity-60"
+                        >
+                          Desativar
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <div className="mt-3 space-y-1">
                     {(promotion.items || []).map((item) => (
