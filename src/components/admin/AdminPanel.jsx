@@ -1968,6 +1968,7 @@ export default function AdminPanel() {
                 onNext={() => moveMonth(1)}
                 statusBadge={statusBadge}
                 formatTime={formatTime}
+                onResendWhatsapp={handleResendBookingWhatsapp}
                 onFilterClick={(status) => {
                   setStatusFilter(status);
                   setBookingView('table');
@@ -2787,7 +2788,7 @@ function CompletionAction({ booking, onCompleteService, onUndoCompleteService, o
   );
 }
 
-function CalendarView({ days, monthLabel, onPrev, onNext, statusBadge, formatTime, onFilterClick }) {
+function CalendarView({ days, monthLabel, onPrev, onNext, statusBadge, formatTime, onFilterClick, onResendWhatsapp }) {
   const todayKey = dateKey(new Date());
   const [selectedDay, setSelectedDay] = useState(null);
   const [selectedBooking, setSelectedBooking] = useState(null);
@@ -2911,6 +2912,7 @@ function CalendarView({ days, monthLabel, onPrev, onNext, statusBadge, formatTim
         onClose={() => setSelectedBooking(null)}
         statusBadge={statusBadge}
         formatTime={formatTime}
+        onResendWhatsapp={onResendWhatsapp}
       />
     </div>
   );
@@ -3085,7 +3087,7 @@ function DayAgendaModal({ day, onClose, statusBadge, formatTime, onBookingClick 
   );
 }
 
-function BookingDetailModal({ booking, onClose, statusBadge, formatTime, onMarkRemainingPaid }) {
+function BookingDetailModal({ booking, onClose, statusBadge, formatTime, onMarkRemainingPaid, onResendWhatsapp }) {
   if (!booking) return null;
 
   const client = booking.attendeeName || booking.user?.name || 'Cliente';
@@ -3094,6 +3096,12 @@ function BookingDetailModal({ booking, onClose, statusBadge, formatTime, onMarkR
   const value = formatCurrency(payment.total);
   const loyalty = ['cancelled', 'no_show'].includes(booking.status) ? 'Sem fidelidade' : booking.serviceCompletedAt ? 'Fidelidade liberada' : 'Fidelidade pendente';
   const canMarkRemainingPaid = payment.remaining > 0 && typeof onMarkRemainingPaid === 'function';
+  const clientWhatsappNotification = booking.whatsappNotifications?.booking_created_client;
+  const clientWhatsappWasAccepted = ['accepted', 'sent', 'delivered', 'read'].includes(clientWhatsappNotification?.status);
+  const canResendWhatsapp = !clientWhatsappWasAccepted
+    && typeof onResendWhatsapp === 'function'
+    && !['cancelled', 'no_show'].includes(booking.status)
+    && Boolean(booking.attendeePhone || booking.user?.whatsappPhone);
 
   const dateStr = new Date(booking.scheduledAt).toLocaleDateString('pt-BR', {
     weekday: 'long',
@@ -3179,6 +3187,16 @@ function BookingDetailModal({ booking, onClose, statusBadge, formatTime, onMarkR
                 className="mt-2 flex w-full items-center justify-center gap-2 rounded-full border border-gold/30 bg-gold/10 px-4 py-3 text-sm font-bold uppercase tracking-wider text-gold-light transition hover:bg-gold/20"
               >
                 <FiDollarSign /> Dar baixa no pagamento
+              </button>
+            )}
+            {canResendWhatsapp && (
+              <button
+                type="button"
+                onClick={() => onResendWhatsapp(booking)}
+                className="mt-2 flex w-full items-center justify-center gap-2 rounded-full border border-amber-400/35 bg-amber-400/10 px-4 py-3 text-sm font-bold uppercase tracking-wider text-amber-200 transition hover:bg-amber-400/20"
+                title={clientWhatsappNotification?.error || 'Resumo da cliente sem confirmacao. Clique para verificar e enviar se necessario.'}
+              >
+                <FiMessageSquare /> Verificar WhatsApp
               </button>
             )}
             {booking.adminNotes && (
