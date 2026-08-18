@@ -2,7 +2,7 @@ import prisma from '../config/prisma.js';
 import { confirmCalBooking, createCalBooking } from '../services/calService.js';
 import { syncBookingToCalById } from '../services/calSyncService.js';
 import { findServiceById } from '../data/services.js';
-import { ensureBookingClientNotification, notifyBookingCreated, resendBookingClientNotification } from '../services/whatsappService.js';
+import { ensureBookingClientNotification, notifyBookingCreated, notifyMaintenanceReminder, resendBookingClientNotification } from '../services/whatsappService.js';
 import { buildPublicAgendaDays, validateBookingWindow } from '../utils/bookingHours.js';
 import { randomUUID } from 'node:crypto';
 
@@ -825,6 +825,53 @@ export const resendBookingWhatsapp = async (req, res) => {
   } catch (error) {
     console.error('Erro ao reenviar WhatsApp do agendamento:', error);
     res.status(500).json({ error: error.message || 'Erro ao reenviar WhatsApp.' });
+  }
+};
+
+export const resendMaintenanceReminderWhatsapp = async (req, res) => {
+  try {
+    if (req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Acesso negado. Apenas administradores.' });
+    }
+
+    const daysAfterService = Number.parseInt(req.params.days, 10);
+    if (![14, 21].includes(daysAfterService)) {
+      return res.status(400).json({ error: 'Lembrete de manutencao invalido.' });
+    }
+
+    const booking = await prisma.booking.findUnique({
+      where: { id: req.params.id },
+      include: bookingInclude,
+    });
+
+    if (!booking) {
+      return res.status(404).json({ error: 'Agendamento nao encontrado.' });
+    }
+
+    if (['cancelled', 'no_show'].includes(booking.status)) {
+      return res.status(409).json({ error: 'Nao e possivel reenviar lembrete de agendamento cancelado ou marcado como falta.' });
+    }
+
+    if (!booking.serviceCompletedAt) {
+      return res.status(409).json({ error: 'Este agendamento ainda nao teve fidelidade liberada.' });
+    }
+
+    await notifyMaintenanceReminder(prisma, booking, daysAfterService, { force: true });
+
+    const updatedBooking = await prisma.booking.findUnique({
+      where: { id: booking.id },
+      include: bookingInclude,
+    });
+
+    await attachNotificationStatus(updatedBooking);
+
+    res.json({
+      message: `Lembrete de ${daysAfterService} dias reenviado para a cliente.`,
+      booking: updatedBooking,
+    });
+  } catch (error) {
+    console.error('Erro ao reenviar lembrete de manutencao:', error);
+    res.status(500).json({ error: error.message || 'Erro ao reenviar lembrete de manutencao.' });
   }
 };
 

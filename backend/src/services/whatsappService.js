@@ -661,7 +661,7 @@ export const notifyUpcomingBookingReminder = async (prisma, booking) => {
   });
 };
 
-export const notifyMaintenanceReminder = async (prisma, booking, daysAfterService) => {
+export const notifyMaintenanceReminder = async (prisma, booking, daysAfterService, options = {}) => {
   if (process.env.SEND_MAINTENANCE_REMINDER_WHATSAPP === 'false') return;
 
   const clientPhone = getBookingWhatsapp(booking);
@@ -673,6 +673,7 @@ export const notifyMaintenanceReminder = async (prisma, booking, daysAfterServic
     type: `maintenance_reminder_${daysAfterService}d_client`,
     target: clientChatId,
     text: buildMaintenanceReminderMessage(booking, daysAfterService),
+    force: Boolean(options.force),
   });
 };
 

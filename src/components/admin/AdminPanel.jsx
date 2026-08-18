@@ -151,6 +151,7 @@ export default function AdminPanel() {
   const [birthdayFilter, setBirthdayFilter] = useState('pending');
   const [sendingBirthdayIds, setSendingBirthdayIds] = useState({});
   const [savingBirthdayClientIds, setSavingBirthdayClientIds] = useState({});
+  const [sendingMaintenanceReminderKeys, setSendingMaintenanceReminderKeys] = useState({});
 
   // ── Schedule Blocks ──────────────────────────────────────────────
   const [scheduleBlocks, setScheduleBlocks] = useState([]);
@@ -761,6 +762,38 @@ export default function AdminPanel() {
           toast.success(data.message || 'WhatsApp reenviado para a cliente.');
         } catch (error) {
           toast.error(error.message || 'Erro ao reenviar WhatsApp.');
+        }
+      },
+    });
+  };
+
+  const handleResendMaintenanceReminderWhatsapp = async (booking, reminder) => {
+    const days = reminder?.days;
+    if (!days) return;
+
+    const reminderKey = `${booking.id}:${days}`;
+    showConfirmToast({
+      message: `Reenviar o lembrete de manutencao de ${days} dias para "${booking.attendeeName || booking.user?.name || 'cliente'}"?`,
+      confirmLabel: 'Reenviar',
+      onConfirm: async () => {
+        setSendingMaintenanceReminderKeys((current) => ({ ...current, [reminderKey]: true }));
+        try {
+          const res = await fetch(`${API}/bookings/${booking.id}/maintenance-reminders/${days}/resend`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${getToken()}` },
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.error || 'Erro ao reenviar lembrete de manutencao');
+          if (data.booking) updateBookingInList(data.booking);
+          toast.success(data.message || 'Lembrete reenviado para a cliente.');
+        } catch (error) {
+          toast.error(error.message || 'Erro ao reenviar lembrete de manutencao.');
+        } finally {
+          setSendingMaintenanceReminderKeys((current) => {
+            const next = { ...current };
+            delete next[reminderKey];
+            return next;
+          });
         }
       },
     });
@@ -2041,6 +2074,8 @@ export default function AdminPanel() {
             onDeleteClient={handleDeleteClient}
             onUpdateClientWhatsapp={handleUpdateClientWhatsapp}
             onUpdateClientBirthday={handleUpdateClientBirthday}
+            onResendMaintenanceReminder={handleResendMaintenanceReminderWhatsapp}
+            sendingMaintenanceReminderKeys={sendingMaintenanceReminderKeys}
             birthdayCount={pendingBirthdayCount}
             onOpenBirthdays={() => setActiveTab('birthdays')}
           />
@@ -5843,7 +5878,7 @@ function buildCrmInsights(clients, stats) {
   };
 }
 
-function ClientsView({ clients, search, setSearch, statusBadge, onCompleteService, onUndoCompleteService, onMarkNoShow, onMarkRemainingPaid, onDeleteClient, onUpdateClientWhatsapp, onUpdateClientBirthday, birthdayCount, onOpenBirthdays }) {
+function ClientsView({ clients, search, setSearch, statusBadge, onCompleteService, onUndoCompleteService, onMarkNoShow, onMarkRemainingPaid, onDeleteClient, onUpdateClientWhatsapp, onUpdateClientBirthday, onResendMaintenanceReminder, sendingMaintenanceReminderKeys = {}, birthdayCount, onOpenBirthdays }) {
   const [selectedKey, setSelectedKey] = useState(null);
   const [editingWhatsappKey, setEditingWhatsappKey] = useState(null);
   const [whatsappDraft, setWhatsappDraft] = useState('');
@@ -6195,7 +6230,11 @@ function ClientsView({ clients, search, setSearch, statusBadge, onCompleteServic
                             </div>
                           );
                         })()}
-                        <MaintenanceReminderInfo booking={booking} />
+                        <MaintenanceReminderInfo
+                          booking={booking}
+                          onResend={onResendMaintenanceReminder}
+                          sendingKeys={sendingMaintenanceReminderKeys}
+                        />
                       </div>
                       <CompletionAction
                         booking={booking}
@@ -6237,6 +6276,8 @@ function ClientsView({ clients, search, setSearch, statusBadge, onCompleteServic
           onUndoCompleteService={onUndoCompleteService}
           onMarkNoShow={onMarkNoShow}
           onMarkRemainingPaid={onMarkRemainingPaid}
+          onResendMaintenanceReminder={onResendMaintenanceReminder}
+          sendingMaintenanceReminderKeys={sendingMaintenanceReminderKeys}
           onClose={() => setMobileDetailsKey(null)}
         />,
         document.body,
@@ -6268,6 +6309,8 @@ function MobileClientDetailsModal({
   onUndoCompleteService,
   onMarkNoShow,
   onMarkRemainingPaid,
+  onResendMaintenanceReminder,
+  sendingMaintenanceReminderKeys = {},
   onClose,
 }) {
   return (
@@ -6393,7 +6436,11 @@ function MobileClientDetailsModal({
                           À receber: {formatCurrency(payment.remaining)}
                         </span>
                       </div>
-                      <MaintenanceReminderInfo booking={booking} />
+                      <MaintenanceReminderInfo
+                        booking={booking}
+                        onResend={onResendMaintenanceReminder}
+                        sendingKeys={sendingMaintenanceReminderKeys}
+                      />
                       <div className="mt-3">
                         <CompletionAction
                           booking={booking}
@@ -6415,7 +6462,7 @@ function MobileClientDetailsModal({
   );
 }
 
-function MaintenanceReminderInfo({ booking }) {
+function MaintenanceReminderInfo({ booking, onResend, sendingKeys = {} }) {
   const reminders = getMaintenanceReminderItems(booking);
 
   if (!reminders.length) return null;
@@ -6430,9 +6477,23 @@ function MaintenanceReminderInfo({ booking }) {
         {reminders.map((reminder) => (
           <div key={reminder.type} className="flex flex-wrap items-center justify-between gap-2">
             <span>{reminder.label}</span>
-            <span className={`rounded-full border px-2 py-0.5 font-bold uppercase tracking-wider ${reminder.classes}`}>
-              {reminder.statusLabel}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className={`rounded-full border px-2 py-0.5 font-bold uppercase tracking-wider ${reminder.classes}`}>
+                {reminder.statusLabel}
+              </span>
+              {reminder.canResend && typeof onResend === 'function' && (
+                <button
+                  type="button"
+                  onClick={() => onResend(booking, reminder)}
+                  disabled={Boolean(sendingKeys[`${booking.id}:${reminder.days}`])}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-gold/25 bg-gold/10 text-gold-light transition hover:border-gold/45 hover:bg-gold/20 disabled:cursor-not-allowed disabled:opacity-60"
+                  title={`Reenviar lembrete de ${reminder.days} dias`}
+                  aria-label={`Reenviar lembrete de ${reminder.days} dias`}
+                >
+                  <FiSend className="size-3.5" />
+                </button>
+              )}
+            </div>
           </div>
         ))}
       </div>
@@ -7761,7 +7822,9 @@ function getMaintenanceReminderItems(booking) {
 
     return {
       type,
+      days,
       label: `${days} dias: ${dueDate ? formatDate(dueDate) : '-'}`,
+      canResend: booking.whatsappNotifications?.[type]?.status === 'failed',
       ...status,
     };
   });

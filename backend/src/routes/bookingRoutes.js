@@ -10,6 +10,7 @@ import {
   getPublicAgenda,
   markRemainingPaymentPaid,
   markBookingNoShow,
+  resendMaintenanceReminderWhatsapp,
   resendBookingWhatsapp,
   syncBookingToCal,
   undoBookingServiceCompletion,
@@ -31,6 +32,7 @@ router.post('/:id/cancel', verifyToken, cancelBooking);
 router.post('/:id/complete-service', verifyToken, verifyAdmin, completeBookingService);
 router.post('/:id/mark-remaining-paid', verifyToken, verifyAdmin, markRemainingPaymentPaid);
 router.post('/:id/resend-whatsapp', verifyToken, verifyAdmin, resendBookingWhatsapp);
+router.post('/:id/maintenance-reminders/:days/resend', verifyToken, verifyAdmin, resendMaintenanceReminderWhatsapp);
 router.post('/:id/sync-cal', verifyToken, verifyAdmin, syncBookingToCal);
 router.post('/:id/no-show', verifyToken, verifyAdmin, markBookingNoShow);
 router.post('/:id/undo-complete-service', verifyToken, verifyAdmin, undoBookingServiceCompletion);
