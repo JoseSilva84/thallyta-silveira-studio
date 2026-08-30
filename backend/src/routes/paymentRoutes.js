@@ -2,6 +2,7 @@ import express from 'express';
 import {
   confirmBookingPayment,
   createBookingPreference,
+  createQuickPixBooking,
   getApprovedPaymentsWithoutBooking,
   getBirthdayRewardPreview,
   getPendingSchedulePayment,
@@ -13,6 +14,7 @@ import { verifyAdmin, verifyToken } from '../middleware/authMiddleware.js';
 const router = express.Router();
 
 router.post('/booking-preference', verifyToken, createBookingPreference);
+router.post('/quick-pix-booking', verifyToken, createQuickPixBooking);
 router.get('/birthday-reward-preview', verifyToken, getBirthdayRewardPreview);
 router.get('/pending-schedule', verifyToken, getPendingSchedulePayment);
 router.get('/admin/approved-without-booking', verifyToken, verifyAdmin, getApprovedPaymentsWithoutBooking);

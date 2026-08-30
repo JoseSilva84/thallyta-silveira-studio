@@ -28,6 +28,8 @@ const QUICK_DRAFT_KEY = 'thallytaQuickBookingDraft'
 const PENDING_PAYMENT_STORAGE_KEY = 'thallytaPendingBookingPaymentId'
 const DATE_PAGE_SIZE = 7
 const QUICK_DRAFT_MAX_AGE_MS = 30 * 60 * 1000
+const PIX_KEY = 'jocerlamnf@gmail.com'
+const THALLYTA_WHATSAPP = '5588981860582'
 
 const money = (value) => `R$ ${Number(value || 0).toFixed(2).replace('.', ',')}`
 
@@ -91,8 +93,6 @@ export default function QuickBookingPage() {
   const birthdayDiscount = selectedService ? Number(birthdayRewardPreview?.discount || 0) : 0
   const payableTotal = Math.max(total - birthdayDiscount, 0)
   const deposit = Math.round(payableTotal * 30) / 100
-  const amountToPay = paymentType === 'full' ? payableTotal : deposit
-  const remaining = paymentType === 'full' ? 0 : Math.max(payableTotal - deposit, 0)
   const needsWhatsapp = Boolean(user?.id && user.role !== 'ADMIN' && !user.whatsappPhone)
 
   const days = useMemo(() => buildAgendaDays(bookings, agendaDays), [agendaDays, bookings])
@@ -124,20 +124,20 @@ export default function QuickBookingPage() {
   }[pageStep]
   const pageTitle = {
     intro: 'Agenda Thallyta Silveira',
-    payment: 'Pagamento',
+    payment: 'Confirme seu agendamento',
     agenda: 'Escolha seu horário',
     login: 'Identifique seus dados',
     service: 'Escolha o serviço',
-    summary: 'Revise e pague',
+    summary: 'Revise seu agendamento',
     confirmed: 'Agendamento confirmado',
   }[pageStep]
   const pageSubtitle = {
     intro: '',
-    payment: 'Escolha a forma de pagamento e siga para o Mercado Pago.',
+    payment: 'Faça o PIX de pelo menos 30% e envie o comprovante para Thallyta.',
     agenda: 'Selecione o melhor dia e horário disponível.',
     login: 'Entre, crie seu cadastro ou use o Google para manter seus agendamentos e selos no mesmo email.',
     service: 'Escolha o cuidado que deseja agendar.',
-    summary: 'Confira os dados e escolha como deseja pagar.',
+    summary: 'Confira o serviço, o dia e o horário escolhidos.',
     confirmed: 'Seu horário foi reservado com sucesso.',
   }[pageStep]
 
@@ -384,7 +384,7 @@ export default function QuickBookingPage() {
     window.setTimeout(() => document.querySelector('main')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80)
   }
 
-  const startPayment = async () => {
+  const confirmQuickBooking = async () => {
     if (!selectedSlot?.start) return toast.info('Escolha um horario.')
     if (!selectedService) return toast.info('Escolha um servico.')
     const token = getToken()
@@ -399,8 +399,8 @@ export default function QuickBookingPage() {
 
     setCreatingPayment(true)
     try {
-      writeQuickDraft({ slot: selectedSlot, serviceId: selectedService.id, paymentType })
-      const res = await fetch(`${API}/payments/booking-preference`, {
+      writeQuickDraft({ slot: selectedSlot, serviceId: selectedService.id, paymentType: 'deposit' })
+      const res = await fetch(`${API}/payments/quick-pix-booking`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -408,26 +408,20 @@ export default function QuickBookingPage() {
         },
         body: JSON.stringify({
           serviceId: selectedService.id,
-          paymentType,
           start: selectedSlot.start,
-          returnPath: '/agendar',
         }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || 'Erro ao iniciar pagamento.')
-      if (data.booking) {
-        setConfirmedBooking(data.booking)
-        setConfirmedPayment(data.payment || null)
-        clearQuickDraft()
-        window.localStorage?.removeItem(PENDING_PAYMENT_STORAGE_KEY)
-        toast.success(data.message || 'Agendamento confirmado com sucesso!')
-        return
-      }
-      if (data.payment?.id) window.localStorage?.setItem(PENDING_PAYMENT_STORAGE_KEY, data.payment.id)
-      if (!data.initPoint && !data.sandboxInitPoint) throw new Error('Mercado Pago nao retornou um link de pagamento.')
-      window.location.href = data.initPoint || data.sandboxInitPoint
+      if (!data.booking) throw new Error('O servidor nao confirmou o agendamento.')
+      setConfirmedBooking(data.booking)
+      setConfirmedPayment(data.payment || null)
+      clearQuickDraft()
+      window.localStorage?.removeItem(PENDING_PAYMENT_STORAGE_KEY)
+      window.dispatchEvent(new Event('booking:updated'))
+      toast.success(data.message || 'Agendamento confirmado com sucesso!')
     } catch (error) {
-      toast.error(error.message || 'Erro ao iniciar pagamento.')
+      toast.error(error.message || 'Erro ao confirmar agendamento.')
     } finally {
       setCreatingPayment(false)
     }
@@ -714,7 +708,7 @@ export default function QuickBookingPage() {
             </p>
             {needsWhatsapp && (
               <div className="mt-5 rounded-2xl border border-amber-300/25 bg-amber-300/10 p-4 text-sm text-amber-100">
-                Falta informar seu WhatsApp. Complete o telefone no aviso aberto para seguir ao pagamento.
+                Falta informar seu WhatsApp. Complete o telefone no aviso aberto para confirmar o agendamento.
               </div>
             )}
             {!user ? (
@@ -748,7 +742,7 @@ export default function QuickBookingPage() {
               </div>
             ) : (
               <button type="button" onClick={() => setSummaryAccepted(true)} disabled={needsWhatsapp} className="gold-button mt-6 w-full rounded-xl px-6 py-4 text-sm font-bold uppercase tracking-wider disabled:opacity-50">
-                Continuar para pagamento
+                Continuar para confirmação
               </button>
             )}
             <button type="button" onClick={openMyBookings} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-gold/25 px-6 py-3 text-sm font-semibold text-gold-light transition-colors hover:bg-gold/10">
@@ -805,7 +799,7 @@ export default function QuickBookingPage() {
                 {pageStep === 'payment' ? <FiCreditCard className="text-gold-light" /> : <FiCheckCircle className="text-gold-light" />}
                 <div>
                   <p className="text-xs font-bold uppercase tracking-wider text-gold-light/70">Resumo</p>
-                  <h2 className="font-display text-3xl text-gold-light">{pageStep === 'payment' ? 'Revise e pague' : 'Confira antes de continuar'}</h2>
+                  <h2 className="font-display text-3xl text-gold-light">{pageStep === 'payment' ? 'PIX para confirmar' : 'Confira antes de continuar'}</h2>
                 </div>
               </div>
 
@@ -828,37 +822,48 @@ export default function QuickBookingPage() {
               )}
 
               {pageStep === 'payment' && selectedService && (
-                <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                  <button
-                    type="button"
-                    onClick={() => setPaymentType('deposit')}
-                    className={`rounded-xl border p-4 text-left transition-colors ${paymentType === 'deposit' ? 'border-gold bg-gold/15 text-gold-light' : 'border-white/10 bg-black/20 text-cream/70'}`}
-                  >
-                    <span className="block text-xs font-bold uppercase tracking-wider">Entrada 30%</span>
-                    <span className="mt-1 block font-display text-2xl">{money(deposit)}</span>
-                    <span className="mt-1 block text-xs text-cream/45">Restante no atendimento: {money(remaining)}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPaymentType('full')}
-                    className={`rounded-xl border p-4 text-left transition-colors ${paymentType === 'full' ? 'border-gold bg-gold/15 text-gold-light' : 'border-white/10 bg-black/20 text-cream/70'}`}
-                  >
-                    <span className="block text-xs font-bold uppercase tracking-wider">Pagar tudo</span>
-                    <span className="mt-1 block font-display text-2xl">{money(payableTotal)}</span>
-                    <span className="mt-1 block text-xs text-cream/45">Sem restante no atendimento.</span>
-                  </button>
+                <div className="mt-5 rounded-2xl border border-gold/30 bg-gold/10 p-4 sm:p-6">
+                  <div className="text-center">
+                    <span className="block text-xs font-bold uppercase tracking-[0.18em] text-gold-light/75">PIX mínimo de 30% do serviço</span>
+                    <span className="mt-2 block font-display text-4xl text-gold-light">{money(deposit)}</span>
+                    <p className="mt-3 text-sm leading-6 text-cream/70">
+                      Faça o PIX de pelo menos <strong className="text-cream">{money(deposit)}</strong> para a chave abaixo.
+                    </p>
+                    <div className="mt-4 rounded-xl border border-white/10 bg-black/30 px-4 py-3">
+                      <span className="block text-[0.65rem] font-bold uppercase tracking-wider text-cream/45">Chave PIX</span>
+                      <strong className="mt-1 block break-all text-lg text-gold-light">{PIX_KEY}</strong>
+                    </div>
+                  </div>
+
+                  <img
+                    src="/img/pix-qrcode-thallyta.jpeg"
+                    alt="QR Code PIX de Thallyta Silveira"
+                    className="mx-auto mt-5 w-full max-w-md rounded-2xl border border-white/15 bg-white object-contain"
+                  />
+
+                  <div className="mt-5 rounded-xl border border-emerald-300/25 bg-emerald-400/10 p-4 text-sm leading-6 text-emerald-50">
+                    Após o PIX, envie o comprovante para Thallyta no WhatsApp{' '}
+                    <a
+                      href={`https://wa.me/${THALLYTA_WHATSAPP}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-bold underline underline-offset-2"
+                    >
+                      (88) 98186-0582
+                    </a>.
+                  </div>
                 </div>
               )}
 
               {pageStep === 'payment' ? (
                 <button
                   type="button"
-                  onClick={startPayment}
+                  onClick={confirmQuickBooking}
                   disabled={creatingPayment || !selectedSlot || !selectedService || !user}
                   className="gold-button mt-6 flex w-full items-center justify-center gap-2 rounded-xl px-6 py-4 font-bold uppercase tracking-wider disabled:cursor-not-allowed disabled:opacity-55"
                 >
-                  {creatingPayment ? <FiLoader className="animate-spin" /> : <FiCreditCard />}
-                  {creatingPayment ? 'Abrindo Mercado Pago...' : amountToPay <= 0 ? 'Confirmar com beneficio' : `Pagar ${selectedService ? money(amountToPay) : ''}`}
+                  {creatingPayment ? <FiLoader className="animate-spin" /> : <FiCheckCircle />}
+                  {creatingPayment ? 'Confirmando...' : 'Confirmar agendamento'}
                 </button>
               ) : (
                 <button
@@ -870,7 +875,7 @@ export default function QuickBookingPage() {
                   }}
                   className="gold-button mt-6 flex w-full items-center justify-center gap-2 rounded-xl px-6 py-4 font-bold uppercase tracking-wider"
                 >
-                  {user && !needsWhatsapp ? 'Continuar para pagamento' : 'Continuar para cadastro'} <FiChevronRight />
+                  {user && !needsWhatsapp ? 'Continuar para confirmação' : 'Continuar para cadastro'} <FiChevronRight />
                 </button>
               )}
             </section>
@@ -896,21 +901,32 @@ function SummaryItem({ icon, label, value }) {
 }
 
 function ConfirmationCard({ booking, payment, onNew }) {
+  const quickPixPending = payment?.paymentType === 'quick_pix' && Number(payment?.minimumAmount) > 0
   return (
     <section className="mx-auto max-w-2xl rounded-[2rem] border border-gold/25 bg-black/35 p-5 text-center backdrop-blur-xl md:p-8">
       <div className="mx-auto flex size-16 items-center justify-center rounded-full border border-emerald-300/30 bg-emerald-300/10 text-emerald-100">
         <FiCheckCircle className="size-8" />
       </div>
       <h2 className="mt-5 font-display text-4xl text-gold-light">Agendamento confirmado!</h2>
-      <p className="mt-2 text-sm text-cream/60">Enviamos os detalhes para voce e para o studio.</p>
+      <p className="mt-2 text-sm text-cream/60">Seu horário foi reservado e enviamos os detalhes por WhatsApp.</p>
       <div className="mt-6 space-y-4 rounded-2xl border border-gold/20 bg-black/25 p-5 text-left">
         <SummaryLine label="Servico" value={booking.service} />
         <SummaryLine label="Data e horário" value={`${formatLongDate(new Date(booking.scheduledAt))} as ${formatTime(booking.scheduledAt)}`} />
         <SummaryLine label="Cliente" value={booking.attendeeName || '-'} />
         <SummaryLine label="Valor" value={money(booking.estimatedValue)} />
         {payment?.birthdayReward?.discount && <SummaryLine label="Beneficio aniversario" value={`-${money(payment.birthdayReward.discount)}`} />}
-        {payment && <SummaryLine label="Pago" value={money(payment.amount)} />}
+        {quickPixPending
+          ? <SummaryLine label="PIX mínimo a enviar" value={money(payment.minimumAmount)} />
+          : payment && <SummaryLine label="Pago" value={money(payment.amount)} />}
       </div>
+      {quickPixPending && (
+        <div className="mt-5 rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4 text-left text-sm leading-6 text-amber-50">
+          Caso você não pagou ainda pelo menos 30% do serviço, pague agora no PIX <strong>{PIX_KEY}</strong> e envie o comprovante para Thallyta no WhatsApp{' '}
+          <a href={`https://wa.me/${THALLYTA_WHATSAPP}`} target="_blank" rel="noreferrer" className="font-bold underline underline-offset-2">
+            (88) 98186-0582
+          </a>.
+        </div>
+      )}
       <button type="button" onClick={onNew} className="gold-button mt-6 inline-flex items-center gap-2 rounded-xl px-6 py-4 text-sm font-bold uppercase tracking-wider">
         <FiCalendar /> Novo agendamento
       </button>

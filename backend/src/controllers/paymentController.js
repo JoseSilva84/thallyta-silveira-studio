@@ -379,7 +379,10 @@ const buildConfirmedBookingFromPayment = async (payment) => {
 
   if (!hydratedPayment) return null;
   if (hydratedPayment.booking) return hydratedPayment.booking;
-  if (hydratedPayment.status !== 'approved' || hydratedPayment.amount < hydratedPayment.minimumAmount) return null;
+  const isQuickPixBooking = hydratedPayment.paymentType === 'quick_pix';
+  const hasApprovedMinimum = hydratedPayment.status === 'approved'
+    && hydratedPayment.amount >= hydratedPayment.minimumAmount;
+  if (!hasApprovedMinimum && !isQuickPixBooking) return null;
 
   const service = findServiceById(hydratedPayment.serviceId);
   if (!service || !hydratedPayment.scheduledAt) return null;
@@ -413,9 +416,11 @@ const buildConfirmedBookingFromPayment = async (payment) => {
     hydratedPayment.metadata?.birthdayReward?.discount
       ? `Beneficio aniversario: -R$ ${Number(hydratedPayment.metadata.birthdayReward.discount).toFixed(2)}`
       : null,
-    `Pagamento: ${hydratedPayment.paymentType === 'full' ? 'valor total' : 'entrada'}`,
+    `Pagamento: ${isQuickPixBooking ? 'PIX de 30% pendente de comprovante' : hydratedPayment.paymentType === 'full' ? 'valor total' : 'entrada'}`,
     hydratedPayment.user?.whatsappPhone ? `WhatsApp: ${hydratedPayment.user.whatsappPhone}` : null,
-    '(Agendamento criado automaticamente pelo site apos pagamento)',
+    isQuickPixBooking
+      ? '(Agendamento rapido criado pelo site; aguardando comprovante do PIX)'
+      : '(Agendamento criado automaticamente pelo site apos pagamento)',
   ].filter(Boolean).join('\n');
 
   let calBooking = null;
@@ -487,7 +492,8 @@ const buildConfirmedBookingFromPayment = async (payment) => {
       location: 'Presencial',
       calPayload: {
         siteCreated: true,
-        autoConfirmedAfterPayment: true,
+        autoConfirmedAfterPayment: !isQuickPixBooking,
+        quickPixPending: isQuickPixBooking,
         calBooking,
         calBookingError,
         calConfirmation,
@@ -511,7 +517,8 @@ const buildConfirmedBookingFromPayment = async (payment) => {
       location: 'Presencial',
       calPayload: {
         siteCreated: true,
-        autoConfirmedAfterPayment: true,
+        autoConfirmedAfterPayment: !isQuickPixBooking,
+        quickPixPending: isQuickPixBooking,
         calBooking,
         calBookingError,
         calConfirmation,
@@ -755,6 +762,141 @@ export const getBirthdayRewardPreview = async (req, res) => {
   } catch (error) {
     console.error('Erro ao buscar premio de aniversario:', error);
     res.status(500).json({ error: 'Erro ao buscar premio de aniversario.' });
+  }
+};
+
+export const createQuickPixBooking = async (req, res) => {
+  try {
+    const { serviceId, start, promotionId, promotionItemId } = req.body;
+    const service = findServiceById(serviceId);
+
+    if (!service) {
+      return res.status(400).json({ error: 'Servico invalido.' });
+    }
+
+    if (!start) {
+      return res.status(400).json({ error: 'Escolha o dia e horario antes de confirmar.' });
+    }
+
+    const scheduledAt = new Date(start);
+    if (Number.isNaN(scheduledAt.getTime())) {
+      return res.status(400).json({ error: 'Horario invalido.' });
+    }
+
+    const endTime = new Date(scheduledAt.getTime() + (service.durationMin || 60) * 60 * 1000);
+    const scheduleValidation = validateBookingWindow(scheduledAt, endTime);
+    if (!scheduleValidation.valid) {
+      return res.status(400).json({ error: scheduleValidation.reason });
+    }
+
+    const now = new Date();
+    const leadTimeValidation = validateClientBookingLeadTime(scheduledAt, now);
+    if (!leadTimeValidation.valid) {
+      return res.status(400).json({ error: leadTimeValidation.reason });
+    }
+
+    const pricing = await getPromotionalServicePricing({
+      serviceId,
+      promotionId,
+      itemId: promotionItemId,
+      now: scheduledAt,
+    });
+
+    if ((promotionId || promotionItemId) && !pricing.promotion) {
+      return res.status(400).json({ error: 'Esta promocao nao vale para o dia e horario escolhidos.' });
+    }
+
+    if (pricing.promotion && (scheduledAt < new Date(pricing.promotion.startsAt) || endTime > new Date(pricing.promotion.endsAt))) {
+      return res.status(400).json({ error: 'Esta promocao nao vale para o dia e horario escolhidos.' });
+    }
+
+    if (await hasScheduleConflict(prisma, scheduledAt, endTime, { now })) {
+      return res.status(409).json({ error: 'Este horario acabou de ficar indisponivel. Escolha outro horario.' });
+    }
+
+    const servicePrice = roundMoney(pricing.servicePrice);
+    const originalServicePrice = roundMoney(pricing.originalServicePrice);
+    const birthdayReward = await getAvailableBirthdayReward(req.user.id);
+    const birthdayDiscount = getBirthdayRewardDiscount(birthdayReward, servicePrice);
+    const payableServicePrice = roundMoney(Math.max(servicePrice - birthdayDiscount, 0));
+    const minimumAmount = roundMoney(payableServicePrice * MINIMUM_PERCENTAGE);
+
+    const bookingPayment = await prisma.bookingPayment.create({
+      data: {
+        userId: req.user.id,
+        serviceId: service.id,
+        serviceName: service.name,
+        servicePrice,
+        paymentType: 'quick_pix',
+        amount: 0,
+        minimumAmount,
+        status: minimumAmount <= 0 ? 'approved' : 'pending',
+        externalReference: `quick_pix_${randomUUID()}`,
+        scheduledAt,
+        endTime,
+        approvedAt: minimumAmount <= 0 ? now : null,
+        metadata: {
+          minimumPercentage: MINIMUM_PERCENTAGE,
+          originalServicePrice,
+          payableServicePrice,
+          pixKey: 'jocerlamnf@gmail.com',
+          proofWhatsapp: '5588981860582',
+          paymentPending: minimumAmount > 0,
+          promotion: pricing.promotion ? {
+            id: pricing.promotion.id,
+            itemId: pricing.item.id,
+            title: pricing.promotion.title,
+            serviceId: pricing.item.serviceId,
+            startsAt: pricing.promotion.startsAt,
+            endsAt: pricing.promotion.endsAt,
+            regularPrice: originalServicePrice,
+            promotionalPrice: servicePrice,
+          } : null,
+          birthdayReward: birthdayReward && birthdayDiscount > 0 ? {
+            id: birthdayReward.id,
+            year: birthdayReward.year,
+            amount: birthdayReward.amount,
+            discount: birthdayDiscount,
+          } : null,
+          remainingAmount: payableServicePrice,
+        },
+      },
+      include: { booking: true, user: true },
+    });
+
+    let booking;
+    try {
+      booking = await buildConfirmedBookingFromPayment(bookingPayment);
+    } catch (bookingError) {
+      await prisma.bookingPayment.delete({ where: { id: bookingPayment.id } }).catch(() => null);
+      throw bookingError;
+    }
+
+    if (!booking) {
+      await prisma.bookingPayment.delete({ where: { id: bookingPayment.id } }).catch(() => null);
+      return res.status(500).json({ error: 'Nao foi possivel confirmar o agendamento.' });
+    }
+
+    if (birthdayDiscount > 0) {
+      await redeemBirthdayRewardFromPayment(bookingPayment);
+    }
+
+    const hydratedPayment = await prisma.bookingPayment.findUnique({
+      where: { id: bookingPayment.id },
+      include: { booking: true, user: true },
+    });
+
+    res.status(201).json({
+      payment: serializePayment(hydratedPayment),
+      booking: serializeBookingSummary(booking),
+      canSchedule: true,
+      message: minimumAmount > 0
+        ? 'Agendamento confirmado. Envie o comprovante do PIX para Thallyta.'
+        : 'Agendamento confirmado com o beneficio de aniversario.',
+    });
+  } catch (error) {
+    console.error('Erro ao criar agendamento rapido com PIX:', error);
+    res.status(error.statusCode || 500).json({ error: error.message || 'Erro ao confirmar agendamento.' });
   }
 };
 

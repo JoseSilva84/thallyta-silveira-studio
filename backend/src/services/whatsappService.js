@@ -184,6 +184,9 @@ const SUCCESS_NOTIFICATION_STATUSES = ['accepted', 'sent', 'delivered', 'read'];
 const buildBookingSummaryLines = (booking) => {
   const whatsapp = booking.user?.whatsappPhone || booking.attendeePhone;
   const payment = getPaymentSummary(booking);
+  const quickPixAmount = booking.payment?.paymentType === 'quick_pix'
+    ? Number(booking.payment.minimumAmount)
+    : null;
 
   return [
     `Cliente: ${booking.attendeeName || booking.user?.name || 'Nao informado'}`,
@@ -191,6 +194,9 @@ const buildBookingSummaryLines = (booking) => {
     whatsapp ? `WhatsApp: ${whatsapp}` : null,
     `Servico: ${booking.service || 'Nao informado'}`,
     `Valor: ${formatCurrency(booking.estimatedValue)}`,
+    Number.isFinite(quickPixAmount) && quickPixAmount > 0
+      ? `PIX minimo pendente (30%): ${formatCurrency(quickPixAmount)}`
+      : null,
     payment.paid !== null ? `Pago: ${formatCurrency(payment.paid)}` : null,
     payment.remaining !== null ? `Restante: ${formatCurrency(payment.remaining)}` : null,
     `Data/Horario: ${formatDateTime(booking.scheduledAt)}`,
@@ -207,13 +213,22 @@ const buildOwnerBookingMessage = (booking) => {
 
 const buildClientBookingMessage = (booking) => {
   const firstName = (booking.attendeeName || booking.user?.name || '').split(' ')[0] || 'Tudo bem';
+  const requiresQuickPix = booking.payment?.paymentType === 'quick_pix'
+    && Number(booking.payment.minimumAmount) > 0;
   return [
     `Olá, ${firstName}! Seu agendamento no Studio Thallyta Silveira foi confirmado:`,
     '',
     ...buildBookingSummaryLines(booking),
     '',
+    requiresQuickPix
+      ? 'Caso você não pagou ainda pelo menos 30% do serviço, pague agora no pix jocerlamnf@gmail.com e envie o comprovante.'
+      : null,
+    requiresQuickPix
+      ? 'Envie o comprovante para Thallyta no WhatsApp (88) 98186-0582.'
+      : null,
+    requiresQuickPix ? '' : null,
     'Se precisar reagendar ou cancelar, acesse sua área de agendamentos.',
-  ].join('\n');
+  ].filter((line) => line !== null).join('\n');
 };
 
 const buildClientReminderMessage = (booking) => {
