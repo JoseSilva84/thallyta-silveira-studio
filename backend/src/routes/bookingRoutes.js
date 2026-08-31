@@ -12,6 +12,7 @@ import {
   markBookingNoShow,
   resendMaintenanceReminderWhatsapp,
   resendBookingWhatsapp,
+  restoreCancelledBooking,
   syncBookingToCal,
   undoBookingServiceCompletion,
   updateClientWhatsapp,
@@ -29,6 +30,7 @@ router.patch('/clients/whatsapp', verifyToken, verifyAdmin, updateClientWhatsapp
 router.delete('/clients/:email', verifyToken, verifyAdmin, deleteClient);
 router.get('/:id', verifyToken, getBookingById);
 router.post('/:id/cancel', verifyToken, cancelBooking);
+router.post('/:id/restore-cancelled', verifyToken, verifyAdmin, restoreCancelledBooking);
 router.post('/:id/complete-service', verifyToken, verifyAdmin, completeBookingService);
 router.post('/:id/mark-remaining-paid', verifyToken, verifyAdmin, markRemainingPaymentPaid);
 router.post('/:id/resend-whatsapp', verifyToken, verifyAdmin, resendBookingWhatsapp);

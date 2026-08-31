@@ -312,7 +312,9 @@ export const updateClientWhatsapp = async (req, res) => {
   }
 };
 
-const hasScheduleConflict = async (start, end) => {
+const hasScheduleConflict = async (start, end, options = {}) => {
+  const { includePaymentHolds = false, excludePaymentId = null } = options;
+
   const blocked = await prisma.scheduleBlock.findFirst({
     where: {
       start: {
@@ -326,6 +328,40 @@ const hasScheduleConflict = async (start, end) => {
   });
 
   if (blocked) return true;
+
+  if (includePaymentHolds) {
+    const activePaymentHold = await prisma.bookingPayment.findFirst({
+      where: {
+        id: excludePaymentId ? { not: excludePaymentId } : undefined,
+        booking: null,
+        status: {
+          in: ['pending', 'approved'],
+        },
+        scheduledAt: {
+          lt: end,
+        },
+        holdExpiresAt: {
+          gt: new Date(),
+        },
+        OR: [
+          {
+            endTime: {
+              gt: start,
+            },
+          },
+          {
+            endTime: null,
+            scheduledAt: {
+              gte: start,
+            },
+          },
+        ],
+      },
+      select: { id: true },
+    });
+
+    if (activePaymentHold) return true;
+  }
 
   const conflicting = await prisma.booking.findFirst({
     where: {
@@ -631,6 +667,48 @@ export const cancelBooking = async (req, res) => {
   } catch (error) {
     console.error('Erro ao cancelar agendamento:', error);
     res.status(500).json({ error: 'Erro ao cancelar agendamento.' });
+  }
+};
+
+export const restoreCancelledBooking = async (req, res) => {
+  try {
+    if (req.user.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Acesso negado. Apenas administradores.' });
+    }
+
+    const booking = await prisma.booking.findUnique({
+      where: { id: req.params.id },
+    });
+
+    if (!booking) {
+      return res.status(404).json({ error: 'Agendamento nao encontrado.' });
+    }
+
+    if (booking.status !== 'cancelled') {
+      return res.status(409).json({ error: 'Este agendamento nao esta cancelado.' });
+    }
+
+    const endTime = booking.endTime || new Date(booking.scheduledAt.getTime() + 60 * 60 * 1000);
+    if (await hasScheduleConflict(booking.scheduledAt, endTime, { includePaymentHolds: true, excludePaymentId: booking.paymentId })) {
+      return res.status(409).json({ error: 'Nao foi possivel descancelar: este horario ja esta ocupado ou bloqueado.' });
+    }
+
+    const updated = await prisma.booking.update({
+      where: { id: booking.id },
+      data: {
+        status: 'confirmed',
+        notes: [
+          booking.notes,
+          `Descancelado pela admin em ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Fortaleza' })}.`,
+        ].filter(Boolean).join('\n'),
+      },
+      include: bookingInclude,
+    });
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Erro ao descancelar agendamento:', error);
+    res.status(500).json({ error: 'Erro ao descancelar agendamento.' });
   }
 };
 

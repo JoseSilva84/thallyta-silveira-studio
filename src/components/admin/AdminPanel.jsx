@@ -725,6 +725,27 @@ export default function AdminPanel() {
     });
   };
 
+  const handleRestoreCancelledBooking = async (booking) => {
+    showConfirmToast({
+      message: 'Descancelar este agendamento e voltar ele para a agenda?',
+      confirmLabel: 'Descancelar',
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`${API}/bookings/${booking.id}/restore-cancelled`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${getToken()}` },
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.error || 'Erro ao descancelar agendamento');
+          updateBookingInList(data);
+          toast.success('Agendamento descancelado e voltou para a agenda.');
+        } catch (error) {
+          toast.error(error.message);
+        }
+      },
+    });
+  };
+
   const handleMarkRemainingPaid = async (booking) => {
     showConfirmToast({
       message: 'Confirmar que o restante deste servico foi pago no atendimento?',
@@ -2017,6 +2038,7 @@ export default function AdminPanel() {
                 onUndoCompleteService={handleUndoCompleteService}
                 onMarkNoShow={handleMarkNoShow}
                 onCancelBooking={handleCancelBooking}
+                onRestoreCancelledBooking={handleRestoreCancelledBooking}
                 onMarkRemainingPaid={handleMarkRemainingPaid}
                 onResendWhatsapp={handleResendBookingWhatsapp}
                 onSyncBookingToCal={handleSyncBookingToCal}
@@ -2640,7 +2662,7 @@ function PaymentInfoLine({ label, value }) {
   );
 }
 
-function BookingsTable({ bookings, fetching, statusFilter, statusBadge, onCompleteService, onUndoCompleteService, onMarkNoShow, onCancelBooking, onMarkRemainingPaid, onResendWhatsapp, onSyncBookingToCal }) {
+function BookingsTable({ bookings, fetching, statusFilter, statusBadge, onCompleteService, onUndoCompleteService, onMarkNoShow, onCancelBooking, onRestoreCancelledBooking, onMarkRemainingPaid, onResendWhatsapp, onSyncBookingToCal }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-gold/20 bg-black/40 backdrop-blur-md">
       {fetching ? (
@@ -2713,6 +2735,7 @@ function BookingsTable({ bookings, fetching, statusFilter, statusBadge, onComple
                         onUndoCompleteService={onUndoCompleteService}
                         onMarkNoShow={onMarkNoShow}
                         onCancelBooking={onCancelBooking}
+                        onRestoreCancelledBooking={onRestoreCancelledBooking}
                         onMarkRemainingPaid={onMarkRemainingPaid}
                         onResendWhatsapp={onResendWhatsapp}
                       />
@@ -2728,7 +2751,7 @@ function BookingsTable({ bookings, fetching, statusFilter, statusBadge, onComple
   );
 }
 
-function CompletionAction({ booking, onCompleteService, onUndoCompleteService, onMarkNoShow, onCancelBooking, onMarkRemainingPaid, onResendWhatsapp }) {
+function CompletionAction({ booking, onCompleteService, onUndoCompleteService, onMarkNoShow, onCancelBooking, onRestoreCancelledBooking, onMarkRemainingPaid, onResendWhatsapp }) {
   const payment = getBookingPaymentSummary(booking);
   const hasRemaining = payment.remaining > 0;
   const canMarkRemainingPaid = hasRemaining && typeof onMarkRemainingPaid === 'function';
@@ -2741,7 +2764,20 @@ function CompletionAction({ booking, onCompleteService, onUndoCompleteService, o
     && Boolean(booking.attendeePhone || booking.user?.whatsappPhone);
 
   if (booking.status === 'cancelled') {
-    return <span className="text-xs font-semibold uppercase tracking-wider text-cream/35">Sem fidelidade</span>;
+    return (
+      <div className="flex w-max flex-col gap-2">
+        <button
+          type="button"
+          onClick={() => onRestoreCancelledBooking?.(booking)}
+          className="group relative inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-emerald-300 transition-all hover:bg-emerald-500/20 hover:text-emerald-200"
+          title="Voltar agendamento cancelado para a agenda"
+        >
+          <FiRefreshCw className="size-4 shrink-0" />
+          <span className="whitespace-nowrap">Descancelar</span>
+        </button>
+        <span className="text-xs font-semibold uppercase tracking-wider text-cream/35">Sem fidelidade</span>
+      </div>
+    );
   }
 
   if (booking.status === 'no_show') {
