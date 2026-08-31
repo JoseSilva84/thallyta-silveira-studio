@@ -215,6 +215,29 @@ const buildClientBookingMessage = (booking) => {
   const firstName = (booking.attendeeName || booking.user?.name || '').split(' ')[0] || 'Tudo bem';
   const requiresQuickPix = booking.payment?.paymentType === 'quick_pix'
     && Number(booking.payment.minimumAmount) > 0;
+
+  if (requiresQuickPix) {
+    return [
+      `Olá, ${firstName}! Acabei de receber seu agendamento aqui no Studio Thallyta Silveira:`,
+      '',
+      ...buildBookingSummaryLines(booking),
+      '',
+      'Para agendamento, é preciso que seja feito o pagamento do sinal de 30% mediante o valor do serviço.',
+      '',
+      'CHAVE PIX: jocerlamnf@gmail.com',
+      '(mercado pago)',
+      '',
+      '- em caso de não comparecimento não terá reembolso.',
+      '- tolerância de atraso de 15 minutos.',
+      '- em caso de desistência, troca de horário ou reagendamento é preciso avisar com um dia de antecedência.',
+      '',
+      'Envie o comprovante do sinal por aqui 😊',
+      '',
+      'Se precisar reagendar ou cancelar, fale comigo.',
+      '',
+      'Agradeço a compreensão ✨',
+    ].join('\n');
+  }
   return [
     `Olá, ${firstName}! Seu agendamento no Studio Thallyta Silveira foi confirmado:`,
     '',
