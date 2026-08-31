@@ -369,7 +369,8 @@ const attachScheduleToPayment = async (payment, startInput) => {
   });
 };
 
-const buildConfirmedBookingFromPayment = async (payment) => {
+const buildConfirmedBookingFromPayment = async (payment, options = {}) => {
+  const { notify = true } = options;
   const hydratedPayment = payment.booking
     ? payment
     : await prisma.bookingPayment.findUnique({
@@ -530,10 +531,12 @@ const buildConfirmedBookingFromPayment = async (payment) => {
     include: getBookingInclude,
   });
 
-  try {
-    await notifyBookingCreated(prisma, booking);
-  } catch (notifyError) {
-    console.error('Erro ao enviar WhatsApp do agendamento pago:', notifyError);
+  if (notify) {
+    try {
+      await notifyBookingCreated(prisma, booking);
+    } catch (notifyError) {
+      console.error('Erro ao enviar WhatsApp do agendamento pago:', notifyError);
+    }
   }
 
   return booking;
@@ -866,7 +869,7 @@ export const createQuickPixBooking = async (req, res) => {
 
     let booking;
     try {
-      booking = await buildConfirmedBookingFromPayment(bookingPayment);
+      booking = await buildConfirmedBookingFromPayment(bookingPayment, { notify: false });
     } catch (bookingError) {
       await prisma.bookingPayment.delete({ where: { id: bookingPayment.id } }).catch(() => null);
       throw bookingError;
@@ -893,6 +896,10 @@ export const createQuickPixBooking = async (req, res) => {
       message: minimumAmount > 0
         ? 'Agendamento confirmado. Envie o comprovante do PIX para Thallyta.'
         : 'Agendamento confirmado com o beneficio de aniversario.',
+    });
+
+    void notifyBookingCreated(prisma, booking).catch((notifyError) => {
+      console.error('Erro ao enviar WhatsApp do agendamento rapido:', notifyError);
     });
   } catch (error) {
     console.error('Erro ao criar agendamento rapido com PIX:', error);
