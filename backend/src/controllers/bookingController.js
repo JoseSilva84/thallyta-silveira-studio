@@ -5,6 +5,7 @@ import { findServiceById } from '../data/services.js';
 import { ensureBookingClientNotification, notifyBookingCreated, notifyMaintenanceReminder, resendBookingClientNotification } from '../services/whatsappService.js';
 import { buildPublicAgendaDays, validateBookingWindow } from '../utils/bookingHours.js';
 import { randomUUID } from 'node:crypto';
+import { getTotalDurationMinutes, resolveServices } from '../utils/serviceSelection.js';
 
 const bookingInclude = {
   user: {
@@ -150,8 +151,11 @@ export const getPublicAgenda = async (req, res) => {
     const days = Math.min(Math.max(Number(req.query.days) || 30, 1), 90);
     const now = new Date();
     const until = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
-    const selectedService = req.query.serviceId ? findServiceById(req.query.serviceId) : null;
-    const slotDurationMinutes = selectedService?.durationMin || 30;
+    const { services: selectedServices, invalidServiceIds } = resolveServices(req.query.serviceIds, req.query.serviceId);
+    if (invalidServiceIds.length) {
+      return res.status(400).json({ error: 'Um ou mais servicos sao invalidos.' });
+    }
+    const slotDurationMinutes = selectedServices.length ? getTotalDurationMinutes(selectedServices) : 30;
 
     const bookings = await prisma.booking.findMany({
       where: {
@@ -237,7 +241,8 @@ export const getPublicAgenda = async (req, res) => {
     res.json({
       generatedAt: now.toISOString(),
       days,
-      serviceId: selectedService?.id || null,
+      serviceId: selectedServices[0]?.id || null,
+      serviceIds: selectedServices.map((service) => service.id),
       slotDurationMinutes,
       agendaDays: buildPublicAgendaDays(occupiedTimes, days, now, slotDurationMinutes),
       bookings: bookings.map((booking) => ({

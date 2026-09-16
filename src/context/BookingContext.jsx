@@ -18,14 +18,22 @@ export function BookingProvider({ children }) {
   const [isPaymentUnlocked, setIsPaymentUnlocked] = useState(false)
 
   const toggleService = useCallback((service) => {
-    setSelectedServices((current) => (current.some((item) => item.id === service.id) ? [] : [service]))
+    setSelectedServices((current) => (
+      current.some((item) => item.id === service.id)
+        ? current.filter((item) => item.id !== service.id)
+        : [...current, service]
+    ))
   }, [])
 
   const addService = useCallback((service) => {
     setSelectedServices((current) => {
       if (current.some((item) => item.id === service.id)) return current
-      return [service]
+      return [...current, service]
     })
+  }, [])
+
+  const removeService = useCallback((serviceId) => {
+    setSelectedServices((current) => current.filter((item) => item.id !== serviceId))
   }, [])
 
   const clearServices = useCallback(() => {
@@ -95,6 +103,7 @@ export function BookingProvider({ children }) {
       bookings,
       loadingBookings,
       addService,
+      removeService,
       toggleService,
       clearServices,
       requestSchedule,
@@ -115,6 +124,7 @@ export function BookingProvider({ children }) {
       bookings,
       loadingBookings,
       addService,
+      removeService,
       toggleService,
       clearServices,
       requestSchedule,

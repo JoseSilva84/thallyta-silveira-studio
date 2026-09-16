@@ -35,6 +35,18 @@ const money = (value) => `R$ ${Number(value || 0).toFixed(2).replace('.', ',')}`
 
 const servicePriceValue = (service) => Number(String(service?.price || '0').replace(/[^\d,.-]/g, '').replace(',', '.')) || 0
 
+const serviceDurationMinutes = (service) => {
+  const text = String(service?.duration || '')
+  return Number(text.match(/(\d+)\s*h/)?.[1] || 0) * 60
+    + Number(text.match(/(\d+)\s*min/)?.[1] || text.match(/h\s*(\d+)/)?.[1] || 0)
+}
+
+const formatDuration = (minutes) => {
+  const hours = Math.floor(minutes / 60)
+  const rest = minutes % 60
+  return [hours ? `${hours}h` : '', rest ? `${rest}min` : ''].filter(Boolean).join(' ') || '-'
+}
+
 const readQuickDraft = () => {
   try {
     const value = window.localStorage?.getItem(QUICK_DRAFT_KEY)
@@ -72,14 +84,16 @@ export default function QuickBookingPage() {
   const [introDone, setIntroDone] = useState(false)
   const [summaryAccepted, setSummaryAccepted] = useState(false)
   const [agendaDays, setAgendaDays] = useState([])
-  const [agendaServiceId, setAgendaServiceId] = useState('')
+  const [agendaServiceIds, setAgendaServiceIds] = useState([])
   const [bookings, setBookings] = useState([])
   const [loadingAgenda, setLoadingAgenda] = useState(false)
   const [agendaError, setAgendaError] = useState('')
   const [dateStart, setDateStart] = useState(0)
   const [selectedDate, setSelectedDate] = useState('')
   const [selectedSlot, setSelectedSlot] = useState(null)
-  const [selectedService, setSelectedService] = useState(null)
+  const [selectedServices, setSelectedServices] = useState([])
+  const [askAnotherService, setAskAnotherService] = useState(false)
+  const [serviceSelectionComplete, setServiceSelectionComplete] = useState(false)
   const [paymentType, setPaymentType] = useState('deposit')
   const [creatingPayment, setCreatingPayment] = useState(false)
   const [confirmingPayment, setConfirmingPayment] = useState(false)
@@ -88,9 +102,11 @@ export default function QuickBookingPage() {
   const [activeServiceGroup, setActiveServiceGroup] = useState(serviceGroups[0]?.id || '')
   const [birthdayRewardPreview, setBirthdayRewardPreview] = useState(null)
 
-  const serviceIdForAgenda = selectedService?.id || ''
-  const total = servicePriceValue(selectedService)
-  const birthdayDiscount = selectedService ? Number(birthdayRewardPreview?.discount || 0) : 0
+  const serviceIdsForAgenda = useMemo(() => selectedServices.map((service) => service.id), [selectedServices])
+  const serviceIdsKey = serviceIdsForAgenda.join(',')
+  const total = selectedServices.reduce((sum, service) => sum + servicePriceValue(service), 0)
+  const totalDuration = selectedServices.reduce((sum, service) => sum + serviceDurationMinutes(service), 0)
+  const birthdayDiscount = selectedServices.length ? Number(birthdayRewardPreview?.discount || 0) : 0
   const payableTotal = Math.max(total - birthdayDiscount, 0)
   const deposit = Math.round(payableTotal * 30) / 100
   const needsWhatsapp = Boolean(user?.id && user.role !== 'ADMIN' && !user.whatsappPhone)
@@ -104,7 +120,7 @@ export default function QuickBookingPage() {
     ? 'confirmed'
     : !introDone
       ? 'intro'
-      : !selectedService
+      : !selectedServices.length || !serviceSelectionComplete
         ? 'service'
         : !selectedSlot
           ? 'agenda'
@@ -146,19 +162,19 @@ export default function QuickBookingPage() {
     setAgendaError('')
     try {
       const params = new URLSearchParams({ days: '30' })
-      if (serviceIdForAgenda) params.set('serviceId', serviceIdForAgenda)
+      if (serviceIdsKey) params.set('serviceIds', serviceIdsKey)
       const res = await fetch(`${API}/bookings/public-agenda?${params.toString()}`)
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || 'Erro ao carregar agenda.')
       setBookings(Array.isArray(data.bookings) ? data.bookings : [])
       setAgendaDays(Array.isArray(data.agendaDays) ? data.agendaDays : [])
-      setAgendaServiceId(data.serviceId || '')
+      setAgendaServiceIds(Array.isArray(data.serviceIds) ? data.serviceIds : data.serviceId ? [data.serviceId] : [])
     } catch (error) {
       setAgendaError(error.message || 'Erro ao carregar agenda.')
     } finally {
       setLoadingAgenda(false)
     }
-  }, [serviceIdForAgenda])
+  }, [serviceIdsKey])
 
   const moveDatePage = (direction) => {
     const maxStart = Math.max(days.length - DATE_PAGE_SIZE, 0)
@@ -176,7 +192,7 @@ export default function QuickBookingPage() {
 
   useEffect(() => {
     const token = getToken()
-    if (!user || !selectedService?.id || !token) {
+    if (!user || !serviceIdsKey || !token) {
       setBirthdayRewardPreview(null)
       return
     }
@@ -184,7 +200,7 @@ export default function QuickBookingPage() {
     let cancelled = false
     const fetchBirthdayRewardPreview = async () => {
       try {
-        const params = new URLSearchParams({ serviceId: selectedService.id })
+        const params = new URLSearchParams({ serviceIds: serviceIdsKey })
         const res = await fetch(`${API}/payments/birthday-reward-preview?${params.toString()}`, {
           headers: { Authorization: `Bearer ${token}` },
         })
@@ -200,7 +216,7 @@ export default function QuickBookingPage() {
     return () => {
       cancelled = true
     }
-  }, [getToken, selectedService?.id, user])
+  }, [getToken, serviceIdsKey, user])
 
   useEffect(() => {
     const interval = window.setInterval(fetchAgenda, 30000)
@@ -229,10 +245,12 @@ export default function QuickBookingPage() {
       setIntroDone(true)
     }
 
-    if (draft.serviceId) {
-      const service = allServices.find((item) => item.id === draft.serviceId)
-      if (service) {
-        setSelectedService(service)
+    const draftServiceIds = draft.serviceIds?.length ? draft.serviceIds : draft.serviceId ? [draft.serviceId] : []
+    if (draftServiceIds.length) {
+      const services = draftServiceIds.map((id) => allServices.find((item) => item.id === id)).filter(Boolean)
+      if (services.length) {
+        setSelectedServices(services)
+        setServiceSelectionComplete(Boolean(draft.slot || draft.summaryAccepted))
         setIntroDone(true)
       }
     }
@@ -260,8 +278,8 @@ export default function QuickBookingPage() {
 
   useEffect(() => {
     if (!selectedSlot || loadingAgenda) return
-    if (selectedService && agendaServiceId !== selectedService.id) return
-    if (!selectedService && agendaServiceId) return
+    if (serviceIdsKey && agendaServiceIds.join(',') !== serviceIdsKey) return
+    if (!serviceIdsKey && agendaServiceIds.length) return
     if (!agendaDays.length) return
 
     const slotStillAvailable = agendaDays.some((day) =>
@@ -280,7 +298,7 @@ export default function QuickBookingPage() {
     setSelectedDate(nextDate)
     userSelectedServiceRef.current = false
 
-    if (!selectedService) {
+    if (!selectedServices.length) {
       writeQuickDraft({ paymentType })
       toast.info('Esse horário acabou de ser reservado. Atualizamos a agenda para você escolher outro.')
       document.querySelector('main')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -288,15 +306,15 @@ export default function QuickBookingPage() {
     }
 
     if (shouldNotify) {
-      writeQuickDraft({ serviceId: selectedService.id, paymentType })
+      writeQuickDraft({ serviceIds: serviceIdsForAgenda, paymentType })
       toast.warn('Esse serviço nao cabe no horario escolhido. Selecione outro horário disponível.')
       document.querySelector('main')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
       return
     }
 
-    setSelectedService(null)
+    setSelectedServices([])
     clearQuickDraft()
-  }, [agendaDays, agendaServiceId, loadingAgenda, paymentType, selectedDate, selectedService, selectedSlot])
+  }, [agendaDays, agendaServiceIds, loadingAgenda, paymentType, selectedDate, selectedServices, selectedSlot, serviceIdsForAgenda, serviceIdsKey])
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -363,30 +381,43 @@ export default function QuickBookingPage() {
     setSelectedDate(day.key)
     writeQuickDraft({
       slot: nextSlot,
-      serviceId: selectedService?.id || '',
+      serviceIds: serviceIdsForAgenda,
       paymentType,
     })
   }
 
   const continueAfterSlot = () => {
     if (!selectedSlot) return toast.info('Escolha um horario para continuar.')
-    writeQuickDraft({ slot: selectedSlot, serviceId: selectedService?.id || '', paymentType })
+    writeQuickDraft({ slot: selectedSlot, serviceIds: serviceIdsForAgenda, paymentType })
     setSummaryAccepted(false)
     document.querySelector('main')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
   const chooseService = (service) => {
     userSelectedServiceRef.current = true
-    setSelectedService(service)
+    setSelectedServices((current) => (
+      current.some((item) => item.id === service.id) ? current : [...current, service]
+    ))
+    setServiceSelectionComplete(false)
     setSelectedSlot(null)
     setSummaryAccepted(false)
-    writeQuickDraft({ serviceId: service.id, paymentType })
-    window.setTimeout(() => document.querySelector('main')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80)
+    const nextIds = [...new Set([...serviceIdsForAgenda, service.id])]
+    writeQuickDraft({ serviceIds: nextIds, paymentType })
+    setAskAnotherService(true)
+  }
+
+  const removeQuickService = (serviceId) => {
+    const nextServices = selectedServices.filter((service) => service.id !== serviceId)
+    setSelectedServices(nextServices)
+    setSelectedSlot(null)
+    setSummaryAccepted(false)
+    setServiceSelectionComplete(false)
+    writeQuickDraft({ serviceIds: nextServices.map((service) => service.id), paymentType })
   }
 
   const confirmQuickBooking = async () => {
     if (!selectedSlot?.start) return toast.info('Escolha um horario.')
-    if (!selectedService) return toast.info('Escolha um servico.')
+    if (!selectedServices.length) return toast.info('Escolha pelo menos um servico.')
     const token = getToken()
     if (!token) {
       openLoginFromQuickBooking()
@@ -399,7 +430,7 @@ export default function QuickBookingPage() {
 
     setCreatingPayment(true)
     try {
-      writeQuickDraft({ slot: selectedSlot, serviceId: selectedService.id, paymentType: 'deposit' })
+      writeQuickDraft({ slot: selectedSlot, serviceIds: serviceIdsForAgenda, paymentType: 'deposit' })
       const res = await fetch(`${API}/payments/quick-pix-booking`, {
         method: 'POST',
         headers: {
@@ -407,7 +438,8 @@ export default function QuickBookingPage() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          serviceId: selectedService.id,
+          serviceId: selectedServices[0].id,
+          serviceIds: serviceIdsForAgenda,
           start: selectedSlot.start,
         }),
       })
@@ -449,7 +481,9 @@ export default function QuickBookingPage() {
     setIntroDone(false)
     setSummaryAccepted(false)
     setSelectedSlot(null)
-    setSelectedService(null)
+    setSelectedServices([])
+    setAskAnotherService(false)
+    setServiceSelectionComplete(false)
     setPaymentType('deposit')
     setConfirmedBooking(null)
     setConfirmedPayment(null)
@@ -461,20 +495,20 @@ export default function QuickBookingPage() {
   const goBack = () => {
     if (pageStep === 'payment' || pageStep === 'login') {
       setSummaryAccepted(false)
-      writeQuickDraft({ slot: selectedSlot, serviceId: selectedService?.id || '', paymentType })
+      writeQuickDraft({ slot: selectedSlot, serviceIds: serviceIdsForAgenda, paymentType })
       return
     }
     if (pageStep === 'summary') {
       setSelectedSlot(null)
       setSummaryAccepted(false)
-      writeQuickDraft({ serviceId: selectedService?.id || '', paymentType })
+      writeQuickDraft({ serviceIds: serviceIdsForAgenda, paymentType })
       return
     }
     if (pageStep === 'agenda') {
-      setSelectedService(null)
       setSelectedSlot(null)
       setSummaryAccepted(false)
-      writeQuickDraft({ paymentType })
+      setServiceSelectionComplete(false)
+      writeQuickDraft({ serviceIds: serviceIdsForAgenda, paymentType })
       return
     }
     if (pageStep === 'service') {
@@ -582,7 +616,7 @@ export default function QuickBookingPage() {
                 type="button"
                 onClick={() => {
                   setIntroDone(true)
-                  writeQuickDraft({ serviceId: selectedService?.id || '', slot: selectedSlot || null, paymentType })
+                  writeQuickDraft({ serviceIds: serviceIdsForAgenda, slot: selectedSlot || null, paymentType })
                 }}
                 className="gold-button mt-auto flex w-full items-center justify-center gap-2 rounded-xl px-6 py-4 font-bold uppercase tracking-wider"
               >
@@ -719,7 +753,7 @@ export default function QuickBookingPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    writeQuickDraft({ slot: selectedSlot, serviceId: selectedService?.id || '', paymentType, summaryAccepted: true })
+                    writeQuickDraft({ slot: selectedSlot, serviceIds: serviceIdsForAgenda, paymentType, summaryAccepted: true })
                     navigate('/register')
                   }}
                   className="w-full rounded-xl border border-gold/25 px-6 py-4 text-sm font-bold uppercase tracking-wider text-gold-light transition-colors hover:bg-gold/10"
@@ -729,7 +763,7 @@ export default function QuickBookingPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    writeQuickDraft({ slot: selectedSlot, serviceId: selectedService?.id || '', paymentType, summaryAccepted: true })
+                    writeQuickDraft({ slot: selectedSlot, serviceIds: serviceIdsForAgenda, paymentType, summaryAccepted: true })
                     loginWithGoogle()
                   }}
                   className="flex w-full items-center justify-center gap-3 rounded-xl border border-white/10 bg-white px-6 py-4 text-sm font-bold text-zinc-900 transition-colors hover:bg-gray-100"
@@ -781,14 +815,37 @@ export default function QuickBookingPage() {
                     key={service.id}
                     service={{ ...service, group: activeGroup.label }}
                     onAdd={(chosenService) => chooseService({ ...chosenService, group: activeGroup.label })}
-                    actionLabel={selectedService?.id === service.id ? 'Selecionado' : 'Escolher'}
+                    actionLabel={selectedServices.some((item) => item.id === service.id) ? 'Selecionado' : 'Escolher'}
                   />
                 ))}
               </div>
 
-              {selectedService && (
+              {selectedServices.length > 0 && (
                 <div className="mt-6 rounded-2xl border border-gold/25 bg-gold/10 p-4 text-sm text-gold-light">
-                  Serviço selecionado: <strong>{selectedService.name}</strong>
+                  <p className="font-bold">Serviços selecionados</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {selectedServices.map((service) => (
+                      <button
+                        key={service.id}
+                        type="button"
+                        onClick={() => removeQuickService(service.id)}
+                        className="inline-flex items-center gap-2 rounded-full border border-gold/30 bg-black/25 px-3 py-2 font-semibold text-cream"
+                        aria-label={`Remover ${service.name}`}
+                      >
+                        {service.name} <FiX />
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setServiceSelectionComplete(true)
+                      writeQuickDraft({ serviceIds: serviceIdsForAgenda, paymentType })
+                    }}
+                    className="gold-button mt-4 w-full rounded-xl px-5 py-3 font-bold"
+                  >
+                    Continuar com {selectedServices.length} {selectedServices.length === 1 ? 'serviço' : 'serviços'}
+                  </button>
                 </div>
               )}
 
@@ -805,8 +862,9 @@ export default function QuickBookingPage() {
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <SummaryItem label="Data e horário" value={selectedSlot ? `${formatLongDate(new Date(selectedSlot.start))} as ${selectedSlot.time}` : 'Escolha um horario'} icon={<FiClock />} />
-                <SummaryItem label="Serviço" value={selectedService?.name || 'Escolha um servico'} icon={<FiScissors />} />
-                <SummaryItem label="Valor total" value={selectedService ? money(total) : '-'} icon={<FiCreditCard />} />
+                <SummaryItem label="Serviços" value={selectedServices.map((service) => service.name).join(', ') || 'Escolha um servico'} icon={<FiScissors />} />
+                <SummaryItem label="Valor total" value={selectedServices.length ? money(total) : '-'} icon={<FiCreditCard />} />
+                <SummaryItem label="Duração total" value={formatDuration(totalDuration)} icon={<FiClock />} />
                 <SummaryItem label="Cliente" value={user?.name || 'Entre na sua conta'} icon={<FiCheckCircle />} />
               </div>
 
@@ -821,7 +879,7 @@ export default function QuickBookingPage() {
                 </div>
               )}
 
-              {pageStep === 'payment' && selectedService && (
+              {pageStep === 'payment' && selectedServices.length > 0 && (
                 <div className="mt-5 rounded-2xl border border-gold/30 bg-gold/10 p-4 sm:p-6">
                   <div className="text-center">
                     <span className="block text-xs font-bold uppercase tracking-[0.18em] text-gold-light/75">PIX mínimo de 30% do serviço</span>
@@ -859,7 +917,7 @@ export default function QuickBookingPage() {
                 <button
                   type="button"
                   onClick={confirmQuickBooking}
-                  disabled={creatingPayment || !selectedSlot || !selectedService || !user}
+                  disabled={creatingPayment || !selectedSlot || !selectedServices.length || !user}
                   className="gold-button mt-6 flex w-full items-center justify-center gap-2 rounded-xl px-6 py-4 font-bold uppercase tracking-wider disabled:cursor-not-allowed disabled:opacity-55"
                 >
                   {creatingPayment ? <FiLoader className="animate-spin" /> : <FiCheckCircle />}
@@ -869,7 +927,7 @@ export default function QuickBookingPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    writeQuickDraft({ slot: selectedSlot, serviceId: selectedService?.id || '', paymentType, summaryAccepted: true })
+                    writeQuickDraft({ slot: selectedSlot, serviceIds: serviceIdsForAgenda, paymentType, summaryAccepted: true })
                     setSummaryAccepted(true)
                     document.querySelector('main')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
                   }}
@@ -881,6 +939,31 @@ export default function QuickBookingPage() {
             </section>
         )}
       </main>
+      {askAnotherService && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="quick-add-another-title">
+          <div className="w-full max-w-md rounded-[2rem] border border-gold/30 bg-dark-card p-6 text-center shadow-2xl">
+            <h2 id="quick-add-another-title" className="font-display text-3xl text-gold-light">Deseja adicionar mais um serviço?</h2>
+            <p className="mt-2 text-sm text-cream/65">Você pode escolher quantos serviços quiser para este agendamento.</p>
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              <button type="button" onClick={() => setAskAnotherService(false)} className="rounded-xl border border-gold/30 px-5 py-3 font-bold text-gold-light transition-colors hover:bg-gold/10">
+                Sim
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAskAnotherService(false)
+                  setServiceSelectionComplete(true)
+                  writeQuickDraft({ serviceIds: serviceIdsForAgenda, paymentType })
+                  window.setTimeout(() => document.querySelector('main')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80)
+                }}
+                className="gold-button rounded-xl px-5 py-3 font-bold"
+              >
+                Não, continuar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <LoginModal />
     </div>
   )

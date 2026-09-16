@@ -82,7 +82,11 @@ export const syncBookingToCalById = async (bookingId) => {
       bookingId: booking.id,
       bookingPaymentId: booking.paymentId || '',
       serviceId: service.id,
-      serviceName: service.name,
+      serviceName: booking.service || service.name,
+      serviceNames: booking.service || service.name,
+      serviceIds: Array.isArray(booking.payment?.metadata?.services)
+        ? booking.payment.metadata.services.map((item) => item.id).filter(Boolean).join(',')
+        : service.id,
       estimatedValue: Number(booking.estimatedValue || service.price || 0).toFixed(2),
       attendeeWhatsapp: booking.attendeePhone || booking.user?.whatsappPhone || '',
       syncedFromFallback: true,

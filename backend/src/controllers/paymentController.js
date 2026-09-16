@@ -6,6 +6,12 @@ import { notifyBookingCreated } from '../services/whatsappService.js';
 import { getPromotionalServicePricing } from '../services/promotionService.js';
 import { validateBookingWindow, validateClientBookingLeadTime } from '../utils/bookingHours.js';
 import { findConfirmedScheduleConflict, hasScheduleConflict } from '../utils/scheduleAvailability.js';
+import {
+  getPaymentServices,
+  getServicesName,
+  getTotalDurationMinutes,
+  resolveServices,
+} from '../utils/serviceSelection.js';
 
 const MERCADO_PAGO_API = 'https://api.mercadopago.com';
 const PRODUCTION_FRONTEND_URL = 'https://www.thallytasilveira.com.br';
@@ -37,6 +43,78 @@ const getSafeReturnPath = (value) => {
 };
 
 const roundMoney = (value) => Math.round(value * 100) / 100;
+
+const getStoredServiceEntries = (payment) => {
+  if (Array.isArray(payment?.metadata?.services) && payment.metadata.services.length) {
+    return payment.metadata.services;
+  }
+
+  return payment?.serviceId ? [{
+    id: payment.serviceId,
+    name: payment.serviceName,
+    price: payment.servicePrice,
+  }] : [];
+};
+
+const resolveServiceSelectionPricing = async ({
+  serviceIds,
+  serviceId,
+  promotionId,
+  promotionItemId,
+  scheduledAt,
+}) => {
+  const selection = resolveServices(serviceIds, serviceId);
+  if (!selection.services.length || selection.invalidServiceIds.length) {
+    const error = new Error('Um ou mais servicos sao invalidos.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const entries = [];
+  for (const service of selection.services) {
+    const isPromotedService = service.id === serviceId && (promotionId || promotionItemId);
+    const pricing = await getPromotionalServicePricing({
+      serviceId: service.id,
+      promotionId: isPromotedService ? promotionId : undefined,
+      itemId: isPromotedService ? promotionItemId : undefined,
+      now: scheduledAt,
+    });
+
+    if (isPromotedService && !pricing.promotion) {
+      const error = new Error('Esta promocao nao vale para o dia e horario escolhidos.');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    entries.push({
+      id: service.id,
+      name: service.name,
+      price: roundMoney(pricing.servicePrice),
+      originalPrice: roundMoney(pricing.originalServicePrice),
+      durationMin: service.durationMin || 60,
+      calSlug: service.calSlug,
+      promotion: pricing.promotion ? {
+        id: pricing.promotion.id,
+        itemId: pricing.item.id,
+        title: pricing.promotion.title,
+        serviceId: pricing.item.serviceId,
+        startsAt: pricing.promotion.startsAt,
+        endsAt: pricing.promotion.endsAt,
+        regularPrice: roundMoney(pricing.originalServicePrice),
+        promotionalPrice: roundMoney(pricing.servicePrice),
+      } : null,
+    });
+  }
+
+  return {
+    services: selection.services,
+    entries,
+    totalDurationMinutes: getTotalDurationMinutes(selection.services),
+    serviceName: getServicesName(selection.services),
+    servicePrice: roundMoney(entries.reduce((total, entry) => total + entry.price, 0)),
+    originalServicePrice: roundMoney(entries.reduce((total, entry) => total + entry.originalPrice, 0)),
+  };
+};
 
 const getCurrentStudioYear = () => Number(new Intl.DateTimeFormat('en-US', {
   timeZone: 'America/Fortaleza',
@@ -235,6 +313,7 @@ const serializePayment = (payment) => ({
     name: payment.serviceName,
     price: `R$ ${payment.servicePrice.toFixed(2).replace('.', ',')}`,
   },
+  services: getStoredServiceEntries(payment),
   servicePrice: payment.servicePrice,
   paymentType: payment.paymentType,
   amount: payment.amount,
@@ -319,13 +398,13 @@ const validatePromotionSchedule = (payment, scheduledAt, endTime) => {
 const attachScheduleToPayment = async (payment, startInput) => {
   if (!payment || !startInput) return payment;
 
-  const service = findServiceById(payment.serviceId);
-  if (!service) return payment;
+  const services = getPaymentServices(payment);
+  if (!services.length) return payment;
 
   const scheduledAt = new Date(startInput);
   if (Number.isNaN(scheduledAt.getTime())) return payment;
 
-  const endTime = new Date(scheduledAt.getTime() + (service.durationMin || 60) * 60 * 1000);
+  const endTime = new Date(scheduledAt.getTime() + getTotalDurationMinutes(services) * 60 * 1000);
   const currentStart = payment.scheduledAt ? new Date(payment.scheduledAt) : null;
   const currentEnd = payment.endTime ? new Date(payment.endTime) : null;
 
@@ -385,13 +464,17 @@ const buildConfirmedBookingFromPayment = async (payment, options = {}) => {
     && hydratedPayment.amount >= hydratedPayment.minimumAmount;
   if (!hasApprovedMinimum && !isQuickPixBooking) return null;
 
-  const service = findServiceById(hydratedPayment.serviceId);
+  const services = getPaymentServices(hydratedPayment);
+  const service = services[0];
   if (!service || !hydratedPayment.scheduledAt) return null;
+  const serviceEntries = getStoredServiceEntries(hydratedPayment);
+  const serviceNames = serviceEntries.map((entry) => entry.name).filter(Boolean).join(', ') || getServicesName(services);
+  const totalDurationMinutes = getTotalDurationMinutes(services);
 
   const scheduledAt = new Date(hydratedPayment.scheduledAt);
   const endTime = hydratedPayment.endTime
     ? new Date(hydratedPayment.endTime)
-    : new Date(scheduledAt.getTime() + (service.durationMin || 60) * 60 * 1000);
+    : new Date(scheduledAt.getTime() + totalDurationMinutes * 60 * 1000);
 
   const validation = validateBookingWindow(scheduledAt, endTime);
   if (!validation.valid) {
@@ -407,10 +490,10 @@ const buildConfirmedBookingFromPayment = async (payment, options = {}) => {
   }
 
   const servicePrice = roundMoney(hydratedPayment.servicePrice ?? service.price);
-  const originalServicePrice = roundMoney(hydratedPayment.metadata?.originalServicePrice ?? service.price);
+  const originalServicePrice = roundMoney(hydratedPayment.metadata?.originalServicePrice ?? servicePrice);
   const promotion = hydratedPayment.metadata?.promotion || null;
   const notes = [
-    `Servico: ${service.name}`,
+    `Servicos: ${serviceNames}`,
     promotion ? `Promocao: ${promotion.title}` : null,
     promotion && originalServicePrice !== servicePrice ? `Valor normal: R$ ${originalServicePrice.toFixed(2)}` : null,
     `Valor: R$ ${servicePrice.toFixed(2)}`,
@@ -440,8 +523,10 @@ const buildConfirmedBookingFromPayment = async (payment, options = {}) => {
       metadata: {
         bookingPaymentId: hydratedPayment.id,
         serviceId: service.id,
-        serviceName: service.name,
-        serviceNames: service.name,
+        serviceName: serviceNames,
+        serviceNames,
+        serviceIds: services.map((item) => item.id).join(','),
+        totalDurationMinutes,
         estimatedValue: servicePrice.toFixed(2),
         promotionId: promotion?.id || '',
         promotionItemId: promotion?.itemId || '',
@@ -481,7 +566,7 @@ const buildConfirmedBookingFromPayment = async (payment, options = {}) => {
     where: { calEventId: calBooking?.uid || `site-payment-${hydratedPayment.id}` },
     update: {
       userId: hydratedPayment.userId,
-      service: service.name,
+      service: serviceNames,
       estimatedValue: servicePrice,
       scheduledAt,
       endTime,
@@ -506,7 +591,7 @@ const buildConfirmedBookingFromPayment = async (payment, options = {}) => {
     create: {
       calEventId: calBooking?.uid || `site-payment-${hydratedPayment.id}`,
       userId: hydratedPayment.userId,
-      service: service.name,
+      service: serviceNames,
       estimatedValue: servicePrice,
       scheduledAt,
       endTime,
@@ -745,9 +830,12 @@ const markPaymentFromMercadoPago = async (bookingPayment, mercadoPagoPayment) =>
 
 export const getBirthdayRewardPreview = async (req, res) => {
   try {
-    const service = findServiceById(req.query.serviceId);
+    const { services, invalidServiceIds } = resolveServices(req.query.serviceIds, req.query.serviceId);
+    if (invalidServiceIds.length) return res.status(400).json({ error: 'Um ou mais servicos sao invalidos.' });
     const reward = await getAvailableBirthdayReward(req.user.id);
-    const servicePrice = service ? roundMoney(service.price) : null;
+    const servicePrice = services.length
+      ? roundMoney(services.reduce((total, service) => total + service.price, 0))
+      : null;
     const discount = servicePrice !== null ? getBirthdayRewardDiscount(reward, servicePrice) : Number(reward?.amount || 0);
 
     res.json({
@@ -770,12 +858,7 @@ export const getBirthdayRewardPreview = async (req, res) => {
 
 export const createQuickPixBooking = async (req, res) => {
   try {
-    const { serviceId, start, promotionId, promotionItemId } = req.body;
-    const service = findServiceById(serviceId);
-
-    if (!service) {
-      return res.status(400).json({ error: 'Servico invalido.' });
-    }
+    const { serviceIds, serviceId, start, promotionId, promotionItemId } = req.body;
 
     if (!start) {
       return res.status(400).json({ error: 'Escolha o dia e horario antes de confirmar.' });
@@ -786,7 +869,15 @@ export const createQuickPixBooking = async (req, res) => {
       return res.status(400).json({ error: 'Horario invalido.' });
     }
 
-    const endTime = new Date(scheduledAt.getTime() + (service.durationMin || 60) * 60 * 1000);
+    const selection = await resolveServiceSelectionPricing({
+      serviceIds,
+      serviceId,
+      promotionId,
+      promotionItemId,
+      scheduledAt,
+    });
+    const service = selection.services[0];
+    const endTime = new Date(scheduledAt.getTime() + selection.totalDurationMinutes * 60 * 1000);
     const scheduleValidation = validateBookingWindow(scheduledAt, endTime);
     if (!scheduleValidation.valid) {
       return res.status(400).json({ error: scheduleValidation.reason });
@@ -798,18 +889,9 @@ export const createQuickPixBooking = async (req, res) => {
       return res.status(400).json({ error: leadTimeValidation.reason });
     }
 
-    const pricing = await getPromotionalServicePricing({
-      serviceId,
-      promotionId,
-      itemId: promotionItemId,
-      now: scheduledAt,
-    });
-
-    if ((promotionId || promotionItemId) && !pricing.promotion) {
-      return res.status(400).json({ error: 'Esta promocao nao vale para o dia e horario escolhidos.' });
-    }
-
-    if (pricing.promotion && (scheduledAt < new Date(pricing.promotion.startsAt) || endTime > new Date(pricing.promotion.endsAt))) {
+    const invalidPromotionSchedule = selection.entries.some((entry) => entry.promotion
+      && (scheduledAt < new Date(entry.promotion.startsAt) || endTime > new Date(entry.promotion.endsAt)));
+    if (invalidPromotionSchedule) {
       return res.status(400).json({ error: 'Esta promocao nao vale para o dia e horario escolhidos.' });
     }
 
@@ -817,8 +899,8 @@ export const createQuickPixBooking = async (req, res) => {
       return res.status(409).json({ error: 'Este horario acabou de ficar indisponivel. Escolha outro horario.' });
     }
 
-    const servicePrice = roundMoney(pricing.servicePrice);
-    const originalServicePrice = roundMoney(pricing.originalServicePrice);
+    const servicePrice = selection.servicePrice;
+    const originalServicePrice = selection.originalServicePrice;
     const birthdayReward = await getAvailableBirthdayReward(req.user.id);
     const birthdayDiscount = getBirthdayRewardDiscount(birthdayReward, servicePrice);
     const payableServicePrice = roundMoney(Math.max(servicePrice - birthdayDiscount, 0));
@@ -828,7 +910,7 @@ export const createQuickPixBooking = async (req, res) => {
       data: {
         userId: req.user.id,
         serviceId: service.id,
-        serviceName: service.name,
+        serviceName: selection.serviceName,
         servicePrice,
         paymentType: 'quick_pix',
         amount: 0,
@@ -840,21 +922,14 @@ export const createQuickPixBooking = async (req, res) => {
         approvedAt: minimumAmount <= 0 ? now : null,
         metadata: {
           minimumPercentage: MINIMUM_PERCENTAGE,
+          services: selection.entries,
+          totalDurationMinutes: selection.totalDurationMinutes,
           originalServicePrice,
           payableServicePrice,
           pixKey: 'jocerlamnf@gmail.com',
           proofWhatsapp: '5588981860582',
           paymentPending: minimumAmount > 0,
-          promotion: pricing.promotion ? {
-            id: pricing.promotion.id,
-            itemId: pricing.item.id,
-            title: pricing.promotion.title,
-            serviceId: pricing.item.serviceId,
-            startsAt: pricing.promotion.startsAt,
-            endsAt: pricing.promotion.endsAt,
-            regularPrice: originalServicePrice,
-            promotionalPrice: servicePrice,
-          } : null,
+          promotion: selection.entries.find((entry) => entry.promotion)?.promotion || null,
           birthdayReward: birthdayReward && birthdayDiscount > 0 ? {
             id: birthdayReward.id,
             year: birthdayReward.year,
@@ -909,12 +984,7 @@ export const createQuickPixBooking = async (req, res) => {
 
 export const createBookingPreference = async (req, res) => {
   try {
-    const { serviceId, paymentType, start, returnPath, promotionId, promotionItemId } = req.body;
-    const service = findServiceById(serviceId);
-
-    if (!service) {
-      return res.status(400).json({ error: 'Servico invalido.' });
-    }
+    const { serviceIds, serviceId, paymentType, start, returnPath, promotionId, promotionItemId } = req.body;
 
     if (!['deposit', 'full'].includes(paymentType)) {
       return res.status(400).json({ error: 'Escolha entrada de 30% ou pagamento total.' });
@@ -929,7 +999,15 @@ export const createBookingPreference = async (req, res) => {
       return res.status(400).json({ error: 'Horario invalido.' });
     }
 
-    const endTime = new Date(scheduledAt.getTime() + (service.durationMin || 60) * 60 * 1000);
+    const selection = await resolveServiceSelectionPricing({
+      serviceIds,
+      serviceId,
+      promotionId,
+      promotionItemId,
+      scheduledAt,
+    });
+    const service = selection.services[0];
+    const endTime = new Date(scheduledAt.getTime() + selection.totalDurationMinutes * 60 * 1000);
     const scheduleValidation = validateBookingWindow(scheduledAt, endTime);
 
     if (!scheduleValidation.valid) {
@@ -943,18 +1021,9 @@ export const createBookingPreference = async (req, res) => {
       return res.status(400).json({ error: leadTimeValidation.reason });
     }
 
-    const pricing = await getPromotionalServicePricing({
-      serviceId,
-      promotionId,
-      itemId: promotionItemId,
-      now: scheduledAt,
-    });
-
-    if ((promotionId || promotionItemId) && !pricing.promotion) {
-      return res.status(400).json({ error: 'Esta promocao nao vale para o dia e horario escolhidos. Escolha um horario dentro do periodo da promocao.' });
-    }
-
-    if (pricing.promotion && (scheduledAt < new Date(pricing.promotion.startsAt) || endTime > new Date(pricing.promotion.endsAt))) {
+    const invalidPromotionSchedule = selection.entries.some((entry) => entry.promotion
+      && (scheduledAt < new Date(entry.promotion.startsAt) || endTime > new Date(entry.promotion.endsAt)));
+    if (invalidPromotionSchedule) {
       return res.status(400).json({ error: 'Esta promocao nao vale para o dia e horario escolhidos. Escolha um horario dentro do periodo da promocao.' });
     }
 
@@ -976,8 +1045,8 @@ export const createBookingPreference = async (req, res) => {
       return res.status(409).json({ error: 'Este horario nao comporta a duracao desse servico porque interfere em outro agendamento. Escolha outro dia ou horario.' });
     }
 
-    const servicePrice = roundMoney(pricing.servicePrice);
-    const originalServicePrice = roundMoney(pricing.originalServicePrice);
+    const servicePrice = selection.servicePrice;
+    const originalServicePrice = selection.originalServicePrice;
     const birthdayReward = await getAvailableBirthdayReward(req.user.id);
     const birthdayDiscount = getBirthdayRewardDiscount(birthdayReward, servicePrice);
     const payableServicePrice = roundMoney(Math.max(servicePrice - birthdayDiscount, 0));
@@ -990,7 +1059,7 @@ export const createBookingPreference = async (req, res) => {
       data: {
         userId: req.user.id,
         serviceId: service.id,
-        serviceName: service.name,
+        serviceName: selection.serviceName,
         servicePrice,
         paymentType,
         amount,
@@ -1001,18 +1070,11 @@ export const createBookingPreference = async (req, res) => {
         holdExpiresAt,
         metadata: {
           minimumPercentage: MINIMUM_PERCENTAGE,
+          services: selection.entries,
+          totalDurationMinutes: selection.totalDurationMinutes,
           originalServicePrice,
           payableServicePrice,
-          promotion: pricing.promotion ? {
-            id: pricing.promotion.id,
-            itemId: pricing.item.id,
-            title: pricing.promotion.title,
-            serviceId: pricing.item.serviceId,
-            startsAt: pricing.promotion.startsAt,
-            endsAt: pricing.promotion.endsAt,
-            regularPrice: originalServicePrice,
-            promotionalPrice: servicePrice,
-          } : null,
+          promotion: selection.entries.find((entry) => entry.promotion)?.promotion || null,
           birthdayReward: birthdayReward && birthdayDiscount > 0 ? {
             id: birthdayReward.id,
             year: birthdayReward.year,
@@ -1036,16 +1098,9 @@ export const createBookingPreference = async (req, res) => {
             minimumPercentage: MINIMUM_PERCENTAGE,
             originalServicePrice,
             payableServicePrice,
-            promotion: pricing.promotion ? {
-              id: pricing.promotion.id,
-              itemId: pricing.item.id,
-              title: pricing.promotion.title,
-              serviceId: pricing.item.serviceId,
-              startsAt: pricing.promotion.startsAt,
-              endsAt: pricing.promotion.endsAt,
-              regularPrice: originalServicePrice,
-              promotionalPrice: servicePrice,
-            } : null,
+            services: selection.entries,
+            totalDurationMinutes: selection.totalDurationMinutes,
+            promotion: selection.entries.find((entry) => entry.promotion)?.promotion || null,
             birthdayReward: birthdayReward && birthdayDiscount > 0 ? {
               id: birthdayReward.id,
               year: birthdayReward.year,
@@ -1075,13 +1130,16 @@ export const createBookingPreference = async (req, res) => {
     const safeReturnPath = getSafeReturnPath(returnPath);
     const returnUrl = `${frontendUrl}${safeReturnPath}?bookingPaymentId=${bookingPayment.id}`;
     const backendUrl = getBackendUrl();
+    const checkoutServiceLabel = selection.serviceName.length > 140
+      ? `${selection.services.length} servicos selecionados`
+      : selection.serviceName;
     const preference = await mercadoPagoRequest('/checkout/preferences', {
       method: 'POST',
       body: JSON.stringify({
         items: [
           {
-            id: service.id,
-            title: `${service.name} - ${paymentType === 'full' ? 'pagamento total' : 'entrada de 30%'}${pricing.promotion ? ' promocional' : ''}${birthdayDiscount > 0 ? ' com desconto aniversario' : ''}`,
+            id: selection.services.map((item) => item.id).join(','),
+            title: `${checkoutServiceLabel} - ${paymentType === 'full' ? 'pagamento total' : 'entrada de 30%'}${selection.entries.some((entry) => entry.promotion) ? ' promocional' : ''}${birthdayDiscount > 0 ? ' com desconto aniversario' : ''}`,
             quantity: 1,
             currency_id: 'BRL',
             unit_price: amount,
@@ -1095,14 +1153,15 @@ export const createBookingPreference = async (req, res) => {
         metadata: {
           bookingPaymentId: bookingPayment.id,
           serviceId: service.id,
+          serviceIds: selection.services.map((item) => item.id).join(','),
           paymentType,
           userId: req.user.id,
           scheduledAt: scheduledAt.toISOString(),
           birthdayRewardId: birthdayReward?.id || '',
           birthdayDiscount,
           payableServicePrice,
-          promotionId: pricing.promotion?.id || '',
-          promotionItemId: pricing.item?.id || '',
+          promotionId: selection.entries.find((entry) => entry.promotion)?.promotion?.id || '',
+          promotionItemId: selection.entries.find((entry) => entry.promotion)?.promotion?.itemId || '',
         },
         back_urls: {
           success: `${returnUrl}&mpStatus=success`,

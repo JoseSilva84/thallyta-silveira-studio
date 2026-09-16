@@ -67,6 +67,8 @@ const readCheckoutDraft = () => {
 
 const writeCheckoutDraft = ({
   serviceId,
+  serviceIds = [],
+  services = [],
   paymentType,
   promotionId = '',
   promotionItemId = '',
@@ -79,6 +81,8 @@ const writeCheckoutDraft = ({
   try {
     window.localStorage?.setItem(BOOKING_CHECKOUT_DRAFT_KEY, JSON.stringify({
       serviceId,
+      serviceIds,
+      services,
       paymentType,
       promotionId,
       promotionItemId,
@@ -144,8 +148,14 @@ const formatPreferredSlotTime = (slot) => {
 const parseDurationMinutes = (duration) => {
   const text = String(duration || '')
   const hours = Number(text.match(/(\d+)\s*h/)?.[1] || 0)
-  const minutes = Number(text.match(/(\d+)\s*min/)?.[1] || 0)
+  const minutes = Number(text.match(/(\d+)\s*min/)?.[1] || text.match(/h\s*(\d+)/)?.[1] || 0)
   return hours * 60 + minutes || 60
+}
+
+const formatDurationMinutes = (minutes) => {
+  const hours = Math.floor(minutes / 60)
+  const remainingMinutes = minutes % 60
+  return [hours ? `${hours}h` : '', remainingMinutes ? `${remainingMinutes}min` : ''].filter(Boolean).join(' ') || '0min'
 }
 
 const getPromotionWindow = (service) => {
@@ -219,6 +229,11 @@ export default function Booking({ embedded = false } = {}) {
   })
   const bookingHash = embedded ? '#servicos' : '#agendamento'
   const selectedService = selectedServices[0] || null
+  const selectedServiceIds = useMemo(() => selectedServices.map((service) => service.id), [selectedServices])
+  const totalDurationMinutes = useMemo(
+    () => selectedServices.reduce((total, service) => total + parseDurationMinutes(service.duration), 0),
+    [selectedServices],
+  )
 
   const focusBookingSection = useCallback(() => {
     window.history.replaceState(null, '', bookingHash)
@@ -267,13 +282,14 @@ export default function Booking({ embedded = false } = {}) {
   }, [])
 
   useEffect(() => {
-    if (!selectedService?.promotionId || !preferredSlot?.start) return
-    if (isSlotInsidePromotion(selectedService, preferredSlot)) return
+    if (!preferredSlot?.start) return
+    const invalidPromotion = selectedServices.some((service) => service.promotionId && !isSlotInsidePromotion(service, preferredSlot))
+    if (!invalidPromotion) return
 
     window.localStorage?.removeItem(PREFERRED_SLOT_STORAGE_KEY)
     setPreferredSlot(null)
     window.dispatchEvent(new CustomEvent('booking:slot-selected', { detail: null }))
-  }, [preferredSlot, selectedService])
+  }, [preferredSlot, selectedServices])
 
   // Inicializa a API do Cal.com embed e escuta o evento de booking concluído
   useEffect(() => {
@@ -447,8 +463,9 @@ export default function Booking({ embedded = false } = {}) {
   const openScheduleFromPayment = useCallback((payment, options = {}) => {
     if (!payment) return
 
-    const paidService = allServices.find((service) => service.id === payment.service.id) || payment.service
-    addService(paidService)
+    const paidServices = (payment.services?.length ? payment.services : [payment.service])
+      .map((item) => allServices.find((service) => service.id === item.id) || item)
+    paidServices.forEach(addService)
     setBookingPayment(payment)
     setIsPaymentUnlocked(true)
     setPaymentType(payment.paymentType || 'deposit')
@@ -480,7 +497,7 @@ export default function Booking({ embedded = false } = {}) {
       document.getElementById('agenda')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
       return toast.info('Escolha o dia e horario na agenda para continuar.')
     }
-    if (selectedService?.promotionId && !isSlotInsidePromotion(selectedService, preferredSlot)) {
+    if (selectedServices.some((service) => service.promotionId && !isSlotInsidePromotion(service, preferredSlot))) {
       window.localStorage?.removeItem(PREFERRED_SLOT_STORAGE_KEY)
       window.dispatchEvent(new CustomEvent('booking:slot-selected', { detail: null }))
       document.getElementById('agenda')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -489,6 +506,8 @@ export default function Booking({ embedded = false } = {}) {
     if (selectedService) {
       writeCheckoutDraft({
         serviceId: selectedService.id,
+        serviceIds: selectedServiceIds,
+        services: selectedServices,
         paymentType,
         promotionId: selectedService.promotionId || '',
         promotionItemId: selectedService.promotionItemId || '',
@@ -526,6 +545,7 @@ export default function Booking({ embedded = false } = {}) {
         },
         body: JSON.stringify({
           serviceId: selectedService.id,
+          serviceIds: selectedServiceIds,
           paymentType,
           start: preferredSlot.start,
           promotionId: selectedService.promotionId || undefined,
@@ -546,7 +566,7 @@ export default function Booking({ embedded = false } = {}) {
     } finally {
       setCreatingPayment(false)
     }
-  }, [getToken, paymentType, preferredSlot?.start, selectedService, selectedServices.length, setLoginOpen, user])
+  }, [getToken, paymentType, preferredSlot?.start, selectedService, selectedServiceIds, selectedServices, setLoginOpen, user])
 
   useEffect(() => {
     if (scheduleRequestId === lastScheduleRequest.current) return
@@ -558,10 +578,13 @@ export default function Booking({ embedded = false } = {}) {
     if (restoredCheckoutDraftRef.current) return
 
     const draft = readCheckoutDraft()
-    if (!draft?.serviceId) return
+    const draftServiceIds = draft?.serviceIds?.length ? draft.serviceIds : draft?.serviceId ? [draft.serviceId] : []
+    if (!draftServiceIds.length) return
 
-    const baseService = allServices.find((item) => item.id === draft.serviceId)
-    const service = baseService && draft.promotionId
+    const restoredServices = draftServiceIds.map((serviceId) => {
+      const storedService = draft.services?.find((item) => item.id === serviceId)
+      const baseService = allServices.find((item) => item.id === serviceId)
+      const service = baseService && serviceId === draft.serviceId && draft.promotionId
       ? {
           ...baseService,
           price: draft.promotionPrice ? `R$ ${Number(draft.promotionPrice).toFixed(2).replace('.', ',')}` : baseService.price,
@@ -573,13 +596,15 @@ export default function Booking({ embedded = false } = {}) {
           promotionEndsAt: draft.promotionEndsAt || '',
         }
       : baseService
-    if (!service) {
+      return storedService ? { ...service, ...storedService } : service
+    }).filter(Boolean)
+    if (!restoredServices.length) {
       clearCheckoutDraft()
       return
     }
 
     restoredCheckoutDraftRef.current = true
-    addService(service)
+    restoredServices.forEach(addService)
     setPaymentType(draft.paymentType || 'deposit')
     if (draft.continueAfterLogin) focusBookingSection()
   }, [addService, focusBookingSection, setPaymentType])
@@ -587,11 +612,13 @@ export default function Booking({ embedded = false } = {}) {
   useEffect(() => {
     const draft = readCheckoutDraft()
     if (!user || !draft?.continueAfterLogin || autoProceedAfterLoginRef.current) return
-    if (!selectedService || selectedService.id !== draft.serviceId) return
+    if (!selectedService || !selectedServiceIds.includes(draft.serviceId)) return
 
     autoProceedAfterLoginRef.current = true
     writeCheckoutDraft({
       serviceId: selectedService.id,
+      serviceIds: selectedServiceIds,
+      services: selectedServices,
       paymentType,
       promotionId: selectedService.promotionId || '',
       promotionItemId: selectedService.promotionItemId || '',
@@ -602,7 +629,7 @@ export default function Booking({ embedded = false } = {}) {
       continueAfterLogin: false,
     })
     handleProceed()
-  }, [handleProceed, paymentType, selectedService, user])
+  }, [handleProceed, paymentType, selectedService, selectedServiceIds, selectedServices, user])
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -989,8 +1016,8 @@ export default function Booking({ embedded = false } = {}) {
                 <div className="space-y-8">
                   {!embedded && (
                   <section aria-labelledby="booking-services">
-                    <h3 id="booking-services" className="mb-4 font-display text-3xl">1. Escolha seu serviço</h3>
-                    <p className="mb-6 text-cream/60 text-sm">Selecione um serviço por agendamento para abrir a agenda com a duração correta.</p>
+                    <h3 id="booking-services" className="mb-4 font-display text-3xl">1. Escolha seus serviços</h3>
+                    <p className="mb-6 text-cream/60 text-sm">Selecione quantos serviços quiser. A agenda considerará a duração total do atendimento.</p>
                     <div className="grid min-w-0 gap-4 md:grid-cols-2">
                       {allServices.map((service) => {
                         const isSelected = selectedServices.some((item) => item.id === service.id)
@@ -1048,15 +1075,15 @@ export default function Booking({ embedded = false } = {}) {
                     </div>
                     <div className="mt-4 space-y-3 rounded-xl border border-white/5 bg-white/5 p-5 text-sm">
                       <div>
-                        <span className="block text-xs font-bold uppercase tracking-wider text-gold-light/80">Serviço Selecionado</span>
+                        <span className="block text-xs font-bold uppercase tracking-wider text-gold-light/80">Serviços selecionados</span>
                         <span className="mt-1 block font-medium text-cream">
                           {selectedServices.map((item) => item.name).join(', ') || 'Nenhum selecionado'}
                         </span>
                       </div>
-                      {selectedService?.duration && (
+                      {selectedServices.length > 0 && (
                         <div>
-                          <span className="block text-xs font-bold uppercase tracking-wider text-gold-light/80">Duração</span>
-                          <span className="mt-1 block font-medium text-cream">{selectedService.duration}</span>
+                          <span className="block text-xs font-bold uppercase tracking-wider text-gold-light/80">Duração total</span>
+                          <span className="mt-1 block font-medium text-cream">{formatDurationMinutes(totalDurationMinutes)}</span>
                         </div>
                       )}
                       {selectedServices.length > 0 && (

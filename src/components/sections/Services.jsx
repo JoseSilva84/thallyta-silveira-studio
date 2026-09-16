@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { FiX } from 'react-icons/fi'
 import { toast } from 'react-toastify'
 import { serviceGroups } from '../../data/services.js'
 import { useBooking } from '../../context/BookingContext.jsx'
@@ -32,10 +33,10 @@ const getErrorMessage = (error, fallback = 'Ocorreu um erro. Tente novamente.') 
   return fallback
 }
 
-const isSlotAvailableForService = async (service, preferredSlot) => {
-  if (!service?.id || !preferredSlot?.start) return true
+const isSlotAvailableForServices = async (services, preferredSlot) => {
+  if (!services.length || !preferredSlot?.start) return true
 
-  const params = new URLSearchParams({ days: '30', serviceId: service.id })
+  const params = new URLSearchParams({ days: '30', serviceIds: services.map((service) => service.id).join(',') })
   const res = await fetch(`${API}/bookings/public-agenda?${params.toString()}`)
   const data = await res.json().catch(() => ({}))
 
@@ -50,14 +51,19 @@ const isSlotAvailableForService = async (service, preferredSlot) => {
 export default function Services() {
   const [active, setActive] = useState(serviceGroups[0].id)
   const [validatingServiceId, setValidatingServiceId] = useState('')
-  const { addService } = useBooking()
+  const [askAnotherService, setAskAnotherService] = useState(false)
+  const { addService, removeService, selectedServices } = useBooking()
   const group = serviceGroups.find((item) => item.id === active)
   const handleAddService = async (service) => {
+    if (selectedServices.some((item) => item.id === service.id)) {
+      setAskAnotherService(true)
+      return
+    }
     const preferredSlot = readPreferredSlot()
 
     try {
       setValidatingServiceId(service.id)
-      const canUseSelectedSlot = await isSlotAvailableForService(service, preferredSlot)
+      const canUseSelectedSlot = await isSlotAvailableForServices([...selectedServices, service], preferredSlot)
 
       if (!canUseSelectedSlot) {
         clearPreferredSlot()
@@ -67,19 +73,19 @@ export default function Services() {
       }
 
       addService(service)
-      const scrollToCheckout = () => {
-        const el = document.getElementById('servicos-checkout')
-        if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-        }
-      }
-      window.setTimeout(scrollToCheckout, 150)
-      window.setTimeout(scrollToCheckout, 400)
+      setAskAnotherService(true)
     } catch (error) {
       toast.error(getErrorMessage(error, 'Nao foi possivel validar esse horario.'))
     } finally {
       setValidatingServiceId('')
     }
+  }
+
+  const finishServiceSelection = () => {
+    setAskAnotherService(false)
+    window.setTimeout(() => {
+      document.getElementById('servicos-checkout')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 80)
   }
 
   return (
@@ -113,10 +119,44 @@ export default function Services() {
                   />
                 ))}
               </div>
+              {selectedServices.length > 0 && (
+                <div className="mt-8 rounded-2xl border border-gold/20 bg-gold/10 p-4">
+                  <p className="text-xs font-bold uppercase tracking-wider text-gold-light/75">Serviços escolhidos</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {selectedServices.map((service) => (
+                      <button
+                        key={service.id}
+                        type="button"
+                        onClick={() => removeService(service.id)}
+                        className="inline-flex items-center gap-2 rounded-full border border-gold/30 bg-black/25 px-3 py-2 text-sm font-semibold text-cream transition-colors hover:bg-red-500/10 hover:text-red-100"
+                        aria-label={`Remover ${service.name}`}
+                      >
+                        {service.name} <FiX />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <Booking embedded />
             </div>
           </div>
         </Reveal>
+        {askAnotherService && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="add-another-service-title">
+            <div className="w-full max-w-md rounded-[2rem] border border-gold/30 bg-dark-card p-6 text-center shadow-2xl">
+              <h3 id="add-another-service-title" className="font-display text-3xl text-gold-light">Deseja adicionar mais um serviço?</h3>
+              <p className="mt-2 text-sm text-cream/65">Você pode escolher quantos serviços quiser para este mesmo horário.</p>
+              <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                <button type="button" onClick={() => setAskAnotherService(false)} className="rounded-xl border border-gold/30 px-5 py-3 font-bold text-gold-light transition-colors hover:bg-gold/10">
+                  Sim
+                </button>
+                <button type="button" onClick={finishServiceSelection} className="gold-button rounded-xl px-5 py-3 font-bold">
+                  Não, ir ao resumo
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </section>
   )

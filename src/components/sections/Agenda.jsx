@@ -14,7 +14,7 @@ const DESKTOP_DATE_PAGE_SIZE = 14
 const parseDurationMinutes = (duration) => {
   const text = String(duration || '')
   const hours = Number(text.match(/(\d+)\s*h/)?.[1] || 0)
-  const minutes = Number(text.match(/(\d+)\s*min/)?.[1] || 0)
+  const minutes = Number(text.match(/(\d+)\s*min/)?.[1] || text.match(/h\s*(\d+)/)?.[1] || 0)
   return hours * 60 + minutes || 60
 }
 
@@ -59,6 +59,11 @@ export default function Agenda() {
   const timeCardRef = useRef(null)
   const dateSwipeRef = useRef({ x: 0, y: 0 })
   const selectedService = selectedServices[0] || null
+  const selectedServiceIds = useMemo(() => selectedServices.map((service) => service.id).join(','), [selectedServices])
+  const selectedDurationMinutes = useMemo(
+    () => selectedServices.reduce((total, service) => total + parseDurationMinutes(service.duration), 0),
+    [selectedServices],
+  )
   const promotionWindow = useMemo(() => getPromotionWindow(selectedService), [selectedService])
   const promotionDateKeys = useMemo(() => {
     if (!promotionWindow) return null
@@ -78,7 +83,7 @@ export default function Agenda() {
   }, [promotionWindow])
   const filteredAvailabilityDays = useMemo(() => {
     if (!promotionWindow || !promotionDateKeys?.length) return availabilityDays
-    const serviceDurationMs = parseDurationMinutes(selectedService?.duration) * 60 * 1000
+    const serviceDurationMs = selectedDurationMinutes * 60 * 1000
     return availabilityDays
       .filter((day) => promotionDateKeys.includes(day.date))
       .map((day) => ({
@@ -89,14 +94,14 @@ export default function Agenda() {
           return slotStart >= promotionWindow.startsAt && slotEnd <= promotionWindow.endsAt
         }),
       }))
-  }, [availabilityDays, promotionDateKeys, promotionWindow, selectedService?.duration])
+  }, [availabilityDays, promotionDateKeys, promotionWindow, selectedDurationMinutes])
 
   const fetchAgenda = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
       const params = new URLSearchParams({ days: '30' })
-      if (selectedService?.id) params.set('serviceId', selectedService.id)
+      if (selectedServiceIds) params.set('serviceIds', selectedServiceIds)
       const res = await fetch(`${API}/bookings/public-agenda?${params.toString()}`)
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || 'Erro ao carregar agenda.')
@@ -107,7 +112,7 @@ export default function Agenda() {
     } finally {
       setLoading(false)
     }
-  }, [selectedService?.id])
+  }, [selectedServiceIds])
 
   useEffect(() => {
     fetchAgenda()
