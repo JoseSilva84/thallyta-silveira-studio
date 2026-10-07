@@ -221,8 +221,45 @@ async function handleBookingCreated(payload) {
   }
 
   if (isTruthyMetadata(payload.metadata?.adminCreated)) {
-    const bookingData = extractBookingDataFromPayload(payload, uid);
+    const sourceBookingId = payload.metadata?.bookingId || payload.metadata?.restoredBookingId;
+    const updatesExistingBooking = isTruthyMetadata(payload.metadata?.restoredBooking)
+      || isTruthyMetadata(payload.metadata?.syncedFromFallback);
+    const sourceBooking = sourceBookingId && updatesExistingBooking
+      ? await prisma.booking.findUnique({ where: { id: sourceBookingId } })
+      : null;
+    const bookingData = extractBookingDataFromPayload(payload, uid, sourceBooking?.paymentId || null);
     const userId = await findUserIdByEmail(bookingData.attendeeEmail);
+
+    // Ao descancelar, o Cal.com cria um novo evento. Atualizamos o registro
+    // original para o novo UID em vez de criar um agendamento duplicado.
+    if (sourceBooking) {
+      const booking = await prisma.booking.update({
+        where: { id: sourceBooking.id },
+        data: {
+          ...bookingData,
+          userId: sourceBooking.userId || userId,
+          service: sourceBooking.service || bookingData.service,
+          estimatedValue: sourceBooking.estimatedValue ?? bookingData.estimatedValue,
+          scheduledAt: sourceBooking.scheduledAt,
+          endTime: sourceBooking.endTime || bookingData.endTime,
+          notes: sourceBooking.notes || bookingData.notes,
+          calPayload: {
+            ...(sourceBooking.calPayload || {}),
+            restoredByAdmin: isTruthyMetadata(payload.metadata?.restoredBooking),
+            restoredCalPayload: payload,
+          },
+        },
+        include: {
+          user: {
+            select: { id: true, name: true, email: true, whatsappPhone: true },
+          },
+          payment: true,
+        },
+      });
+
+      console.log(`Booking admin restaurado via webhook: ${booking.id} (novo Cal UID: ${uid})`);
+      return;
+    }
 
     const booking = await prisma.booking.create({
       data: {

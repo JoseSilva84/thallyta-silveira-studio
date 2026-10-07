@@ -1,7 +1,7 @@
 import prisma from '../config/prisma.js';
 import { confirmCalBooking, createCalBooking } from '../services/calService.js';
 import { syncBookingToCalById } from '../services/calSyncService.js';
-import { findServiceById } from '../data/services.js';
+import { findServiceById, services } from '../data/services.js';
 import { ensureBookingClientNotification, notifyBookingCreated, notifyMaintenanceReminder, resendBookingClientNotification } from '../services/whatsappService.js';
 import { buildPublicAgendaDays, validateBookingWindow } from '../utils/bookingHours.js';
 import { randomUUID } from 'node:crypto';
@@ -693,6 +693,7 @@ export const restoreCancelledBooking = async (req, res) => {
 
     const booking = await prisma.booking.findUnique({
       where: { id: req.params.id },
+      include: bookingInclude,
     });
 
     if (!booking) {
@@ -708,14 +709,86 @@ export const restoreCancelledBooking = async (req, res) => {
       return res.status(409).json({ error: 'Nao foi possivel descancelar: este horario ja esta ocupado ou bloqueado.' });
     }
 
+    const firstServiceName = String(booking.service || '').split(',')[0]?.trim().toLowerCase();
+    const service = findServiceById(booking.payment?.serviceId)
+      || services.find((item) => item.name.toLowerCase() === firstServiceName)
+      || null;
+    const restoredAt = new Date();
+    const restorationNote = `Descancelado pela admin em ${restoredAt.toLocaleString('pt-BR', { timeZone: 'America/Fortaleza' })}.`;
+    const restoredNotes = [booking.notes, restorationNote].filter(Boolean).join('\n');
+
+    let calBooking;
+    try {
+      calBooking = await createCalBooking({
+        eventTypeSlug: service?.calSlug || 'servicos-gerais',
+        start: booking.scheduledAt.toISOString(),
+        attendeeName: booking.attendeeName || booking.user?.name || 'Cliente',
+        attendeeEmail: booking.attendeeEmail || booking.user?.email,
+        attendeePhone: booking.attendeePhone || booking.user?.whatsappPhone,
+        notes: restoredNotes,
+        adminCreated: true,
+        metadata: {
+          bookingId: booking.id,
+          restoredBookingId: booking.id,
+          restoredBooking: true,
+          bookingPaymentId: booking.paymentId || '',
+          serviceId: booking.payment?.serviceId || service?.id || '',
+          serviceName: booking.service || service?.name || 'Servico',
+          serviceNames: booking.service || service?.name || 'Servico',
+          estimatedValue: Number(booking.estimatedValue || 0).toFixed(2),
+          attendeeWhatsapp: booking.attendeePhone || booking.user?.whatsappPhone || '',
+          paymentType: booking.payment?.paymentType || 'admin_manual',
+          paidAmount: Number(booking.payment?.amount || 0).toFixed(2),
+        },
+      });
+    } catch (error) {
+      console.error('Erro ao recriar agendamento cancelado no Cal.com:', {
+        bookingId: booking.id,
+        error: error.message,
+      });
+      return res.status(502).json({
+        error: 'Nao foi possivel recriar o horario no Cal.com. O agendamento continua cancelado.',
+      });
+    }
+
+    let calConfirmation = null;
+    let calConfirmationError = null;
+    try {
+      const confirmed = await confirmCalBooking(calBooking.uid);
+      calConfirmation = {
+        confirmedAt: new Date().toISOString(),
+        confirmedBy: req.user.id,
+        status: confirmed?.status || 'accepted',
+        alreadyConfirmed: Boolean(confirmed?.alreadyConfirmed),
+        automatic: true,
+      };
+    } catch (error) {
+      calConfirmationError = error.message || 'Erro ao confirmar no Cal.com.';
+      console.error('Agendamento recriado, mas a confirmacao no Cal.com falhou:', {
+        bookingId: booking.id,
+        calEventId: calBooking.uid,
+        error: calConfirmationError,
+      });
+    }
+
     const updated = await prisma.booking.update({
       where: { id: booking.id },
       data: {
+        calEventId: calBooking.uid,
+        scheduledAt: booking.scheduledAt,
+        endTime,
         status: 'confirmed',
-        notes: [
-          booking.notes,
-          `Descancelado pela admin em ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Fortaleza' })}.`,
-        ].filter(Boolean).join('\n'),
+        notes: restoredNotes,
+        calPayload: {
+          ...(booking.calPayload || {}),
+          previousCancelledCalEventId: booking.calEventId,
+          restoredByAdmin: true,
+          restoredAt: restoredAt.toISOString(),
+          calBooking,
+          calConfirmation,
+          calConfirmationError,
+          calendarFallback: false,
+        },
       },
       include: bookingInclude,
     });
