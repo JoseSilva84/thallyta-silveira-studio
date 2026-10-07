@@ -2084,6 +2084,7 @@ export default function AdminPanel() {
             onUndoCompleteService={handleUndoCompleteService}
             onMarkNoShow={handleMarkNoShow}
             onCancelBooking={handleCancelBooking}
+            onRestoreCancelledBooking={handleRestoreCancelledBooking}
             onMarkRemainingPaid={handleMarkRemainingPaid}
           />
         )}
@@ -2098,6 +2099,7 @@ export default function AdminPanel() {
             onUndoCompleteService={handleUndoCompleteService}
             onMarkNoShow={handleMarkNoShow}
             onCancelBooking={handleCancelBooking}
+            onRestoreCancelledBooking={handleRestoreCancelledBooking}
             onMarkRemainingPaid={handleMarkRemainingPaid}
             onDeleteClient={handleDeleteClient}
             onUpdateClientWhatsapp={handleUpdateClientWhatsapp}
@@ -4614,7 +4616,7 @@ function SmallStat({ label, value, tone = 'default' }) {
   );
 }
 
-function LoyaltyAdminView({ clients, pendingBookings, onCompleteService, onUndoCompleteService, onMarkNoShow, onCancelBooking, onMarkRemainingPaid }) {
+function LoyaltyAdminView({ clients, pendingBookings, onCompleteService, onUndoCompleteService, onMarkNoShow, onCancelBooking, onRestoreCancelledBooking, onMarkRemainingPaid }) {
   return (
     <div className="space-y-6">
       <section className="rounded-2xl border border-amber-300/20 bg-amber-300/10 p-5">
@@ -4713,6 +4715,8 @@ function LoyaltyAdminView({ clients, pendingBookings, onCompleteService, onUndoC
                         onCompleteService={onCompleteService}
                         onUndoCompleteService={onUndoCompleteService}
                         onMarkNoShow={onMarkNoShow}
+                        onCancelBooking={onCancelBooking}
+                        onRestoreCancelledBooking={onRestoreCancelledBooking}
                         onMarkRemainingPaid={onMarkRemainingPaid}
                       />
                     </div>
@@ -5920,7 +5924,7 @@ function buildCrmInsights(clients, stats) {
   };
 }
 
-function ClientsView({ clients, search, setSearch, statusBadge, onCompleteService, onUndoCompleteService, onMarkNoShow, onMarkRemainingPaid, onDeleteClient, onUpdateClientWhatsapp, onUpdateClientBirthday, onResendMaintenanceReminder, sendingMaintenanceReminderKeys = {}, birthdayCount, onOpenBirthdays }) {
+function ClientsView({ clients, search, setSearch, statusBadge, onCompleteService, onUndoCompleteService, onMarkNoShow, onCancelBooking, onRestoreCancelledBooking, onMarkRemainingPaid, onDeleteClient, onUpdateClientWhatsapp, onUpdateClientBirthday, onResendMaintenanceReminder, sendingMaintenanceReminderKeys = {}, birthdayCount, onOpenBirthdays }) {
   const [selectedKey, setSelectedKey] = useState(null);
   const [editingWhatsappKey, setEditingWhatsappKey] = useState(null);
   const [whatsappDraft, setWhatsappDraft] = useState('');
@@ -6283,6 +6287,8 @@ function ClientsView({ clients, search, setSearch, statusBadge, onCompleteServic
                         onCompleteService={onCompleteService}
                         onUndoCompleteService={onUndoCompleteService}
                         onMarkNoShow={onMarkNoShow}
+                        onCancelBooking={onCancelBooking}
+                        onRestoreCancelledBooking={onRestoreCancelledBooking}
                         onMarkRemainingPaid={onMarkRemainingPaid}
                       />
                     </div>
@@ -6317,6 +6323,8 @@ function ClientsView({ clients, search, setSearch, statusBadge, onCompleteServic
           onCompleteService={onCompleteService}
           onUndoCompleteService={onUndoCompleteService}
           onMarkNoShow={onMarkNoShow}
+          onCancelBooking={onCancelBooking}
+          onRestoreCancelledBooking={onRestoreCancelledBooking}
           onMarkRemainingPaid={onMarkRemainingPaid}
           onResendMaintenanceReminder={onResendMaintenanceReminder}
           sendingMaintenanceReminderKeys={sendingMaintenanceReminderKeys}
@@ -6350,6 +6358,8 @@ function MobileClientDetailsModal({
   onCompleteService,
   onUndoCompleteService,
   onMarkNoShow,
+  onCancelBooking,
+  onRestoreCancelledBooking,
   onMarkRemainingPaid,
   onResendMaintenanceReminder,
   sendingMaintenanceReminderKeys = {},
@@ -6489,6 +6499,8 @@ function MobileClientDetailsModal({
                           onCompleteService={onCompleteService}
                           onUndoCompleteService={onUndoCompleteService}
                           onMarkNoShow={onMarkNoShow}
+                          onCancelBooking={onCancelBooking}
+                          onRestoreCancelledBooking={onRestoreCancelledBooking}
                           onMarkRemainingPaid={onMarkRemainingPaid}
                         />
                       </div>
