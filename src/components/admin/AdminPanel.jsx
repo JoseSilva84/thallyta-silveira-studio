@@ -726,24 +726,30 @@ export default function AdminPanel() {
   };
 
   const handleRestoreCancelledBooking = async (booking) => {
-    showConfirmToast({
-      message: 'Descancelar este agendamento e voltar ele para a agenda?',
-      confirmLabel: 'Descancelar',
-      onConfirm: async () => {
-        try {
-          const res = await fetch(`${API}/bookings/${booking.id}/restore-cancelled`, {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${getToken()}` },
-          });
-          const data = await res.json().catch(() => ({}));
-          if (!res.ok) throw new Error(data.error || 'Erro ao descancelar agendamento');
-          updateBookingInList(data);
-          toast.success('Agendamento descancelado e voltou para a agenda.');
-        } catch (error) {
-          toast.error(error.message);
-        }
-      },
-    });
+    const toastId = toast.loading('Restaurando agendamento...');
+
+    try {
+      const res = await fetch(`${API}/bookings/${booking.id}/restore-cancelled`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Erro ao descancelar agendamento');
+      updateBookingInList(data);
+      toast.update(toastId, {
+        render: 'Agendamento descancelado e voltou para a agenda.',
+        type: 'success',
+        isLoading: false,
+        autoClose: 3500,
+      });
+    } catch (error) {
+      toast.update(toastId, {
+        render: error.message || 'Erro ao descancelar agendamento.',
+        type: 'error',
+        isLoading: false,
+        autoClose: 6000,
+      });
+    }
   };
 
   const handleMarkRemainingPaid = async (booking) => {
