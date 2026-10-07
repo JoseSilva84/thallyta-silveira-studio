@@ -600,7 +600,7 @@ export const syncBookingToCal = async (req, res) => {
   }
 };
 
-const cancelOnCal = async (booking) => {
+const cancelOnCal = async (booking, cancellationReason) => {
   const apiKey = process.env.CAL_API_KEY;
   if (!apiKey || !booking.calEventId) return { skipped: true };
 
@@ -613,7 +613,7 @@ const cancelOnCal = async (booking) => {
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      cancellationReason: 'Cancelado pelo cliente no site.',
+      cancellationReason,
     }),
   });
 
@@ -653,7 +653,12 @@ export const cancelBooking = async (req, res) => {
     }
 
     try {
-      await cancelOnCal(booking);
+      await cancelOnCal(
+        booking,
+        req.user.role === 'ADMIN'
+          ? 'Cancelado pela administradora do studio.'
+          : 'Cancelado pelo cliente no site.',
+      );
     } catch (error) {
       console.error('Erro ao cancelar no Cal.com:', error);
       return res.status(502).json({ error: 'Nao foi possivel cancelar no calendário. Tente novamente.' });
@@ -663,7 +668,12 @@ export const cancelBooking = async (req, res) => {
       where: { id: booking.id },
       data: {
         status: 'cancelled',
-        notes: [booking.notes, 'Cancelado pelo cliente no site.'].filter(Boolean).join('\n'),
+        notes: [
+          booking.notes,
+          req.user.role === 'ADMIN'
+            ? 'Cancelado pela administradora do studio.'
+            : 'Cancelado pelo cliente no site.',
+        ].filter(Boolean).join('\n'),
       },
       include: bookingInclude,
     });

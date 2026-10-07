@@ -255,7 +255,13 @@ async function handleBookingCreated(payload) {
     bookingPayment = await prisma.bookingPayment.findUnique({ where: { id: bookingPaymentId } });
   }
 
-  if (!bookingPayment || bookingPayment.status !== 'approved' || bookingPayment.amount < bookingPayment.minimumAmount) {
+  const isQuickPixBooking = bookingPayment?.paymentType === 'quick_pix';
+  const hasApprovedMinimum = bookingPayment?.status === 'approved'
+    && bookingPayment.amount >= bookingPayment.minimumAmount;
+
+  // No agendamento rapido o PIX e conferido manualmente pela dona no WhatsApp.
+  // Por isso, a reserva e valida mesmo enquanto o pagamento estiver pendente.
+  if (!bookingPayment || (!isQuickPixBooking && !hasApprovedMinimum)) {
     console.error('Booking recebido sem pagamento minimo aprovado. Cancelando/ignorando.', {
       uid,
       bookingPaymentId,
