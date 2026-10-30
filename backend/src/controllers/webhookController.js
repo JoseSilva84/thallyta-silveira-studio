@@ -46,6 +46,7 @@ export const handleWahaWebhook = async (req, res) => {
       data: {
         status,
         error,
+        provider: 'waha',
         providerAck: Number.isInteger(payload.ack) ? payload.ack : null,
         providerAckName: ackName,
         resolvedTarget: payload.from || payload.to || undefined,

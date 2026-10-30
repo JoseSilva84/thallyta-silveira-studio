@@ -213,9 +213,17 @@ CLOUDINARY_API_KEY=
 CLOUDINARY_API_SECRET=
 
 WHATSAPP_ENABLED=false
+WAHA_ENABLED=true
 WAHA_BASE_URL=
 WAHA_API_KEY=
 WAHA_SESSION=default
+WAHA_TIMEOUT_MS=15000
+WHATSAPP_FALLBACK_ENABLED=false
+ZPRO_ENABLED=false
+ZPRO_BASE_URL=
+ZPRO_API_ID=
+ZPRO_API_TOKEN=
+ZPRO_TIMEOUT_MS=15000
 OWNER_WHATSAPP=
 SEND_CLIENT_WHATSAPP=false
 SEND_CLIENT_REMINDER_WHATSAPP=false
@@ -351,17 +359,37 @@ Usado para upload/listagem/exclusão das imagens da galeria administrativa. Conf
 - `CLOUDINARY_API_KEY`
 - `CLOUDINARY_API_SECRET`
 
-### WhatsApp/WAHA
+### WhatsApp (WAHA + fallback ZPro/Baileys)
 
-Opcional. Controlado por:
+O WAHA permanece como provedor principal. Quando o fallback esta ativo e o WAHA
+esta sem configuracao, desconectado, excede o timeout ou retorna erro, o backend
+tenta a API externa do ZPro/Baileys automaticamente.
+
+Variaveis gerais e do WAHA:
 
 - `WHATSAPP_ENABLED`
+- `WAHA_ENABLED` (use `false` para pular o WAHA e ir direto ao fallback)
 - `WAHA_BASE_URL`
 - `WAHA_API_KEY`
 - `WAHA_SESSION`
+- `WAHA_TIMEOUT_MS`
 - `OWNER_WHATSAPP`
 - `SEND_CLIENT_WHATSAPP`
 - `SEND_CLIENT_REMINDER_WHATSAPP`
+
+Variaveis do fallback ZPro:
+
+- `WHATSAPP_FALLBACK_ENABLED`
+- `ZPRO_ENABLED`
+- `ZPRO_BASE_URL` (URL publica do backend/API do ZPro, sem `/v2/api/external`)
+- `ZPRO_API_ID`
+- `ZPRO_API_TOKEN`
+- `ZPRO_TIMEOUT_MS`
+
+O endpoint utilizado e `POST {ZPRO_BASE_URL}/v2/api/external/{ZPRO_API_ID}`.
+O token e enviado somente no cabecalho `Authorization: Bearer` e nunca deve ser
+exposto no frontend. Cada envio registra o provedor (`waha` ou `zpro`) e o ID da
+mensagem no `NotificationLog`.
 
 ## PWA e SEO
 
@@ -430,8 +458,9 @@ Tarefas comuns:
 - Trocar `JWT_SECRET`, `SESSION_SECRET` e `ADMIN_PASSWORD` antes de usar em produção.
 - Usar HTTPS em produção.
 - Conferir URLs públicas de frontend/backend antes de ativar Google OAuth e Mercado Pago.
-- Manter `MP_ACCESS_TOKEN`, `CAL_API_KEY`, chaves Cloudinary e WAHA apenas no backend.
+- Manter `MP_ACCESS_TOKEN`, `CAL_API_KEY`, chaves Cloudinary, WAHA e `ZPRO_API_TOKEN` apenas no backend.
 
 ## Status dos Testes
 
-Não há suíte de testes automatizados configurada neste momento. O script `backend/npm test` ainda é apenas um placeholder.
+O backend possui testes automatizados do roteamento WhatsApp entre WAHA e ZPro.
+Execute com `cd backend && npm test`.

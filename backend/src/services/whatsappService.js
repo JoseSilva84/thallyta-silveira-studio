@@ -1,3 +1,5 @@
+import { sendWhatsAppText } from './whatsappProviders.js';
+
 const enabled = () => process.env.WHATSAPP_ENABLED === 'true';
 
 const normalizePhone = (value) => {
@@ -9,39 +11,6 @@ const normalizePhone = (value) => {
 const toChatId = (phone) => {
   const normalized = normalizePhone(phone);
   return normalized ? `${normalized}@c.us` : null;
-};
-
-const getWahaConfig = () => ({
-  baseUrl: process.env.WAHA_BASE_URL?.replace(/\/$/, ''),
-  apiKey: process.env.WAHA_API_KEY,
-  session: process.env.WAHA_SESSION || 'default',
-});
-
-const resolveChatId = async (chatId) => {
-  const { baseUrl, apiKey, session } = getWahaConfig();
-  const phone = String(chatId || '').replace(/@c\.us$/, '').replace(/\D/g, '');
-  const url = new URL(`${baseUrl}/api/contacts/check-exists`);
-  url.searchParams.set('phone', phone);
-  url.searchParams.set('session', session);
-
-  const response = await fetch(url, {
-    headers: {
-      Accept: 'application/json',
-      'X-Api-Key': apiKey,
-    },
-  });
-
-  if (!response.ok) {
-    const details = await response.text();
-    throw new Error(details || `WAHA retornou HTTP ${response.status} ao validar o numero`);
-  }
-
-  const result = await response.json();
-  if (!result.numberExists || !result.chatId) {
-    throw new Error(`O numero ${phone} nao foi encontrado no WhatsApp`);
-  }
-
-  return result.chatId;
 };
 
 const formatDateTime = (date) => {
@@ -92,42 +61,10 @@ const getPaymentSummary = (booking) => {
   };
 };
 
-const sendText = async ({ chatId, text }) => {
-  if (!enabled()) return { skipped: true, reason: 'WHATSAPP_ENABLED=false' };
-
-  const { baseUrl, apiKey, session } = getWahaConfig();
-
-  if (!baseUrl || !apiKey) {
-    return { skipped: true, reason: 'WAHA_BASE_URL ou WAHA_API_KEY ausente' };
-  }
-
-  const resolvedChatId = await resolveChatId(chatId);
-  if (resolvedChatId !== chatId) {
-    console.log(`WhatsApp ajustado pela WAHA: ${chatId} -> ${resolvedChatId}`);
-  }
-
-  const response = await fetch(`${baseUrl}/api/sendText`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      'X-Api-Key': apiKey,
-    },
-    body: JSON.stringify({ chatId: resolvedChatId, text, session }),
-  });
-
-  if (!response.ok) {
-    const details = await response.text();
-    throw new Error(details || `WAHA retornou HTTP ${response.status}`);
-  }
-
-  const result = await response.json().catch(() => ({ ok: true }));
-  console.log(`WhatsApp aceito pela WAHA para ${resolvedChatId}`);
-  return { ...result, resolvedChatId };
-};
+const sendText = sendWhatsAppText;
 
 const getProviderMessageId = (result) => {
-  const id = result?.id || result?._data?.id;
+  const id = result?.providerMessageId || result?.messageId || result?.id || result?._data?.id;
   if (!id) return null;
   if (typeof id === 'string') return id;
   return id._serialized || id.id || null;
@@ -313,7 +250,8 @@ const buildClientDeliveryFailureAlertMessage = (booking, log) => {
     ...buildBookingSummaryLines(booking),
     '',
     `WhatsApp tentado: ${log.target}`,
-    log.resolvedTarget ? `Contato WAHA: ${log.resolvedTarget}` : null,
+    log.provider ? `Provedor: ${String(log.provider).toUpperCase()}` : null,
+    log.resolvedTarget ? `Contato do provedor: ${log.resolvedTarget}` : null,
     `Tentativas automaticas: ${log.retryCount}`,
     log.error ? `Erro: ${log.error}` : null,
     '',
@@ -352,6 +290,7 @@ const logNotification = async (prisma, data) => {
     update: {
       status: data.status,
       error: data.error,
+      provider: data.provider,
       providerMessageId: data.providerMessageId,
       providerAck: data.providerAck,
       providerAckName: data.providerAckName,
@@ -372,7 +311,11 @@ const sendOnce = async (prisma, { booking, type, target, text, force = false }) 
   if (!force && shouldSkipNotification(existing)) return;
 
   try {
-    const result = await sendText({ chatId: target, text });
+    const result = await sendText({
+      chatId: target,
+      text,
+      externalKey: `talita-${booking.id}-${type}-${Date.now()}`,
+    });
     const providerAck = getProviderAck(result);
     const providerAckName = getProviderAckName(result);
     const status = getNotificationStatusFromAck({
@@ -389,8 +332,9 @@ const sendOnce = async (prisma, { booking, type, target, text, force = false }) 
       error: result.skipped
         ? result.reason
         : status === 'failed'
-          ? `WAHA retornou ack de erro (${providerAckName || providerAck})`
+          ? `${String(result.provider || 'provedor').toUpperCase()} retornou ack de erro (${providerAckName || providerAck})`
           : null,
+      provider: result.provider || null,
       providerMessageId: getProviderMessageId(result),
       providerAck,
       providerAckName,
@@ -406,6 +350,7 @@ const sendOnce = async (prisma, { booking, type, target, text, force = false }) 
       target,
       status: 'failed',
       error: error.message?.slice(0, 1000) || 'Erro desconhecido',
+      provider: null,
       retryCount,
       nextRetryAt: getNextRetryAt(retryCount),
     });
@@ -640,7 +585,7 @@ export const ensureBookingClientNotification = async (prisma, booking) => {
     return {
       sent: false,
       status: existing.status,
-      message: 'Resumo da cliente ja tinha sido aceito pela WAHA.',
+      message: `Resumo da cliente ja tinha sido aceito pelo provedor ${existing.provider || 'WhatsApp'}.`,
       notification: existing,
     };
   }
